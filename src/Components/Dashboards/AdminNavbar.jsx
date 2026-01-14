@@ -54,7 +54,7 @@ const AdminNavbar = () => {
           </div>
           
           <button className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-sm text-xs font-bold uppercase tracking-widest transition-all hover:scale-105">
-            Generate Report
+            Generate Reporrt
           </button>
           <button className="bg-red-900/40 hover:bg-red-700 text-white px-4 py-1.5 rounded-sm text-xs font-bold uppercase tracking-widest transition-all" onClick={handleLogout}>
             Logout
