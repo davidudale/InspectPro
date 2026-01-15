@@ -35,6 +35,6 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local_path: './dist'
-        remote_path: 'inspectPro/'
+        remote_path: 'public_html/inspectPro/'
         port: 22
         sftp_only: true
