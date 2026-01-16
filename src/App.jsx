@@ -13,6 +13,9 @@ import InspectionDashboard from "./Components/Page/InspectionDashboard.jsx";
 import UserPage from "./Components/Dashboards/AdminFiles/UserManagement/UserPage.jsx";
 import Adduser from "./Components/Dashboards/AdminFiles/UserManagement/Adduser.jsx";
 import EditUser from "./Components/Dashboards/AdminFiles/UserManagement/EditUser.jsx";
+import ManagerDashboard from "./Components/Page/ManagerDashboard.jsx";
+import InspectionLogs from "./Components/Dashboards/AdminFiles/InspectionFile/InspectionLogs.jsx";
+import AddInspectionTemplate from "./Components/Dashboards/AdminFiles/InspectionFile/AddInspectionTemplate.jsx";
 
 
 function App() {
@@ -46,6 +49,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+        {/* Manager & Above */}
+        <Route
+          path="/ManagerDashboard"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inspections"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <InspectionLogs />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Admin Only */}
         <Route
@@ -76,6 +96,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
               <EditUser />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/addInspectionTemp"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <AddInspectionTemplate />
             </ProtectedRoute>
           }
         />

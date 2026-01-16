@@ -1,23 +1,15 @@
-import React from "react";
-import {
-  Menu,
-  X,
-  FileText,
-  LogOut,
-  User,
-  LayoutDashboard,
-  ClipboardCheck,
-  Users,
-  Settings,
-  ShieldAlert,
-  HelpCircle,
+import React, { useState } from "react";
+import { 
+  LayoutDashboard, 
+  ClipboardCheck, 
+  Users, 
+  ShieldAlert, 
+  Settings, 
   ChevronDown, 
   Briefcase, 
   Wrench, 
   Sliders 
-} from "lucide-react"; // Example icons
-import { useState } from "react";
-
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const sidebarLinks = [
@@ -27,33 +19,12 @@ const sidebarLinks = [
     href: "/admin-dashboard",
   },
   {
-    name: "Inspection Management",
+    name: "Operations",
     icon: <ClipboardCheck size={20} />,
     // This item has a dropdown
     subLinks: [
-      { name: "View Inspections", icon: <FileText size={16} />, href: "/admin/inspections" },
-      { name: "Add Inspections", icon: <FileText size={16} />, href: "/admin/addInspectionTemp" },
-      
-    ]
-  },
-  {
-    name: "Project Management",
-    icon: <ClipboardCheck size={20} />,
-    // This item has a dropdown
-    subLinks: [
-      { name: "View Inspections", icon: <FileText size={16} />, href: "/admin/inspections" },
-      { name: "Add Inspections", icon: <FileText size={16} />, href: "/admin/addinspections" },
-      
-    ]
-  },
-  {
-    name: "Report Management",
-    icon: <ClipboardCheck size={20} />,
-    // This item has a dropdown
-    subLinks: [
-      { name: "View Inspections", icon: <FileText size={16} />, href: "/admin/inspections" },
-      { name: "Add Inspections", icon: <FileText size={16} />, href: "/admin/addinspections" },
-      
+      { name: "Inspections", icon: <FileText size={16} />, href: "/admin/inspections" },
+      { name: "Report Management", icon: <ShieldAlert size={16} />, href: "/admin/logs" },
     ]
   },
   { name: "User Management", icon: <Users size={20} />, href: "/admin/users" },
@@ -69,35 +40,37 @@ const sidebarLinks = [
 ];
 
 const AdminSidebar = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    // State to track which dropdown is open (by name)
-    const [openDropdown, setOpenDropdown] = useState(null);
-    
-      const toggleDropdown = (name) => {
-        setOpenDropdown(openDropdown === name ? null : name);
-      };
+  const navigate = useNavigate();
+  const location = useLocation();
+  // State to track which dropdown is open (by name)
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  const toggleDropdown = (name) => {
+    setOpenDropdown(openDropdown === name ? null : name);
+  };
+
   return (
-    <aside className="w-16 min-h-screen lg:w-64 fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
+    <aside className="fixed left-0 top-0 h-screen w-16 lg:w-64 border-r border-slate-800 bg-slate-950/50 backdrop-blur-xl transition-all duration-300 flex flex-col z-50">
+      {/* Profile Section */}
       <div className="p-4 lg:p-6 border-b border-slate-800/50">
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
-            <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 p-0.5 shadow-orange-500/20">
-              <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-white font-bold text-xs lg:text-base">
+            <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 p-0.5">
+              <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-white font-bold text-xs lg:text-sm">
                 AV
               </div>
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
           </div>
-          <div className="hidden lg:block overflow-hidden">
-            <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
-              Alex InspectPro
-            </p>
+          <div className="hidden lg:block">
+            <p className="text-xs font-bold text-white uppercase tracking-tight truncate">Alex InspectPro</p>
+            <p className="text-[10px] text-slate-500 uppercase font-bold">System Admin</p>
           </div>
         </div>
       </div>
-      {/* Example Sidebar Icons for Mobile */}
-<nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+
+      {/* Navigation Links */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         {sidebarLinks.map((link, index) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;

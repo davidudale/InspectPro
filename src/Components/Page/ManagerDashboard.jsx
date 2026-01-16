@@ -14,7 +14,7 @@ import { db } from "../Auth/firebase"; // adjust path as needed
 import { collection, onSnapshot } from "firebase/firestore";
 
 
-  const AdminDashboard = () => {
+  const ManagerDashboard = () => {
   const [userCount, setUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -168,4 +168,4 @@ import { collection, onSnapshot } from "firebase/firestore";
   );
 };
 
-export default AdminDashboard;
+export default ManagerDashboard;
