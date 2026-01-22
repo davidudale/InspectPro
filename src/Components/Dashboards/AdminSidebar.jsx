@@ -16,9 +16,12 @@ import {
   Wrench, 
   Sliders 
 } from "lucide-react"; // Example icons
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
+import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
+import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 const sidebarLinks = [
   {
@@ -64,6 +67,9 @@ const sidebarLinks = [
 ];
 
 const AdminSidebar = () => {
+  const [userCount, setUserCount] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [fullName, setFullName] = useState(""); // State for logged-in user's name
     const navigate = useNavigate();
     const location = useLocation();
     // State to track which dropdown is open (by name)
@@ -72,6 +78,39 @@ const AdminSidebar = () => {
       const toggleDropdown = (name) => {
         setOpenDropdown(openDropdown === name ? null : name);
       };
+
+       // 1. Fetch live user count
+        useEffect(() => {
+          const usersRef = collection(db, "users");
+          const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+            setUserCount(snapshot.size);
+            setLoading(false);
+          });
+      
+          return () => unsubscribe();
+        }, []);
+
+          // 2. Fetch logged-in user's Full Name
+          useEffect(() => {
+            const unsubscribe = onAuthStateChanged(auth, async (user) => {
+              if (user) {
+                try {
+                  const docRef = doc(db, "users", user.uid);
+                  const docSnap = await getDoc(docRef);
+        
+                  if (docSnap.exists()) {
+                    // Assuming your Firestore field is called 'fullName'
+                    setFullName(docSnap.data().fullName || docSnap.data().name || "Admin");
+                  }
+                } catch (error) {
+                  console.error("Error fetching user profile:", error);
+                }
+              }
+            });
+        
+            return () => unsubscribe();
+          }, []);
+
   return (
     <aside className="w-16 h-screen lg:w-64 fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
       <div className="p-4 lg:p-6 border-b border-slate-800/50">
@@ -86,7 +125,7 @@ const AdminSidebar = () => {
           </div>
           <div className="hidden lg:block overflow-hidden">
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
-              Alex InspectPro
+              {fullName || "Admin"}
             </p>
           </div>
         </div>

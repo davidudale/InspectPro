@@ -10,61 +10,89 @@ import {
 } from "lucide-react";
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
-import { db } from "../Auth/firebase"; // adjust path as needed
-import { collection, onSnapshot } from "firebase/firestore";
+import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
+import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
-
-  const AdminDashboard = () => {
+const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState(""); // State for logged-in user's name
 
   // 1. Fetch live user count
   useEffect(() => {
     const usersRef = collection(db, "users");
     const unsubscribe = onSnapshot(usersRef, (snapshot) => {
-      setUserCount(snapshot.size); // snapshot.size gives the total document count
+      setUserCount(snapshot.size);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-  // 1. Metric Data (Eventually fetch from Firebase/System API)
+
+  // 2. Fetch logged-in user's Full Name
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            // Assuming your Firestore field is called 'fullName'
+            setFullName(docSnap.data().fullName || docSnap.data().name || "Admin");
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const stats = [
     {
       label: "Active Inspections",
       value: "12",
       icon: <Activity className="text-orange-500" />,
       trend: "+2 today",
+      href: ""
     },
     {
       label: "Reports Under Management",
       value: "5",
       icon: <ShieldCheck className="text-emerald-500" />,
       trend: "Optimal",
+      href: ""
     },
     {
       label: "System Users",
-      value: loading ? "..." : userCount.toString(), // Display loading or count
+      value: loading ? "..." : userCount.toString(),
       icon: <User className="text-blue-500" />,
       trend: "Live Data",
+      href: "/admin/users"
     },
     {
       label: "Projects",
       value: "3",
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
+      href: ""
     },
     {
       label: "Equipments Under Management",
       value: "3",
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
+      href: ""
     },
     {
       label: "Users",
       value: "3",
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
+      href: "/admin/users"
     },
   ];
 
@@ -82,7 +110,7 @@ import { collection, onSnapshot } from "firebase/firestore";
                   System Overview
                 </h1>
                 <p className="text-slate-400 text-sm mt-1">
-                  Welcome back.
+                  Welcome back, <span className="text-orange-500 font-semibold">{fullName || "Admin"}</span>.
                 </p>
               </div>
               <button className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20">
@@ -100,7 +128,7 @@ import { collection, onSnapshot } from "firebase/firestore";
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="p-2 bg-slate-950 rounded-lg border border-slate-800 group-hover:border-orange-500/50 transition-colors">
-                      {stat.icon}
+                     <a href={stat.href}>{stat.icon}</a>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       {stat.trend}
@@ -146,7 +174,6 @@ import { collection, onSnapshot } from "firebase/firestore";
                 </div>
               </div>
 
-              {/* Quick Actions / System Performance Placeholder */}
               <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col justify-center items-center text-center">
                 <div className="w-16 h-16 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-4">
                   <Activity className="text-slate-600" size={32} />

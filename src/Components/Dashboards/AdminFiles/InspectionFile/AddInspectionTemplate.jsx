@@ -73,7 +73,7 @@ const AddInspectionTemplate = () => {
         timestamp: serverTimestamp(),
       });
 
-      toast.success("Batch Inspection Templates Archived");
+      toast.success("Report Added");
       navigate("/admin/inspections");
     } catch (error) {
       console.error(error);
@@ -93,7 +93,7 @@ const AddInspectionTemplate = () => {
             
             <button onClick={() => navigate("/admin/inspections")} className="flex items-center gap-2 text-slate-500 hover:text-orange-500 mb-6 transition-colors group">
               <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-              Back to Inspection Template View
+              Back to Report Template View
             </button>
 
             <div className="flex items-center justify-between mb-10">
@@ -102,8 +102,8 @@ const AddInspectionTemplate = () => {
                   <ClipboardCheck className="text-orange-500" size={32} />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight uppercase">New Inspection Entry</h1>
-                  <p className="text-slate-500 text-sm">Configure multiple technical inspection headers.</p>
+                  <h1 className="text-3xl font-bold text-white tracking-tight uppercase">New Report Entry</h1>
+                  <p className="text-slate-500 text-sm">Configure multiple technical Report headers.</p>
                 </div>
               </div>
             </div>
@@ -114,7 +114,7 @@ const AddInspectionTemplate = () => {
                   
                   {/* Row Header */}
                   <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
-                    <span className="text-xs font-bold text-orange-500 uppercase tracking-[0.3em]">Inspection Standard #{index + 1}</span>
+                    <span className="text-xs font-bold text-orange-500 uppercase tracking-[0.3em]">Report Standard #{index + 1}</span>
                     <div className="flex gap-2">
                       <button type="button" onClick={addNewField} className="p-2 bg-orange-600/10 text-orange-500 rounded-lg border border-orange-600/20 hover:bg-orange-600 hover:text-white transition-all"><Plus size={16} /></button>
                       {inspectionItems.length > 1 && (
@@ -178,7 +178,7 @@ const AddInspectionTemplate = () => {
                 {loading ? (
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 ) : (
-                  <><Save size={18} /> Add New Inspection Template</>
+                  <><Save size={18} /> Add New Report Template</>
                 )}
               </button>
             </form>

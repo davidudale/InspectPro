@@ -60,18 +60,18 @@ const InspectionLogs = () => {
             <div className="flex items-center justify-between mb-10">
               <div>
                 <h1 className="text-2xl font-bold text-white tracking-tight uppercase">
-                  Inspection Archives
+                  Report Archives
                 </h1>
                 <p className="text-slate-500 text-sm mt-1">
-                  Manage Inspection and inspection templates.
+                  Manage Report and Report templates.
                 </p>
               </div>
               <button
                 className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-900/20 active:scale-95"
-                onClick={() => navigate("/admin/new-inspection")}
+                onClick={() => navigate("/admin/addInspectionTemp")}
               >
                 <PlusCircle size={18} />
-                New Inspection Template
+                New Report Template
               </button>
             </div>
 
@@ -79,13 +79,13 @@ const InspectionLogs = () => {
               <div className="p-20 flex flex-col items-center gap-4">
                 <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500"></div>
                 <p className="text-slate-500 font-mono text-xs uppercase tracking-widest">
-                  Loading Inspection...
+                  Loading Report...
                 </p>
               </div>
             ) : inspections.length === 0 ? (
               <div className="p-20 text-center text-slate-500 bg-slate-900/20 border border-dashed border-slate-800 rounded-3xl">
                 <FileSearch className="mx-auto mb-4 opacity-10" size={64} />
-                <p>No Inspection found...</p>
+                <p>No Report found...</p>
               </div>
             ) : (
               /* Folder Grid */
