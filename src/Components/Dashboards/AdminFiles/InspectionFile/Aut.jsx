@@ -999,67 +999,85 @@ const Aut = () => {
 
 // --- TECHNICAL WEB REPORT VIEW ---
 const WebView = ({ reportData, setReportMode, user, getStatus }) => {
-  // Defensive logic for optional properties
   const summary = reportData?.summary || {};
 
-  const PageHeader = () => (
-    <div className="grid grid-cols-[1fr_2fr_1fr] border border-slate-900 mb-6 text-center items-center font-bold">
-      <div className="border-r border-slate-900 p-2 text-[10px] uppercase">
-        Client Logo
-      </div>
-      <div className="p-2 space-y-1">
-        <div className="text-xs uppercase">
-          {reportData?.general?.platform || "PLATFORM NAME"}
-        </div>
-        <div className="text-xs uppercase">
-          {reportData?.general?.equipment} ({reportData?.general?.tag})
-        </div>
-      </div>
-      <div className="border-l border-slate-900 p-2 text-[10px] text-blue-700 uppercase">
-        Company Logo
-      </div>
+  // UPDATED HEADER TO INCLUDE DYNAMIC LOGO
+const PageHeader = () => (
+  <div className="grid grid-cols-[1fr_2fr_1fr] border border-slate-900 mb-6 text-center items-center font-bold">
+    <div className="border-r border-slate-900 p-2 h-16 flex items-center justify-center">
+      {reportData?.general?.clientLogo ? (
+        <img 
+          src={reportData.general.clientLogo} 
+          alt="Client Logo" 
+          className="max-h-full max-w-full object-contain" 
+        />
+      ) : (
+        <span className="text-[9px] uppercase text-slate-400">Client Identity</span>
+      )}
     </div>
-  );
-
+    {/* Center text for Platform and Equipment details */}
+    <div className="p-2 space-y-1">
+      <div className="text-[10px] uppercase">{reportData?.general?.platform}</div>
+      <div className="text-[10px] uppercase font-black">{reportData?.general?.equipment}</div>
+    </div>
+    <div className="border-l border-slate-900 p-2 text-[9px] text-blue-800 uppercase flex items-center justify-center">
+       COMPANY LOGO
+    </div>
+  </div>
+);
   return (
     <div className="min-h-screen bg-white text-slate-900 p-12 font-serif selection:bg-orange-200">
       {/* PAGE 1: COVER PAGE */}
       <div className="max-w-4xl mx-auto min-h-[1056px] border-2 border-slate-900 p-12 relative flex flex-col mb-12">
         <div className="text-center">
-          <div className="flex justify-between items-start mb-20 text-lg font-bold uppercase">
-            <div>Client Logo</div>
-            <div>Company Logo</div>
+          <div className="flex justify-between items-start mb-20 text-lg font-bold uppercase h-24">
+            <div className="w-48 h-full flex items-center justify-start">
+               {reportData?.general?.clientLogo ? (
+                  <img src={reportData.general.clientLogo} alt="Client" className="max-h-full object-contain" />
+               ) : "Client Logo"}
+            </div>
+            <div className="w-48 h-full flex items-center justify-end text-blue-700">
+               Company Logo
+            </div>
           </div>
-          <h1 className="text-2xl font-bold underline uppercase mb-8 tracking-widest">
+          
+          <h1 className="text-2xl font-bold underline uppercase mb-8 tracking-widest text-slate-800">
             {reportData?.general?.platform}
           </h1>
           <h2 className="text-xl font-bold uppercase mb-4">
-            CORROISON MAPPING INSPECTION REPORT
+            CORROSION MAPPING INSPECTION REPORT
           </h2>
           <h3 className="text-lg font-bold uppercase mb-20">
             {reportData?.general?.equipment} & {reportData?.general?.tag}
           </h3>
-          <div className="border border-slate-900 w-64 h-48 mx-auto flex items-center justify-center mb-24 bg-slate-50 text-[10px] font-bold uppercase">
-            PHOTO OF EQUIPMENT
+
+          {/* Main Equipment Image (Section 4 first image or fallback) */}
+          <div className="border-2 border-slate-900 w-80 h-60 mx-auto flex items-center justify-center mb-24 bg-slate-50 overflow-hidden shadow-lg">
+            {reportData?.images?.[0] ? (
+               <img src={reportData.images[0].url} className="w-full h-full object-cover" alt="Main Equipment" />
+            ) : (
+               <span className="text-[10px] font-bold uppercase text-slate-400">Main Equipment Photo</span>
+            )}
           </div>
-          <div className="space-y-4 font-bold">
+
+          <div className="space-y-4 font-bold border-t-2 border-slate-100 pt-8">
             <p className="text-red-600 text-sm">
-              WORK ORDER #: {reportData?.general?.workOrder}
+              WORK ORDER #: {reportData?.general?.workOrder || "N/A"}
             </p>
-            <p className="text-sm uppercase">
+            <p className="text-sm uppercase tracking-tight">
               REPORT#: {reportData?.general?.reportNum}
             </p>
             <p className="text-sm uppercase">
               DATE: {reportData?.general?.date}
             </p>
-            <p className="text-sm uppercase tracking-[0.3em] mt-8 font-bold">
-              ORIGINAL
-            </p>
+            <div className="pt-10 flex justify-center">
+               <span className="border-4 border-slate-900 px-8 py-2 text-xl font-black rotate-[-5deg] opacity-20">ORIGINAL</span>
+            </div>
           </div>
         </div>
         <div className="mt-auto pt-10 text-center">
-          <p className="text-red-600 text-sm font-bold underline uppercase tracking-widest">
-            ({reportData?.general?.client || "CLIENT NAME"}) USE ONLY
+          <p className="text-red-600 text-xs font-bold underline uppercase tracking-[0.2em]">
+            FOR ({reportData?.general?.client || "AUTHORISED PERSONNEL"}) USE ONLY
           </p>
         </div>
       </div>

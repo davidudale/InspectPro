@@ -19,6 +19,12 @@ import AddInspectionTemplate from "./Components/Dashboards/AdminFiles/Inspection
 import Aut from "./Components/Dashboards/AdminFiles/InspectionFile/Aut.jsx";
 import ViewInspection from "./Components/Dashboards/AdminFiles/InspectionFile/ViewInspection.jsx";
 import ItemDetailView from "./Components/Dashboards/AdminFiles/InspectionFile/ItemDetailView.jsx";
+import ProjectSetup from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectSetup.jsx";
+import ProjectList from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectList.jsx";
+import ClientManager from "./Components/Dashboards/AdminFiles/SetupManagement/ClientManager.jsx";
+import LocationManager from "./Components/Dashboards/AdminFiles/SetupManagement/LocationManager.jsx";
+import InspectionTypeManager from "./Components/Dashboards/AdminFiles/ProjectManagement/InspectionTypeManager.jsx";
+import EquipmentManager from "./Components/Dashboards/AdminFiles/ProjectManagement/EquipmentManager.jsx";
 
 function App() {
   return (
@@ -91,6 +97,58 @@ function App() {
               <Aut />
             </ProtectedRoute>
           }
+        />
+         <Route
+          path="/projects"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <ProjectSetup />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/viewprojects"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <ProjectList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/Client"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <ClientManager />
+            </ProtectedRoute>
+          }
+          
+        />
+        <Route
+          path="/location"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <LocationManager />
+            </ProtectedRoute>
+          }
+          
+        />
+        <Route
+          path="/inspection_type"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <InspectionTypeManager />
+            </ProtectedRoute>
+          }
+          
+        />
+        <Route
+          path="/equipment"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <EquipmentManager />
+            </ProtectedRoute>
+          }
+          
         />
         {/* Admin Only */}
         <Route
