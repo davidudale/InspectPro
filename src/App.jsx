@@ -16,7 +16,7 @@ import EditUser from "./Components/Dashboards/AdminFiles/UserManagement/EditUser
 import ManagerDashboard from "./Components/Page/ManagerDashboard.jsx";
 import InspectionLogs from "./Components/Dashboards/AdminFiles/InspectionFile/InspectionLogs.jsx";
 import AddInspectionTemplate from "./Components/Dashboards/AdminFiles/InspectionFile/AddInspectionTemplate.jsx";
-import Aut from "./Components/Dashboards/AdminFiles/InspectionFile/Aut.jsx";
+import Aut from "./Components/Dashboards/AdminFiles/ReportManagement/Aut.jsx";
 import ViewInspection from "./Components/Dashboards/AdminFiles/InspectionFile/ViewInspection.jsx";
 import ItemDetailView from "./Components/Dashboards/AdminFiles/InspectionFile/ItemDetailView.jsx";
 import ProjectSetup from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectSetup.jsx";
@@ -26,6 +26,8 @@ import LocationManager from "./Components/Dashboards/AdminFiles/SetupManagement/
 import InspectionTypeManager from "./Components/Dashboards/AdminFiles/ProjectManagement/InspectionTypeManager.jsx";
 import EquipmentManager from "./Components/Dashboards/AdminFiles/ProjectManagement/EquipmentManager.jsx";
 import ProjectEdit from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectEdit.jsx";
+import VisualReport from "./Components/Dashboards/AdminFiles/ReportManagement/VisualReport.jsx";
+import MutReport from "./Components/Dashboards/AdminFiles/ReportManagement/MutReport.jsx";
 
 function App() {
   return (
@@ -100,14 +102,31 @@ function App() {
           }
         />
         <Route
-          path="admin/aut-report"
+          path="/admin/reports/aut"
           element={
             <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
               <Aut />
             </ProtectedRoute>
           }
         />
-         <Route
+        <Route
+          path="/admin/reports/visual"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <VisualReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports/mut"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <MutReport />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/projects"
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
@@ -130,7 +149,6 @@ function App() {
               <ClientManager />
             </ProtectedRoute>
           }
-          
         />
         <Route
           path="/location"
@@ -139,7 +157,6 @@ function App() {
               <LocationManager />
             </ProtectedRoute>
           }
-          
         />
         <Route
           path="/inspection_type"
@@ -148,7 +165,6 @@ function App() {
               <InspectionTypeManager />
             </ProtectedRoute>
           }
-          
         />
         <Route
           path="/equipment"
@@ -157,7 +173,6 @@ function App() {
               <EquipmentManager />
             </ProtectedRoute>
           }
-          
         />
         {/* Admin Only */}
         <Route

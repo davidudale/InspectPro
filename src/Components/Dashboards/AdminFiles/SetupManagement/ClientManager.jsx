@@ -6,7 +6,7 @@ import {
 } from "firebase/firestore";
 import { 
   Building2, Mail, Globe, Phone, Plus, Camera,
-  ExternalLink, Search, Edit2, Trash2, X, Briefcase
+  ExternalLink, Search, Edit2, Trash2, X, MapPin
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
@@ -21,8 +21,9 @@ const ClientManager = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [editingId, setEditingId] = useState(null); 
   
+  // Updated state structure to include address
   const [newClient, setNewClient] = useState({ 
-    name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "" 
+    name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "", address: "" 
   });
 
   useEffect(() => {
@@ -86,10 +87,8 @@ const ClientManager = () => {
         await addDoc(collection(db, "clients"), {
           ...newClient,
           createdAt: serverTimestamp(),
-          activeProjects: 0
         });
         toast.success("Client Authorized: Proceed to Location Mapping");
-         
       }
       closeModal();
     } catch (err) {
@@ -100,7 +99,7 @@ const ClientManager = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    setNewClient({ name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "" });
+    setNewClient({ name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "", address: "" });
   };
 
   const filteredClients = clients.filter(c => 
@@ -117,7 +116,6 @@ const ClientManager = () => {
         <main className="flex-1 ml-16 lg:ml-64 p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             
-            {/* Header & Advanced Filter */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
                 <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">Client Portfolio</h1>
@@ -141,7 +139,6 @@ const ClientManager = () => {
               </div>
             </div>
 
-            {/* TABULAR INTERFACE */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -149,9 +146,9 @@ const ClientManager = () => {
                     <tr className="border-b border-slate-800 bg-slate-950/50">
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Client Branding</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Industry Context</th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Communication Channel</th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Scale</th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Operational Controls</th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Corporate Address</th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact Details</th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
@@ -175,6 +172,12 @@ const ClientManager = () => {
                           </span>
                         </td>
                         <td className="p-6">
+                          <div className="flex items-start gap-2 text-slate-400">
+                             <MapPin size={12} className="text-slate-600 mt-1 shrink-0" />
+                             <span className="text-xs max-w-[200px] line-clamp-2">{client.address || "No address provided"}</span>
+                          </div>
+                        </td>
+                        <td className="p-6">
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center gap-2 text-slate-400">
                               <Mail size={12} className="text-slate-600" />
@@ -186,12 +189,6 @@ const ClientManager = () => {
                             </div>
                           </div>
                         </td>
-                        <td className="p-6">
-                           <div className="flex items-center gap-2">
-                             <Briefcase size={14} className="text-slate-700" />
-                             <span className="text-xs font-bold text-white font-mono">{client.activeProjects || 0}</span>
-                           </div>
-                        </td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => handleEditOpen(client)} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 hover:border-blue-500/50 transition-all shadow-inner">
@@ -200,9 +197,6 @@ const ClientManager = () => {
                             <button onClick={() => handleDelete(client.id, client.name)} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-500/50 transition-all shadow-inner">
                               <Trash2 size={14}/>
                             </button>
-                            <button className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-orange-500 hover:border-orange-500/50 transition-all shadow-inner">
-                                <ExternalLink size={14} />
-                            </button>
                           </div>
                         </td>
                       </tr>
@@ -210,27 +204,19 @@ const ClientManager = () => {
                   </tbody>
                 </table>
               </div>
-              {filteredClients.length === 0 && (
-                <div className="py-20 text-center flex flex-col items-center">
-                   <Building2 size={40} className="text-slate-800 mb-4" />
-                   <p className="text-[10px] font-bold uppercase text-slate-600 tracking-widest">No Client found matching</p>
-                </div>
-              )}
             </div>
           </div>
         </main>
       </div>
 
-      {/* Unified Modal Logic Remains the Same */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 w-full max-w-xl rounded-[2.5rem] p-10 shadow-2xl relative max-h-[90vh] overflow-y-auto animate-in zoom-in duration-300">
             <button onClick={closeModal} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors">
                 <X size={20}/>
             </button>
-            <h2 className="text-2xl font-bold text-white uppercase tracking-tighter mb-8">{editingId ? "Update Data" : "Register Data"}</h2>
+            <h2 className="text-2xl font-bold text-white uppercase tracking-tighter mb-8">{editingId ? "Update Client" : "Register Client"}</h2>
             <form onSubmit={handleFormSubmit} className="space-y-6">
-               {/* Same form logic as before... */}
                <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-950/50 mb-6">
                 <label className="cursor-pointer group relative flex flex-col items-center">
                   <div className="w-24 h-24 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden transition-all group-hover:border-orange-500/50 shadow-inner">
@@ -240,25 +226,39 @@ const ClientManager = () => {
                   <span className="text-[9px] font-bold text-slate-500 uppercase mt-2 tracking-widest group-hover:text-orange-500 transition-colors">Corporate Logo</span>
                 </label>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Client Name</label>
-                <input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none" value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                 <div className="space-y-2">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Client Name</label>
+                  <input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all" value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} />
+                </div>
+                <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Industry</label>
                     <select className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none" value={newClient.industry} onChange={(e) => setNewClient({...newClient, industry: e.target.value})}>
                       <option>Oil & Gas</option><option>Renewables</option><option>Manufacturing</option><option>Marine</option><option>Infrastructure</option>
                     </select>
                  </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Physical Address</label>
+                <textarea className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all min-h-[80px] resize-none" value={newClient.address} onChange={(e) => setNewClient({...newClient, address: e.target.value})} placeholder="HQ Office Location..." />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Phone</label>
-                    <input className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none" value={newClient.phone} onChange={(e) => setNewClient({...newClient, phone: e.target.value})} placeholder="+234..." />
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Official Email</label>
+                    <input type="email" required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all" value={newClient.email} onChange={(e) => setNewClient({...newClient, email: e.target.value})} placeholder="contact@client.com" />
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Contact Number</label>
+                    <input className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all" value={newClient.phone} onChange={(e) => setNewClient({...newClient, phone: e.target.value})} placeholder="+234..." />
                  </div>
               </div>
+              
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={closeModal} className="flex-1 py-4 text-[10px] font-bold uppercase text-slate-500">Cancel</button>
-                <button type="submit" disabled={isUploading} className="flex-1 bg-orange-600 py-4 rounded-2xl text-[10px] font-bold uppercase text-white shadow-lg">{isUploading ? "Uploading..." : "Authorize Client"}</button>
+                <button type="submit" disabled={isUploading} className="flex-1 bg-orange-600 py-4 rounded-2xl text-[10px] font-bold uppercase text-white shadow-lg">{isUploading ? "Uploading..." : editingId ? "Update Data" : "Authorize Client"}</button>
               </div>
             </form>
           </div>
