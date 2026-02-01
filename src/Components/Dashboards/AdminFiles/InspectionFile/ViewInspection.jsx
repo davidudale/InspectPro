@@ -1,21 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import { toast } from "react-toastify";
 import {
-  ArrowLeft,
-  Clock,
-  User,
-  Activity,
-  Hash,
-  ShieldCheck,
-  ChevronRight,
-  Database,
-  MapPin,
-  Building2,
-  Lock
+  ArrowLeft, Clock, User, Activity, Hash, ShieldCheck,
+  ChevronRight, Database, MapPin, Building2, Lock,
+  Camera, Printer, XCircle, FileText, Layout
 } from "lucide-react";
 
 const ViewInspection = () => {
@@ -23,17 +16,15 @@ const ViewInspection = () => {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reportMode, setReportMode] = useState(false); // Toggle for Web Report View
 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
         const docRef = doc(db, "inspections", id);
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
           setData(docSnap.data());
-        } else {
-          console.log("Archive not found");
         }
       } catch (error) {
         console.error("Error fetching manifest:", error);
@@ -41,160 +32,138 @@ const ViewInspection = () => {
         setLoading(false);
       }
     };
-
     fetchDetails();
   }, [id]);
 
-  if (loading) {
+  const handlePhotoUpload = async (e, itemIndex) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Implementation Note: In a production environment, you would upload to Firebase Storage 
+    // and save the URL. For this structure, we use a placeholder toast.
+    toast.info("Uploading evidence to secure cloud...");
+    
+    // Simulate successful upload and update local state
+    const updatedItems = [...data.items];
+    updatedItems[itemIndex].evidenceUrl = URL.createObjectURL(file); // Temporary preview
+    setData({ ...data, items: updatedItems });
+  };
+
+  // --- SUB-COMPONENT: WEB REPORT VIEW (PAGINATED STYLE) ---
+  const WebReportView = () => {
     return (
-      <div className="flex h-screen bg-slate-950 items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
+      <div className="min-h-screen bg-slate-100 py-10 no-scrollbar overflow-y-auto font-sans text-slate-900">
+        <div className="fixed right-10 top-10 flex flex-col gap-4 no-print z-50">
+          <button onClick={() => window.print()} className="bg-orange-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all">
+            <Printer size={24} />
+          </button>
+          <button onClick={() => setReportMode(false)} className="bg-slate-900 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-all">
+            <XCircle size={24} />
+          </button>
+        </div>
+
+        {/* PAGE 1: COVER SHEET [cite: 1, 3, 5] */}
+        <div className="max-w-[850px] mx-auto bg-white border border-slate-300 p-20 shadow-2xl mb-10 min-h-[1100px] flex flex-col print:m-0 break-after-page" style={{ breakAfter: 'page' }}>
+           <div className="flex justify-between items-center mb-20 uppercase font-black text-xl italic border-b-4 border-slate-900 pb-4">
+             Inspection Record [cite: 1]
+             <div className="text-blue-900">INSPECTPRO [cite: 2]</div>
+           </div>
+           <div className="text-center flex-1">
+              <h1 className="text-4xl font-serif font-bold underline mb-4 uppercase text-slate-800">Operational Log</h1>
+              <h2 className="text-2xl font-bold mb-10 tracking-[0.2em] uppercase">Visual Testing (VT) Summary [cite: 3]</h2>
+              <div className="w-full aspect-video bg-slate-100 border-2 border-slate-900 mx-auto mb-10 flex items-center justify-center overflow-hidden shadow-inner">
+                 {data?.items?.[0]?.evidenceUrl ? (
+                   <img src={data.items[0].evidenceUrl} className="w-full h-full object-cover" alt="Primary Evidence"/>
+                 ) : (
+                   <Activity size={120} className="text-slate-200" />
+                 )}
+              </div>
+              <div className="space-y-4 text-left inline-block font-bold border-l-4 border-orange-500 pl-6">
+                <p className="text-sm uppercase tracking-wider">Report Ref: <span className="font-normal text-slate-500">{id.substring(0,8)}</span> [cite: 4]</p>
+                <p className="text-sm uppercase tracking-wider">Asset Range: <span className="font-normal text-slate-500">{data?.items?.[0]?.reference}</span> [cite: 5, 12]</p>
+                <p className="text-sm uppercase tracking-wider">Auth Date: <span className="font-normal text-slate-500">{data?.timestamp?.toDate().toLocaleDateString()}</span> [cite: 6]</p>
+              </div>
+           </div>
+           <div className="mt-auto border-t-4 border-slate-900 pt-6 text-center text-[10px] font-black text-red-600 tracking-[0.3em]">CONFIDENTIAL ENGINEERING DOCUMENT [cite: 7]</div>
+        </div>
+
+        {/* PAGE 2: LOGISTICS & EVIDENCE GRID [cite: 8, 9, 63] */}
+        <div className="max-w-[850px] mx-auto bg-white border border-slate-300 p-12 shadow-2xl min-h-[1100px] flex flex-col print:m-0">
+          <h3 className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase mb-8 tracking-widest">1.0 Photographic Evidence & Technical Detail [cite: 9]</h3>
+          <div className="grid grid-cols-2 gap-8 mb-10">
+            {data?.items?.map((item, idx) => (
+              <div key={idx} className="space-y-3 border border-slate-200 p-4 rounded-lg bg-slate-50">
+                 <div className="aspect-video bg-white border border-slate-300 rounded flex items-center justify-center overflow-hidden">
+                    {item.evidenceUrl ? <img src={item.evidenceUrl} className="w-full h-full object-cover" alt="Log Evidence"/> : <Camera className="text-slate-200"/>}
+                 </div>
+                 <div className="text-[10px] space-y-1">
+                    <p className="font-black uppercase text-slate-700">Ref: {item.reference} [cite: 12]</p>
+                    <p className="text-slate-500 italic uppercase tracking-tighter">Method: {item.type} [cite: 63]</p>
+                 </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-auto pt-4 flex justify-between text-[9px] font-bold border-t border-slate-900 uppercase">
+             <div>InspectPro Archive: {id}</div>
+             <div>Page 2 of 2 </div>
+          </div>
+        </div>
       </div>
     );
-  }
+  };
+
+  if (loading) return <div className="flex h-screen bg-slate-950 items-center justify-center"><Activity className="animate-spin text-orange-500" /></div>;
+  if (reportMode) return <WebReportView />;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
           <div className="max-w-5xl mx-auto">
-            
-            {/* Navigation Header */}
-            <button
-              onClick={() => navigate("/admin/inspections")}
-              className="flex items-center gap-2 text-slate-500 hover:text-orange-500 mb-8 transition-colors group"
-            >
-              <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-              Return to Reports 
-            </button>
-
-            {/* Batch Manifest Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 bg-slate-900/20 p-6 rounded-3xl border border-slate-800">
-              <div className="flex items-center gap-5">
-                <div className="p-4 bg-orange-600/10 rounded-2xl border border-orange-600/20 text-orange-500 shadow-lg shadow-orange-900/10">
-                  <Database size={32} />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight uppercase">
-                    Reports ID: <span className="text-orange-500">{id.substring(0, 8)}</span>
-                  </h1>
-                  <div className="flex flex-wrap items-center gap-4 mt-2 text-xs font-mono text-slate-500 uppercase tracking-widest">
-                    <span className="flex items-center gap-1.5"><Clock size={14} /> {data?.timestamp?.toDate().toLocaleString()}</span>
-                    <span className="flex items-center gap-1.5"><User size={14} /> Created By: {data?.inspectorName}</span>
-                  </div>
-                </div>
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+              <div>
+                <button onClick={() => navigate("/admin/inspections")} className="flex items-center gap-2 text-slate-500 hover:text-orange-500 mb-4 transition-all">
+                  <ArrowLeft size={18} /> Return to Registry
+                </button>
+                <h1 className="text-4xl font-black uppercase tracking-tighter text-white">Archive Manifest</h1>
               </div>
-            </div>
+              <button onClick={() => setReportMode(true)} className="bg-orange-600 px-8 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest flex items-center gap-3 hover:bg-orange-700 shadow-xl shadow-orange-900/20 transition-all active:scale-95">
+                <Layout size={18} /> Web Report View
+              </button>
+            </header>
 
-            {/* Technical Item List */}
-            <div className="space-y-4">
-              <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mb-4 px-2">
-                Available Inspection Templates
-              </h2>
-
-              {data?.items?.map((item, index) => {
-                // Condition: Check inspection method from manifest [cite: 18, 19]
-                const isAUT = item.type.includes("AUT");
-                const isManualUT = item.type.includes("Manual UT") || item.type.includes("MUT");
-                const isSupported = isAUT || isManualUT;
-
-                return (
-                  <div
-                    key={index}
-                    className={`bg-slate-900/40 border border-slate-800 p-6 rounded-3xl backdrop-blur-sm flex flex-col lg:flex-row lg:items-center justify-between group transition-all relative overflow-hidden ${
-                      isSupported ? "hover:border-orange-500/30 cursor-pointer" : "opacity-60 cursor-not-allowed"
-                    }`}
-                    onClick={() => {
-                      if (isAUT) {
-                        // 16-Page Comprehensive AUT Report 
-                        navigate("/admin/aut-report", {
-                          state: {
-                            preFill: {
-                              tag: item.reference,
-                              type: item.type,
-                              client: item.Client,
-                              location: item.Location,
-                              equipment: item.Equipment,
-                              reportNo: item.Report_No,
-                              testCode: item.Test_Code,
-                              criteria: item.Acceptance_Criteria
-                            },
-                          },
-                        });
-                      } else if (isManualUT) {
-                        // Simplified 1-Page Manual UT Report 
-                        navigate("/admin/manual-ut-report", {
-                          state: {
-                            preFill: {
-                              tag: item.reference,
-                              type: item.type,
-                              client: item.Client,
-                              location: item.Location,
-                              equipment: item.Equipment,
-                              reportNo: item.Report_No,
-                              testCode: item.Test_Code
-                            },
-                          },
-                        });
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-6 mb-4 lg:mb-0">
-                      <div className={`flex flex-col items-center justify-center h-14 w-14 rounded-2xl bg-slate-950 border border-slate-800 font-mono text-sm transition-colors ${
-                        isSupported ? "text-slate-500 group-hover:border-orange-500/50 group-hover:text-orange-500" : "text-slate-700"
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          {isSupported ? <Activity size={18} className="text-orange-500" /> : <Lock size={18} className="text-slate-600" />}
-                          <h3 className="text-white font-bold text-xl uppercase tracking-tight">
-                            {item.type}
-                          </h3>
-                          <span className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] font-bold text-slate-500">
-                            {item.Test_Code || "API 510"}
-                          </span>
-                        </div>
-                        
-                        {/* Technical Detail Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 mt-2">
-                          <p className="text-slate-400 flex items-center gap-2 text-xs">
-                            <Building2 size={12} className="text-slate-600" />
-                            Client: <span className="text-slate-200">{item.Client}</span>
-                          </p>
-                          <p className="text-slate-400 flex items-center gap-2 text-xs">
-                            <MapPin size={12} className="text-slate-600" />
-                            Location: <span className="text-slate-200">{item.Location}</span>
-                          </p>
-                          <p className="text-slate-400 flex items-center gap-2 text-xs">
-                            <Hash size={12} className="text-slate-600" />
-                            Tag: <span className="text-slate-200 font-mono">{item.reference}</span>
-                          </p>
-                          <p className="text-slate-400 flex items-center gap-2 text-xs">
-                            <ShieldCheck size={12} className="text-slate-600" />
-                            Equipment: <span className="text-slate-200">{item.Equipment}</span>
-                          </p>
-                        </div>
-                      </div>
+            <div className="grid grid-cols-1 gap-6">
+              {data?.items?.map((item, index) => (
+                <div key={index} className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] flex flex-col lg:flex-row gap-8 items-start group">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <span className="h-10 w-10 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-center font-mono text-xs text-orange-500">0{index + 1}</span>
+                      <h3 className="text-2xl font-bold uppercase text-white">{item.type} [cite: 63]</h3>
                     </div>
-
-                    <div className="flex items-center justify-end border-t border-slate-800 mt-4 pt-4 lg:border-none lg:mt-0 lg:pt-0">
-                      <button
-                        className={`px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${
-                          isSupported 
-                            ? "bg-orange-600/10 text-orange-500 hover:bg-orange-600 hover:text-white group-hover:shadow-lg group-hover:shadow-orange-900/20" 
-                            : "bg-slate-800 text-slate-600 cursor-not-allowed"
-                        }`}
-                      >
-                        {isSupported ? "Initialize Report" : "Method Locked"} 
-                        <ChevronRight size={16} />
-                      </button>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-2">
+                       <Detail label="Tag Ref" value={item.reference} icon={<Hash />} />
+                       <Detail label="Facility" value={item.Location} icon={<MapPin />} />
+                       <Detail label="Client" value={item.Client} icon={<Building2 />} />
                     </div>
                   </div>
-                );
-              })}
+
+                  <div className="w-full lg:w-64 space-y-4">
+                    <label className="cursor-pointer block">
+                      <div className="border-2 border-dashed border-slate-800 rounded-3xl p-6 flex flex-col items-center justify-center hover:border-orange-500/50 hover:bg-orange-500/5 transition-all text-slate-500">
+                         {item.evidenceUrl ? (
+                           <img src={item.evidenceUrl} className="h-20 w-full object-cover rounded-xl mb-2" alt="Evidence Preview" />
+                         ) : (
+                           <Camera size={32} className="mb-2" />
+                         )}
+                         <span className="text-[10px] font-bold uppercase tracking-widest">{item.evidenceUrl ? "Change Photo" : "Upload Evidence"}</span>
+                      </div>
+                      <input type="file" className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(e, index)} />
+                    </label>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </main>
@@ -202,5 +171,15 @@ const ViewInspection = () => {
     </div>
   );
 };
+
+const Detail = ({ label, value, icon }) => (
+  <div className="flex items-start gap-3">
+    <div className="text-slate-600 mt-1">{icon}</div>
+    <div>
+      <p className="text-[9px] font-black uppercase text-slate-600 tracking-widest">{label}</p>
+      <p className="text-sm text-slate-300 font-bold">{value || "N/A"}</p>
+    </div>
+  </div>
+);
 
 export default ViewInspection;

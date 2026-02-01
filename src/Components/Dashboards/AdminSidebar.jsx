@@ -31,7 +31,6 @@ const sidebarLinks = [
   },
   { name: "User Management", icon: <Users size={20} />, href: "/admin/users" },
 
-
   {
     name: "Project Management",
     icon: <ClipboardCheck size={20} />,
@@ -49,23 +48,8 @@ const sidebarLinks = [
       },
     ],
   },
-    {
-    name: "Report Management",
-    icon: <ClipboardCheck size={20} />,
-    // This item has a dropdown
-    subLinks: [
-      {
-        name: "View Report Template",
-        icon: <FileText size={16} />,
-        href: "/admin/inspections",
-      },
-      {
-        name: "Add Report Template",
-        icon: <FileText size={16} />,
-        href: "/admin/addInspectionTemp",
-      },
-    ],
-  },
+
+  
   {
     name: "System Setup",
     icon: <Settings size={20} />,
@@ -94,6 +78,11 @@ const sidebarLinks = [
         name: "Report Template",
         icon: <FileText size={16} />,
         href: "/admin/inspections",
+      },
+      {
+        name: "User Management",
+        icon: <Users size={20} />,
+        href: "/admin/users",
       },
       {
         name: "System Config",
