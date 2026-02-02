@@ -17,7 +17,7 @@ const ProjectList = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const q = query(collection(db, "projects"), orderBy("createdAt", "desc"));
+    const q = query(collection(db, "projects"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const projectsData = snapshot.docs.map(doc => ({
         id: doc.id,

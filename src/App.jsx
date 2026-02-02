@@ -28,6 +28,7 @@ import EquipmentManager from "./Components/Dashboards/AdminFiles/ProjectManageme
 import ProjectEdit from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectEdit.jsx";
 import VisualReport from "./Components/Dashboards/AdminFiles/ReportManagement/VisualReport.jsx";
 import MutReport from "./Components/Dashboards/AdminFiles/ReportManagement/MutReport.jsx";
+import ViewInspectionsList from "./Components/Dashboards/InspectorsFile/ViewInspectionsList.jsx";
 
 function App() {
   return (
@@ -50,6 +51,38 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/Inspection_view"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+            >
+              <ViewInspectionsList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspector/visual-report"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+            >
+              <VisualReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspector/aut-report"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+            >
+              <Aut />
+            </ProtectedRoute>
+          }
+        />
+
+
 
         {/* Supervisor & Above */}
         <Route
@@ -66,6 +99,48 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
               <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Admin Only */}
+        <Route
+          path="/admin-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <UserPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/addusers"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <Adduser />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/edit-user/:userId"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <EditUser />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/addInspectionTemp"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <AddInspectionTemplate />
             </ProtectedRoute>
           }
         />
@@ -135,7 +210,7 @@ function App() {
           }
         />
         <Route
-          path="/viewprojects"
+          path="/admin/projects"
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
               <ProjectList />
@@ -171,47 +246,6 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
               <EquipmentManager />
-            </ProtectedRoute>
-          }
-        />
-        {/* Admin Only */}
-        <Route
-          path="/admin-dashboard"
-          element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
-              <UserPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/addusers"
-          element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
-              <Adduser />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/edit-user/:userId"
-          element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
-              <EditUser />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/addInspectionTemp"
-          element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
-              <AddInspectionTemplate />
             </ProtectedRoute>
           }
         />
