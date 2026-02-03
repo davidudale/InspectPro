@@ -130,7 +130,7 @@ const EquipmentManager = () => {
             
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
-                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">Asset Inventory</h1>
+                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">Equipments</h1>
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">Comprehensive Equipment Registry</p>
               </div>
               
@@ -146,7 +146,7 @@ const EquipmentManager = () => {
                   />
                 </div>
                 <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all">
-                  <Plus size={16}/> Register Asset
+                  <Plus size={16}/> Add Equipment
                 </button>
               </div>
             </div>
@@ -239,7 +239,7 @@ const EquipmentManager = () => {
                 <X size={20}/>
             </button>
             <h2 className="text-2xl font-bold text-white uppercase tracking-tighter mb-8 flex items-center gap-3">
-               <Package className="text-orange-500" /> {editingId ? "Modify Asset" : "Authorize Asset"}
+               <Package className="text-orange-500" /> {editingId ? "Modify Equipment" : "Add Equipment"}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

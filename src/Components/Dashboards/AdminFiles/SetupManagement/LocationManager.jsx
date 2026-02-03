@@ -63,7 +63,7 @@ const LocationManager = () => {
           ...newLocation,
           updatedAt: serverTimestamp()
         });
-        toast.success("Facility Geodata Updated");
+        toast.success("Facility Updated");
       } else {
         await addDoc(collection(db, "locations"), {
           ...newLocation,
@@ -102,7 +102,7 @@ const LocationManager = () => {
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
                 <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">Facility Directory</h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">Linking Clients to Infrastructure</p>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">Clients Infrastructure</p>
               </div>
 
               <div className="flex flex-col md:flex-row items-center gap-4">
@@ -117,7 +117,7 @@ const LocationManager = () => {
                   />
                 </div>
                 <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95">
-                  <Plus size={16}/> Register Linked Facility
+                  <Plus size={16}/> Register Clients Facility
                 </button>
               </div>
             </div>

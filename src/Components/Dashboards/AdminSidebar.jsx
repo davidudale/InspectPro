@@ -38,7 +38,7 @@ const sidebarLinks = [
       {
         name: "View Projects",
         icon: <FileText size={16} />,
-        href: "/viewprojects",
+        href: "/admin/projects",
       },
       {
         name: "Add Projects",

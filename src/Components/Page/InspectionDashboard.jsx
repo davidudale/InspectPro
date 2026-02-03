@@ -61,19 +61,13 @@ const InspectionDashboard = () => {
       href: ""
     },
     {
-      label: "Reports Under Management",
+      label: "Inspection Completed",
       value: "5",
       icon: <ShieldCheck className="text-emerald-500" />,
       trend: "Optimal",
       href: ""
     },
-    {
-      label: "System Users",
-      value: loading ? "..." : userCount.toString(),
-      icon: <User className="text-blue-500" />,
-      trend: "Live Data",
-      href: "/admin/users"
-    },
+    
     {
       label: "Projects",
       value: "3",
@@ -81,20 +75,7 @@ const InspectionDashboard = () => {
       trend: "Requires Action",
       href: ""
     },
-    {
-      label: "Equipments Under Management",
-      value: "3",
-      icon: <AlertCircle className="text-red-500" />,
-      trend: "Requires Action",
-      href: ""
-    },
-    {
-      label: "Users",
-      value: "3",
-      icon: <AlertCircle className="text-red-500" />,
-      trend: "Requires Action",
-      href: "/admin/users"
-    },
+    
   ];
 
   return (
@@ -155,20 +136,14 @@ const InspectionDashboard = () => {
                   </h2>
                 </div>
                 <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
+                  {[1].map((i) => (
                     <div
                       key={i}
                       className="flex gap-4 p-3 rounded-xl hover:bg-slate-800/30 transition-colors border-l-2 border-transparent hover:border-orange-500"
                     >
                       <div className="w-2 h-2 rounded-full bg-orange-600 mt-1.5 shrink-0" />
                       <div>
-                        <p className="text-sm text-slate-200">
-                          System scan completed for{" "}
-                          <span className="text-orange-400">Node_04</span>
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-mono mt-1">
-                          2 mins ago • ID: #4492
-                        </p>
+                        
                       </div>
                     </div>
                   ))}

@@ -60,7 +60,7 @@ const ProjectList = () => {
                   <Briefcase className="text-orange-500" /> Project Directory
                 </h1>
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
-                  Technical Operations / Database Overview
+                  Project List
                 </p>
               </div>
               
@@ -79,7 +79,7 @@ const ProjectList = () => {
                   onClick={() => navigate("/admin/project-setup")}
                   className="w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-2xl shadow-lg shadow-orange-900/20 transition-all flex items-center justify-center gap-2 font-bold uppercase text-[10px] tracking-widest"
                 >
-                  <Briefcase size={14} /> Initialize Manifest
+                  <Briefcase size={14} /> Add Project
                 </button>
               </div>
             </div>

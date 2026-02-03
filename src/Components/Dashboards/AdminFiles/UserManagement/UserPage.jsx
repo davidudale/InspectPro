@@ -1,47 +1,44 @@
 import { React, useEffect, useState } from "react";
 import AdminNavbar from "../../AdminNavbar";
-import { PlusCircle, Edit2, Trash2, User, X, Save } from "lucide-react";
+import { PlusCircle, Edit2, Trash2, User, X, Save, Lock } from "lucide-react";
 import AdminSidebar from "../../AdminSidebar";
-import { db } from "../../../Auth/firebase";
+import { db, auth } from "../../../Auth/firebase"; // NEW: Ensure 'auth' is exported from your firebase config
 import { 
   collection, onSnapshot, doc, deleteDoc, 
-  updateDoc, addDoc, serverTimestamp 
+  setDoc, updateDoc, serverTimestamp 
 } from "firebase/firestore";
+import { createUserWithEmailAndPassword } from "firebase/auth"; // NEW: Auth function
 import { toast } from "react-toastify";
 
 const UserPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // --- Modal & Form State ---
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null); // null means "Add Mode", object means "Edit Mode"
-  const [formData, setFormData] = useState({ name: "", email: "", role: "Inspector" });
+  const [editingUser, setEditingUser] = useState(null); 
+  const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "Inspector" });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const usersCollection = collection(db, "users");
-    const unsubscribe = onSnapshot(usersCollection, (snapshot) => {
-      const allUsers = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setUsers(allUsers);
+    const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
+      setUsers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
-
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
-
-  // --- FUNCTIONAL HANDLERS ---
 
   const handleOpenModal = (user = null) => {
     if (user) {
       setEditingUser(user);
-      setFormData({ name: user.name, email: user.email, role: user.role || "Inspector" });
+      setFormData({ 
+        name: user.name || "", 
+        email: user.email || "", 
+        password: "HIDDEN_PASSWORD", // Password should not be visible for existing users
+        role: user.role || "Inspector" 
+      });
     } else {
       setEditingUser(null);
-      setFormData({ name: "", email: "", role: "Inspector" });
+      setFormData({ name: "", email: "", password: "", role: "Inspector" });
     }
     setIsModalOpen(true);
   };
@@ -49,45 +46,66 @@ const UserPage = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
-    setFormData({ name: "", email: "", role: "Inspector" });
+    setFormData({ name: "", email: "", password: "", role: "Inspector" });
   };
 
+  // --- RESTRUCTURED SUBMISSION LOGIC ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    
     try {
       if (editingUser) {
-        // --- EDIT LOGIC ---
+        // --- EDIT LOGIC (Updates profile, not the Auth password) ---
         const userRef = doc(db, "users", editingUser.id);
+        const { password, ...profileData } = formData; // Exclude password from Firestore update
         await updateDoc(userRef, {
-          ...formData,
+          ...profileData,
           updatedAt: serverTimestamp()
         });
-        toast.success("User updated successfully");
+        toast.success("User profile updated");
       } else {
-        // --- ADD LOGIC ---
-        await addDoc(collection(db, "users"), {
-          ...formData,
-          createdAt: serverTimestamp()
+        // --- NEW USER LOGIC (Auth + Firestore) ---
+        
+        // 1. Create secure credentials in Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(
+          auth, 
+          formData.email, 
+          formData.password
+        );
+        
+        const newUserId = userCredential.user.uid;
+
+        // 2. Create the profile in Firestore using the SAME UID
+        const { password, ...dataToSave } = formData; // Remove plain-text password before saving
+        await setDoc(doc(db, "users", newUserId), {
+          ...dataToSave,
+          createdAt: serverTimestamp(),
+          authUid: newUserId
         });
-        toast.success("New user added successfully");
+
+        toast.success("User Authenticated & Profile Created");
       }
       handleCloseModal();
     } catch (error) {
-      console.error("Error saving user:", error);
-      toast.error("Failed to save user data.");
+      console.error("Critical Auth/DB Error:", error);
+      // Handle common Firebase errors
+      if (error.code === 'auth/email-already-in-use') toast.error("Email is already registered.");
+      else if (error.code === 'auth/weak-password') toast.error("Password must be at least 6 characters.");
+      else toast.error("Deployment failure: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ... rest of the component (Delete handler and Return UI) remain same as previous version
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
+    if (window.confirm(`Permanently remove ${name} from the directory?`)) {
       try {
         await deleteDoc(doc(db, "users", id));
-        toast.success("User removed from database");
+        toast.success("User credentials purged");
       } catch (error) {
-        toast.error("Deletion failed. Check permissions.");
+        toast.error("Access denied: Deletion failed");
       }
     }
   };
@@ -206,6 +224,21 @@ const UserPage = () => {
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   placeholder="name@company.com"
                 />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Access Password</label>
+                <div className="relative">
+                  <input 
+                    required
+                    type="password"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 pl-10 text-sm text-white focus:outline-none focus:border-orange-500 transition-all shadow-inner"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                    placeholder="••••••••"
+                  />
+                  <Lock size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
+                </div>
               </div>
 
               <div className="space-y-2">

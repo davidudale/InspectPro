@@ -7,16 +7,22 @@ import {
   Terminal,
   PlusCircle,
   User,
+  Clock
 } from "lucide-react";
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc, orderBy, limit, query } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
 
 const AdminDashboard = () => {
   const [userCount, setUserCount] = useState(0);
+  const [inspectionCount, setInspectionCount] = useState(0);
+  const [equipmentCount, setEquipmentCount] = useState(0);
+  const [reportCount, setReportCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
 
   // 1. Fetch live user count
@@ -24,6 +30,55 @@ const AdminDashboard = () => {
     const usersRef = collection(db, "users");
     const unsubscribe = onSnapshot(usersRef, (snapshot) => {
       setUserCount(snapshot.size);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Query the latest 10 activities
+    const q = query(
+      collection(db, "activity_logs"), 
+      orderBy("timestamp", "desc"), 
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 1. Fetch live Active Inspection count
+  useEffect(() => {
+    const inspectionRef = collection(db, "projects");
+    const unsubscribe = onSnapshot(inspectionRef, (snapshot) => {
+      setInspectionCount(snapshot.size);  
+      setLoading(false);
+    });
+
+     return () => unsubscribe();
+  }, []);
+
+    // 1. Fetch live equipment count
+  useEffect(() => {
+    const equipmentRef = collection(db, "equipment");
+    const unsubscribe = onSnapshot(equipmentRef, (snapshot) => {
+      setEquipmentCount(snapshot.size);  
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+  
+  // 1. Fetch live Reports count
+  useEffect(() => {
+    const reportRef = collection(db, "inspection_type");
+    const unsubscribe = onSnapshot(reportRef, (snapshot) => {
+      setReportCount(snapshot.size);  
       setLoading(false);
     });
 
@@ -54,14 +109,14 @@ const AdminDashboard = () => {
   const stats = [
     {
       label: "Active Inspections",
-      value: "12",
+      value: loading ? "..." : inspectionCount.toString(),
       icon: <Activity className="text-orange-500" />,
       trend: "+2 today",
       href: ""
     },
     {
       label: "Reports Under Management",
-      value: "5",
+      value: loading ? "..." : reportCount.toString(),
       icon: <ShieldCheck className="text-emerald-500" />,
       trend: "Optimal",
       href: ""
@@ -75,25 +130,19 @@ const AdminDashboard = () => {
     },
     {
       label: "Projects",
-      value: "3",
+      value: loading ? "..." : inspectionCount.toString(),
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
       href: ""
     },
     {
       label: "Equipments Under Management",
-      value: "3",
+      value: loading ? "..." : equipmentCount.toString(),
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
       href: ""
     },
-    {
-      label: "Users",
-      value: "3",
-      icon: <AlertCircle className="text-red-500" />,
-      trend: "Requires Action",
-      href: "/admin/users"
-    },
+    
   ];
 
   return (
@@ -145,49 +194,54 @@ const AdminDashboard = () => {
             </div>
 
             {/* Assistant Activity Log Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <Terminal size={20} className="text-orange-500" />
-                  <h2 className="font-bold text-white">
-                    Assistant Activity Log
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="flex gap-4 p-3 rounded-xl hover:bg-slate-800/30 transition-colors border-l-2 border-transparent hover:border-orange-500"
-                    >
-                      <div className="w-2 h-2 rounded-full bg-orange-600 mt-1.5 shrink-0" />
-                      <div>
-                        <p className="text-sm text-slate-200">
-                          System scan completed for{" "}
-                          <span className="text-orange-400">Node_04</span>
-                        </p>
-                        <p className="text-[10px] text-slate-500 font-mono mt-1">
-                          2 mins ago • ID: #4492
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Terminal size={20} className="text-orange-500" />
+          <h2 className="font-bold text-white uppercase tracking-tight text-sm">
+            InspectPro Activity Log
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Feed</span>
+        </div>
+      </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col justify-center items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-4">
-                  <Activity className="text-slate-600" size={32} />
-                </div>
-                <h3 className="text-white font-bold">Analytics Engine</h3>
-                <p className="text-slate-500 text-sm mt-2 max-w-[250px]">
-                  Connect your assistant to view real-time data visualization
-                  charts.
+      <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
+        {loading ? (
+          <div className="py-10 text-center text-slate-600 text-xs animate-pulse uppercase">Syncing Manifests...</div>
+        ) : logs.length > 0 ? (
+          logs.map((log) => (
+            <div
+              key={log.id}
+              className="flex gap-4 p-4 rounded-xl hover:bg-slate-800/40 transition-all border border-transparent hover:border-slate-700 group"
+            >
+              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${log.type === 'alert' ? 'bg-red-500' : 'bg-orange-600'}`} />
+              <div className="flex-1">
+                <p className="text-sm text-slate-200 leading-tight">
+                  {log.message}{" "}
+                  {log.target && <span className="text-orange-400 font-bold">[{log.target}]</span>}
                 </p>
-                <button className="mt-6 text-orange-500 text-xs font-bold uppercase tracking-widest hover:underline">
-                  Configure Widget
-                </button>
+                <div className="flex items-center gap-2 mt-2 text-slate-500">
+                  <Clock size={10} />
+                  <p className="text-[10px] font-mono uppercase tracking-tighter">
+                    {log.timestamp?.toDate() 
+                      ? formatDistanceToNow(log.timestamp.toDate(), { addSuffix: true }) 
+                      : "just now"} 
+                    {" • "} 
+                    BY: {log.userEmail?.split('@')[0] || "System"}
+                  </p>
+                </div>
               </div>
             </div>
+          ))
+        ) : (
+          <div className="py-10 text-center text-slate-700 text-xs uppercase italic">No recent activity detected</div>
+        )}
+      </div>
+    </div>
+  
           </div>
         </main>
       </div>

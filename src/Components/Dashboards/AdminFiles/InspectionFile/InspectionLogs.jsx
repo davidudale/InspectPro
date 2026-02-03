@@ -73,7 +73,7 @@ const InspectionLogs = () => {
               <div className="flex items-center gap-4">
                 {phase > 1 && <button onClick={() => setPhase(1)} className="p-2 bg-slate-900 border border-slate-800 rounded-xl text-orange-500 hover:bg-orange-600 hover:text-white transition-all"><ArrowLeft size={18} /></button>}
                 <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">
-                  {phase === 1 ? "Technical Asset Hub" : `Selection: ${selectedEquip}`}
+                  {phase === 1 ? "Report Management" : `Selection: ${selectedEquip}`}
                 </h1>
               </div>
               <div className="relative w-64">
@@ -100,7 +100,7 @@ const InspectionLogs = () => {
                         <td className="p-6">
                            <div className="flex items-center gap-4">
                               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 group-hover:rotate-12 transition-transform"><Cog size={18}/></div>
-                              <div><p className="text-sm font-bold text-white uppercase">{asset.tagNumber}</p><p className="text-[9px] text-slate-500 font-bold uppercase">{asset.assetType}</p></div>
+                              <div><p className="text-sm font-bold text-white uppercase">{asset.assetType}</p><p className="text-[9px] text-slate-500 font-bold uppercase">{asset.tagNumber}</p></div>
                            </div>
                         </td>
                         <td className="p-6 text-[10px] font-mono text-slate-400 uppercase tracking-tight">

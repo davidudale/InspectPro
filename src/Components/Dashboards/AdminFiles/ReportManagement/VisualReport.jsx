@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
@@ -362,6 +362,7 @@ const VisualReport = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { id } = useParams(); // To handle direct database fetching if needed
   const [reportMode, setReportMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("logistics");
@@ -374,6 +375,7 @@ const VisualReport = () => {
       reportNum: "",
       date: new Date().toISOString().split("T")[0],
       client: "",
+      clientLogo: "",
       testCode: "API 510",
       contractNum: "N/A",
       location: " ",
@@ -389,23 +391,64 @@ const VisualReport = () => {
     images: [],
   });
 
+  // --- RESTRUCTURED TO FETCH ALL RELEVANT DETAILS ---
   useEffect(() => {
-    if (location.state?.preFill) {
-      const p = location.state.preFill;
-      const schema =
-        INSPECTION_SCHEMAS[p.assetType] || INSPECTION_SCHEMAS["Default"];
-      setReportData((prev) => ({
-        ...prev,
-        general: { ...prev.general, ...p },
-        observations: schema.map((item) => ({ ...item, photoRef: "" })), // Ensure photoRef is initialized
-      }));
-    }
-  }, [location.state]);
+    const initializeManifest = async () => {
+      // Scenario A: Data passed via Navigation State (from Report Manager or Inspector List)
+      if (location.state?.preFill) {
+        const p = location.state.preFill;
+        const schema =
+          INSPECTION_SCHEMAS[p.assetType] || INSPECTION_SCHEMAS["Default"];
+
+        setReportData((prev) => ({
+          ...prev,
+          general: {
+            ...prev.general,
+            ...p,
+            // Ensure names match your database keys (clientName/locationName)
+            client: p.clientName || p.client || "",
+            platform: p.locationName || p.location || "",
+            tag: p.tag || p.equipmentTag || "",
+          },
+          observations: schema.map((item) => ({ ...item, photoRef: "" })),
+        }));
+      }
+      // Scenario B: Data needs to be fetched from 'projects' collection via ID
+      else if (id) {
+        try {
+          const docRef = doc(db, "projects", id);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            const p = docSnap.data();
+            const schema =
+              INSPECTION_SCHEMAS[p.equipmentCategory] ||
+              INSPECTION_SCHEMAS["Default"];
+
+            setReportData((prev) => ({
+              ...prev,
+              general: {
+                ...prev.general,
+                client: p.clientName,
+                platform: p.locationName,
+                tag: p.equipmentTag,
+                reportNum: p.projectId,
+              },
+              observations: schema.map((item) => ({ ...item, photoRef: "" })),
+            }));
+          }
+        } catch (error) {
+          toast.error("Failed to sync with projects database");
+        }
+      }
+    };
+
+    initializeManifest();
+  }, [location.state, id]);
 
   const handlePhotoUpload = async (e, idx) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const cloudName = "dsgzpl0xt";
     const uploadPreset = "inspectpro";
     const formData = new FormData();
@@ -424,11 +467,10 @@ const VisualReport = () => {
         },
       );
       const d = await res.json();
-
       const newObs = [...reportData.observations];
       newObs[idx].photoRef = d.secure_url;
       setReportData({ ...reportData, observations: newObs });
-      toast.success("Evidence linked to component");
+      toast.success("Report linked to component");
     } catch (err) {
       toast.error("Upload failed");
     }
@@ -440,10 +482,10 @@ const VisualReport = () => {
       await addDoc(collection(db, "inspection_reports"), {
         ...reportData,
         technique: "Visual (VT)",
-        inspector: user?.displayName,
+        inspector: user?.displayName || "Authorized Inspector",
         timestamp: serverTimestamp(),
       });
-      toast.success("Technical Manifest Authorized");
+      toast.success("Report Authorized");
       setReportMode(true);
     } catch (error) {
       toast.error("Sync Failure");
@@ -452,7 +494,7 @@ const VisualReport = () => {
     }
   };
 
-  // --- SUB-COMPONENT: WEB REPORT VIEW (PAGINATED) ---
+  // --- SUB-COMPONENT: WEB REPORT VIEW (REMAINS AS PROVIDED) ---
   const WebView = () => {
     const totalPages = 4;
     const evidencePhotos = reportData.observations.filter(
@@ -462,7 +504,11 @@ const VisualReport = () => {
     const PageHeader = () => (
       <div className="grid grid-cols-[1fr_2fr_1fr] border-2 border-slate-900 mb-6 text-center items-center font-bold">
         <div className="border-r-2 border-slate-900 p-2 h-16 flex items-center justify-center bg-slate-50 uppercase text-[9px] text-black">
-          Client Portfolio
+          <img
+            src={reportData.general.clientLogo}
+            className="w-[70px] h-full object-cover"
+            alt="Technical Evidence"
+          />
         </div>
         <div className="p-2 space-y-1 text-black">
           <div className="text-[10px] uppercase tracking-widest">
@@ -480,7 +526,9 @@ const VisualReport = () => {
 
     const PageFooter = ({ pageNum }) => (
       <div className="mt-auto border-t-2 border-slate-900 pt-2 flex justify-between text-[9px] font-bold uppercase text-black">
-        <div>Ref: <span className="font-normal">{reportData.general.tag}</span></div>
+        <div>
+          Ref: <span className="font-normal">{reportData.general.tag}</span>
+        </div>
         <div>
           Page {pageNum} of {totalPages}
         </div>
@@ -510,7 +558,11 @@ const VisualReport = () => {
           style={{ breakAfter: "page" }}
         >
           <div className="flex justify-between items-center mb-20 uppercase font-black text-xl italic text-slate-900">
-            VISUAL INSPECTION<div className="text-blue-900">INSPECTPRO</div>
+            <img
+            src={reportData.general.clientLogo}
+            className="w-[70px] h-full object-cover"
+            alt="Technical Evidence"
+          /><div className="text-blue-900">INSPECTPRO</div>
           </div>
           <div className="text-center flex-1">
             <h1 className="text-4xl font-serif font-bold underline mb-4 uppercase">
@@ -554,10 +606,12 @@ const VisualReport = () => {
             <div className="bg-slate-50 p-3 font-bold uppercase">
               <h3 className=" gap-px font-bold text-sm mb-7">INTRODUCTION</h3>
               <p className=" text-[12px] capitalize mb-7">
-                At the request of <span className="text-red-500">
+                At the request of{" "}
+                <span className="text-red-500">
                   {reportData.general.client}
-                </span>, Visual Testing (VT)
-                Inspection was carried out on Equipment Name{" "}
+                </span>
+                , Visual Testing (VT) Inspection was carried out on Equipment
+                Name{" "}
                 <span className="text-red-500"> {reportData.general.tag} </span>{" "}
                 at
                 <span className="text-red-500">
@@ -720,7 +774,7 @@ const VisualReport = () => {
           <PageFooter pageNum={3} />
         </div>
 
-        {/* PAGE 4: PHOTOGRAPHIC APPENDIX (DYNAMIC) [cite: 67] */}
+        {/* PAGE 4: PHOTOGRAPHIC APPENDIX (Restored) */}
         <div className="max-w-[850px] mx-auto bg-white border border-slate-300 p-12 shadow-2xl min-h-[1100px] flex flex-col print:m-0">
           <PageHeader />
           <h3 className="bg-slate-900 text-white px-4 py-2 text-xs font-bold uppercase mb-8 tracking-widest text-left">
@@ -760,7 +814,7 @@ const VisualReport = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-     { user == 'Admin' ? <AdminNavbar /> : <InspectorNavbar />} 
+      {user === "Admin" ? <AdminNavbar /> : <InspectorNavbar />}
       <div className="flex flex-1">
         <AdminSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
@@ -778,12 +832,16 @@ const VisualReport = () => {
                 </h1>
               </div>
               <div className="flex gap-3">
-                { user == 'Admin' ? " " : <button
-                  onClick={() => setReportMode(true)}
-                  className="bg-slate-800 px-6 py-2 rounded-xl text-xs font-bold border border-slate-700 hover:bg-slate-700 transition-all"
-                >
-                  Pre
-                </button>}
+                {user == "Admin" ? (
+                  " "
+                ) : (
+                  <button
+                    onClick={() => setReportMode(true)}
+                    className="bg-slate-800 px-6 py-2 rounded-xl text-xs font-bold border border-slate-700 hover:bg-slate-700 transition-all"
+                  >
+                    Pre
+                  </button>
+                )}
                 <button
                   onClick={handleSaveToFirebase}
                   disabled={isSaving}
