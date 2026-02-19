@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  updateDoc,
+  getDocs,
+  query,
+  where,
+  limit,
+} from "firebase/firestore";
 
 import {
   Eye,
@@ -20,6 +30,7 @@ import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
+import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 
 // --- TECHNICAL SCHEMAS (Internal mapping updated with photoRef) ---
 const INSPECTION_SCHEMAS = {
@@ -362,10 +373,12 @@ const VisualReport = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { id } = useParams(); // To handle direct database fetching if needed
+  const { id } = useParams();
+
   const [reportMode, setReportMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("logistics");
+  const [existingReportId, setExistingReportId] = useState(null);
 
   const [reportData, setReportData] = useState({
     general: {
@@ -380,6 +393,7 @@ const VisualReport = () => {
       contractNum: "N/A",
       location: " ",
       inspect_by: "",
+      projectId: "",
     },
     environmental: {
       lighting: "Natural",
@@ -391,60 +405,46 @@ const VisualReport = () => {
     images: [],
   });
 
-  // --- RESTRUCTURED TO FETCH ALL RELEVANT DETAILS ---
   useEffect(() => {
     const initializeManifest = async () => {
-      // Scenario A: Data passed via Navigation State (from Report Manager or Inspector List)
       if (location.state?.preFill) {
         const p = location.state.preFill;
+        const assetCategory = p.equipmentCategory || p.assetType;
         const schema =
-          INSPECTION_SCHEMAS[p.assetType] || INSPECTION_SCHEMAS["Default"];
+          INSPECTION_SCHEMAS[assetCategory] || INSPECTION_SCHEMAS["Default"];
 
         setReportData((prev) => ({
           ...prev,
           general: {
             ...prev.general,
             ...p,
-            // Ensure names match your database keys (clientName/locationName)
             client: p.clientName || p.client || "",
             platform: p.locationName || p.location || "",
-            tag: p.tag || p.equipmentTag || "",
+            tag: p.equipmentTag || p.tag || "",
+            projectId: p.id || p.projectId || "",
           },
           observations: schema.map((item) => ({ ...item, photoRef: "" })),
         }));
-      }
-      // Scenario B: Data needs to be fetched from 'projects' collection via ID
-      else if (id) {
-        try {
-          const docRef = doc(db, "projects", id);
-          const docSnap = await getDoc(docRef);
 
-          if (docSnap.exists()) {
-            const p = docSnap.data();
-            const schema =
-              INSPECTION_SCHEMAS[p.equipmentCategory] ||
-              INSPECTION_SCHEMAS["Default"];
-
-            setReportData((prev) => ({
-              ...prev,
-              general: {
-                ...prev.general,
-                client: p.clientName,
-                platform: p.locationName,
-                tag: p.equipmentTag,
-                reportNum: p.projectId,
-              },
-              observations: schema.map((item) => ({ ...item, photoRef: "" })),
-            }));
+        const pId = p.id || p.projectId;
+        if (pId) {
+          const q = query(
+            collection(db, "inspection_reports"),
+            where("general.projectId", "==", pId),
+            limit(1),
+          );
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const existingDoc = querySnapshot.docs[0];
+            setExistingReportId(existingDoc.id);
+            setReportData(existingDoc.data());
+            // toast.info("Existing manifest loaded for modification.");
           }
-        } catch (error) {
-          toast.error("Failed to sync with projects database");
         }
       }
     };
-
     initializeManifest();
-  }, [location.state, id]);
+  }, [location.state]);
 
   const handlePhotoUpload = async (e, idx) => {
     const file = e.target.files[0];
@@ -470,25 +470,90 @@ const VisualReport = () => {
       const newObs = [...reportData.observations];
       newObs[idx].photoRef = d.secure_url;
       setReportData({ ...reportData, observations: newObs });
-      toast.success("Report linked to component");
+      toast.success("Evidence linked to component");
     } catch (err) {
       toast.error("Upload failed");
     }
   };
 
-  const handleSaveToFirebase = async () => {
+  const handleSaveToFirebase = async (isFinalizing = false) => {
     setIsSaving(true);
+
+    // 1. DYNAMIC WORKFLOW LOGIC
+    let workflowStatus = "Forwarded to Inspector"; // Default for "Save Draft"
+
+    if (isFinalizing) {
+      // When Inspector submits, it skips "Review" and goes straight to "Pending Confirmation"
+      if (isFinalizing && user?.role === "Inspector") {
+        workflowStatus = "Pending Confirmation";
+      }
+      // When Supervisor submits, it moves to "Authorized"
+      else if (user?.role === "Supervisor") {
+        workflowStatus = "Completed";
+      }
+      // Admin or other roles move to "Completed"
+      else if (user?.role === "Admin") {
+        workflowStatus = "Completed";
+      }
+    } else {
+      // If NOT finalizing (just saving draft), keep current status
+      workflowStatus = reportData.status || "Forwarded to Inspector";
+    }
+
+    const currentUserIdentifier =
+      user?.displayName || user?.name || user?.email || "Technical User";
+
     try {
-      await addDoc(collection(db, "inspection_reports"), {
-        ...reportData,
-        technique: "Visual (VT)",
-        inspector: user?.displayName || "Authorized Inspector",
-        timestamp: serverTimestamp(),
-      });
-      toast.success("Report Authorized");
-      setReportMode(true);
+      if (existingReportId) {
+        // --- RESUBMISSION/UPDATE ---
+        const reportRef = doc(db, "inspection_reports", existingReportId);
+        await updateDoc(reportRef, {
+          ...reportData,
+          status: workflowStatus,
+          lastModifiedBy: currentUserIdentifier,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // --- FIRST TIME SAVE ---
+        const newDoc = await addDoc(collection(db, "inspection_reports"), {
+          ...reportData,
+          technique: "Visual (VT)",
+          inspector: currentUserIdentifier,
+          inspectorUid: user.uid,
+          status: workflowStatus,
+          roleAtSubmission: user?.role || "Inspector",
+          timestamp: serverTimestamp(),
+        });
+        setExistingReportId(newDoc.id);
+      }
+
+      // 2. SYNC PROJECT MANIFEST
+      if (reportData.general.projectId) {
+        const projectRef = doc(db, "projects", reportData.general.projectId);
+
+        // Final mapping for the Project collection
+        let projectFinalStatus = workflowStatus;
+        if (workflowStatus === "Authorized") {
+          projectFinalStatus = "Completed";
+        }
+        await updateDoc(projectRef, {
+          status: projectFinalStatus,
+          lastModifiedBy: currentUserIdentifier,
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      toast.success(
+        isFinalizing
+          ? `Manifest sent for Confirmation ${user.role}`
+          : "Technical draft synced",
+      );
+        
+        
+      if (isFinalizing)  setReportMode(true);
     } catch (error) {
-      toast.error("Sync Failure");
+      console.error("Technical Fault:", error);
+      toast.error(`Sync Failure: ${error.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -499,7 +564,7 @@ const VisualReport = () => {
     const totalPages = 4;
     const evidencePhotos = reportData.observations.filter(
       (obs) => obs.photoRef,
-    );
+    );``
 
     const PageHeader = () => (
       <div className="grid grid-cols-[1fr_2fr_1fr] border-2 border-slate-900 mb-6 text-center items-center font-bold">
@@ -559,10 +624,11 @@ const VisualReport = () => {
         >
           <div className="flex justify-between items-center mb-20 uppercase font-black text-xl italic text-slate-900">
             <img
-            src={reportData.general.clientLogo}
-            className="w-[70px] h-full object-cover"
-            alt="Technical Evidence"
-          /><div className="text-blue-900">INSPECTPRO</div>
+              src={reportData.general.clientLogo}
+              className="w-[70px] h-full object-cover"
+              alt="Technical Evidence"
+            />
+            <div className="text-blue-900">INSPECTPRO</div>
           </div>
           <div className="text-center flex-1">
             <h1 className="text-4xl font-serif font-bold underline mb-4 uppercase">
@@ -814,9 +880,9 @@ const VisualReport = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      {user === "Admin" ? <AdminNavbar /> : <InspectorNavbar />}
-      <div className="flex flex-1">
-        <AdminSidebar />
+      {user?.role === "Admin" ? <AdminNavbar /> : <InspectorNavbar />}
+      <div className="flex">
+        {user?.role === "Admin" ? <AdminSidebar /> : <InspectorSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
             <header className="flex justify-between items-center mb-8 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
@@ -828,7 +894,7 @@ const VisualReport = () => {
                   <ChevronLeft size={20} />
                 </button>
                 <h1 className="text-2xl font-bold uppercase tracking-tighter flex items-center gap-2">
-                  <Eye className="text-orange-500" /> VT Manifest
+                  <Eye className="text-orange-500" /> Visual Inspection 
                 </h1>
               </div>
               <div className="flex gap-3">
@@ -839,7 +905,7 @@ const VisualReport = () => {
                     onClick={() => setReportMode(true)}
                     className="bg-slate-800 px-6 py-2 rounded-xl text-xs font-bold border border-slate-700 hover:bg-slate-700 transition-all"
                   >
-                    Pre
+                    Preview before sending
                   </button>
                 )}
                 <button
@@ -847,13 +913,13 @@ const VisualReport = () => {
                   disabled={isSaving}
                   className="bg-orange-600 px-6 py-2 rounded-xl text-xs font-bold uppercase shadow-lg shadow-orange-900/20 active:scale-95 transition-all"
                 >
-                  {isSaving ? "Syncing..." : "Finalize Report"}
+                  {isSaving ? "Syncing..." : "Send for confirmation"}
                 </button>
               </div>
             </header>
 
             <div className="flex gap-6 border-b border-slate-800 mb-8 overflow-x-auto">
-              {["logistics", "findings"].map((tab) => (
+              {/*{["logistics", "findings"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -861,11 +927,11 @@ const VisualReport = () => {
                 >
                   {tab}
                 </button>
-              ))}
+              ))}*/}
             </div>
 
             <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 backdrop-blur-sm min-h-[450px]">
-              {activeTab === "logistics" && (
+              
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
                   <InputField
                     label="Asset Tag Number"
@@ -878,6 +944,11 @@ const VisualReport = () => {
                     readOnly
                   />
                   <InputField
+                    label="Asset Category"
+                    value={reportData.general.platform}
+                    readOnly
+                  />
+                  <InputField
                     label="Report #"
                     value={reportData.general.reportNum}
                     onChange={(v) =>
@@ -887,6 +958,7 @@ const VisualReport = () => {
                       })
                     }
                   />
+                  
                   <InputField
                     label="Ambient Temp (°C)"
                     value={reportData.environmental.temp}
@@ -898,10 +970,10 @@ const VisualReport = () => {
                     }
                   />
                 </div>
-              )}
+              
 
-              {activeTab === "findings" && (
-                <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500">
+              
+                <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500 mt-4">
                   <div className="grid grid-cols-12 gap-4 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 text-left">
                     <div className="col-span-4">Technical Area</div>
                     <div className="col-span-2">Condition</div>
@@ -969,7 +1041,7 @@ const VisualReport = () => {
                     </div>
                   ))}
                 </div>
-              )}
+           
             </div>
           </div>
         </main>

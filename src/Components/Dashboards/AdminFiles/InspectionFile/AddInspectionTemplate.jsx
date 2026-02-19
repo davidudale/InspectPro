@@ -17,6 +17,8 @@ const AddInspectionTemplate = () => {
   const locationState = useLocation();
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState([]); 
+  
+  
 
   useEffect(() => {
     const fetchProjects = async () => {

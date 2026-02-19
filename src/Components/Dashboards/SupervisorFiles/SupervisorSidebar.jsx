@@ -27,13 +27,17 @@ const sidebarLinks = [
   {
     name: "Dashboard",
     icon: <LayoutDashboard size={20} />,
-    href: "/inspectionDashboard",
+    href: "/SupervisorDashboard",
   },
-  
    {
-    name: "Inspections",
+    name: "Pending Inspections",
     icon: <LayoutDashboard size={20} />,
-    href: "/Inspection_view",
+    href: "/SubInspection_view",
+  },
+   {
+    name: "Confirmed Inspection",
+    icon: <LayoutDashboard size={20} />,
+    href: "/ConfirmedInspection",
   },
  
   {
@@ -49,7 +53,7 @@ const sidebarLinks = [
   },
 ];
 
-const InspectorSidebar = () => {
+const SupervisorSidebar = () => {
   const [userCount, setUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
@@ -179,4 +183,4 @@ const InspectorSidebar = () => {
   );
 };
 
-export default InspectorSidebar;
+export default SupervisorSidebar;

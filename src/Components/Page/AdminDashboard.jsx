@@ -7,16 +7,27 @@ import {
   Terminal,
   PlusCircle,
   User,
-  Clock
+  Clock,
 } from "lucide-react";
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc, orderBy, limit, query } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  getDoc,
+  orderBy,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
   const [inspectionCount, setInspectionCount] = useState(0);
   const [equipmentCount, setEquipmentCount] = useState(0);
@@ -39,13 +50,13 @@ const AdminDashboard = () => {
   useEffect(() => {
     // Query the latest 10 activities
     const q = query(
-      collection(db, "activity_logs"), 
-      orderBy("timestamp", "desc"), 
-      limit(10)
+      collection(db, "activity_logs"),
+      orderBy("timestamp", "desc"),
+      limit(10),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLogs(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
 
@@ -56,29 +67,32 @@ const AdminDashboard = () => {
   useEffect(() => {
     const inspectionRef = collection(db, "projects");
     const unsubscribe = onSnapshot(inspectionRef, (snapshot) => {
-      setInspectionCount(snapshot.size);  
-      setLoading(false);
-    });
-
-     return () => unsubscribe();
-  }, []);
-
-    // 1. Fetch live equipment count
-  useEffect(() => {
-    const equipmentRef = collection(db, "equipment");
-    const unsubscribe = onSnapshot(equipmentRef, (snapshot) => {
-      setEquipmentCount(snapshot.size);  
+      setInspectionCount(snapshot.size);
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
-  
+
+  // 1. Fetch live equipment count
+  useEffect(() => {
+    const equipmentRef = collection(db, "equipment");
+    const unsubscribe = onSnapshot(equipmentRef, (snapshot) => {
+      setEquipmentCount(snapshot.size);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // 1. Fetch live Reports count
   useEffect(() => {
-    const reportRef = collection(db, "inspection_type");
+    const reportRef = query(
+      collection(db, "projects"),
+      where("status", "==", "Approved"),
+    );
     const unsubscribe = onSnapshot(reportRef, (snapshot) => {
-      setReportCount(snapshot.size);  
+      setReportCount(snapshot.size);
       setLoading(false);
     });
 
@@ -95,7 +109,9 @@ const AdminDashboard = () => {
 
           if (docSnap.exists()) {
             // Assuming your Firestore field is called 'fullName'
-            setFullName(docSnap.data().fullName || docSnap.data().name || "Admin");
+            setFullName(
+              docSnap.data().fullName || docSnap.data().name || "Admin",
+            );
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -112,37 +128,36 @@ const AdminDashboard = () => {
       value: loading ? "..." : inspectionCount.toString(),
       icon: <Activity className="text-orange-500" />,
       trend: "+2 today",
-      href: ""
+      href: "",
     },
     {
       label: "Reports Under Management",
       value: loading ? "..." : reportCount.toString(),
       icon: <ShieldCheck className="text-emerald-500" />,
       trend: "Optimal",
-      href: ""
+      href: "",
     },
     {
       label: "System Users",
       value: loading ? "..." : userCount.toString(),
       icon: <User className="text-blue-500" />,
       trend: "Live Data",
-      href: "/admin/users"
+      href: "/admin/users",
     },
     {
       label: "Projects",
       value: loading ? "..." : inspectionCount.toString(),
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
-      href: ""
+      href: "",
     },
     {
       label: "Equipments Under Management",
       value: loading ? "..." : equipmentCount.toString(),
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
-      href: ""
+      href: "",
     },
-    
   ];
 
   return (
@@ -159,12 +174,19 @@ const AdminDashboard = () => {
                   System Overview
                 </h1>
                 <p className="text-slate-400 text-sm mt-1">
-                  Welcome back, <span className="text-orange-500 font-semibold">{fullName || "Admin"}</span>.
+                  Welcome back,{" "}
+                  <span className="text-orange-500 font-semibold">
+                    {fullName || "Admin"}
+                  </span>
+                  .
                 </p>
               </div>
-              <button className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20">
+              <button
+                className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20"
+                onClick={() => navigate("/projects")}
+              >
                 <PlusCircle size={18} />
-                New Inspection
+                Add Project
               </button>
             </header>
 
@@ -177,7 +199,7 @@ const AdminDashboard = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="p-2 bg-slate-950 rounded-lg border border-slate-800 group-hover:border-orange-500/50 transition-colors">
-                     <a href={stat.href}>{stat.icon}</a>
+                      <a href={stat.href}>{stat.icon}</a>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       {stat.trend}
@@ -195,53 +217,66 @@ const AdminDashboard = () => {
 
             {/* Assistant Activity Log Section */}
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Terminal size={20} className="text-orange-500" />
-          <h2 className="font-bold text-white uppercase tracking-tight text-sm">
-            InspectPro Activity Log
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Feed</span>
-        </div>
-      </div>
-
-      <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
-        {loading ? (
-          <div className="py-10 text-center text-slate-600 text-xs animate-pulse uppercase">Syncing Manifests...</div>
-        ) : logs.length > 0 ? (
-          logs.map((log) => (
-            <div
-              key={log.id}
-              className="flex gap-4 p-4 rounded-xl hover:bg-slate-800/40 transition-all border border-transparent hover:border-slate-700 group"
-            >
-              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${log.type === 'alert' ? 'bg-red-500' : 'bg-orange-600'}`} />
-              <div className="flex-1">
-                <p className="text-sm text-slate-200 leading-tight">
-                  {log.message}{" "}
-                  {log.target && <span className="text-orange-400 font-bold">[{log.target}]</span>}
-                </p>
-                <div className="flex items-center gap-2 mt-2 text-slate-500">
-                  <Clock size={10} />
-                  <p className="text-[10px] font-mono uppercase tracking-tighter">
-                    {log.timestamp?.toDate() 
-                      ? formatDistanceToNow(log.timestamp.toDate(), { addSuffix: true }) 
-                      : "just now"} 
-                    {" • "} 
-                    BY: {log.userEmail?.split('@')[0] || "System"}
-                  </p>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Terminal size={20} className="text-orange-500" />
+                  <h2 className="font-bold text-white uppercase tracking-tight text-sm">
+                    InspectPro Activity Log
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                    Live Feed
+                  </span>
                 </div>
               </div>
+
+              <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
+                {loading ? (
+                  <div className="py-10 text-center text-slate-600 text-xs animate-pulse uppercase">
+                    Syncing Manifests...
+                  </div>
+                ) : logs.length > 0 ? (
+                  logs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex gap-4 p-4 rounded-xl hover:bg-slate-800/40 transition-all border border-transparent hover:border-slate-700 group"
+                    >
+                      <div
+                        className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${log.type === "alert" ? "bg-red-500" : "bg-orange-600"}`}
+                      />
+                      <div className="flex-1">
+                        <p className="text-sm text-slate-200 leading-tight">
+                          {log.message}{" "}
+                          {log.target && (
+                            <span className="text-orange-400 font-bold">
+                              [{log.target}]
+                            </span>
+                          )}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2 text-slate-500">
+                          <Clock size={10} />
+                          <p className="text-[10px] font-mono uppercase tracking-tighter">
+                            {log.timestamp?.toDate()
+                              ? formatDistanceToNow(log.timestamp.toDate(), {
+                                  addSuffix: true,
+                                })
+                              : "just now"}
+                            {" • "}
+                            BY: {log.userEmail?.split("@")[0] || "System"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-10 text-center text-slate-700 text-xs uppercase italic">
+                    No recent activity detected
+                  </div>
+                )}
+              </div>
             </div>
-          ))
-        ) : (
-          <div className="py-10 text-center text-slate-700 text-xs uppercase italic">No recent activity detected</div>
-        )}
-      </div>
-    </div>
-  
           </div>
         </main>
       </div>

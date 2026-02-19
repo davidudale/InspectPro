@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import {
   Shield,
+  X,
   Building2,
   MapPin,
   Zap,
@@ -40,6 +41,7 @@ const ProjectSetup = () => {
   const [masterEquipment, setMasterEquipment] = useState([]);
   const [inspectors, setInspectors] = useState([]);
   const [supervisor, setSupervisor] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
 
   // --- Consolidated Project Manifest State ---
   const [setupData, setSetupData] = useState({
@@ -122,64 +124,53 @@ const ProjectSetup = () => {
   const authorizedTechniques = selectedProtocol?.requiredTechniques || [];
 
   // --- 3. Submission & Forwarding Logic ---
-  const handleCreateProject = async (e) => {
+  // 1. Validation Logic (Triggers the Modal)
+  // --- 3. Submission & Forwarding Logic ---
+  const triggerPreview = (e) => {
     e.preventDefault();
-    // DEBUGGING: Log to see what is missing
-    console.log("Validation Check:", {
-      name: setupData.projectName,
-      client: setupData.clientId,
-      inspector: setupData.inspectorId,
-      equipment: setupData.equipmentId,
-    });
-
+    
+    // Cleaned up validation: ensure all required keys have values
     if (
       !setupData.projectName ||
       !setupData.clientId ||
       !setupData.inspectorId ||
-      !setupData.equipmentId
+      !setupData.equipmentId ||
+      !setupData.supervisorId // Ensure you have actually selected a supervisor in the UI
     ) {
-      if (!setupData.projectName) toast.error("Project Name is missing");
-      if (!setupData.clientId) toast.error("Client is missing");
-      if (!setupData.inspectorId) toast.error("Inspector is missing");
-      if (!setupData.equipmentId) toast.error("Asset is missing");
+      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, and Supervisor are assigned.");
       return;
     }
-    if (
-      !setupData.projectName ||
-      !setupData.clientId ||
-      !setupData.inspectorId ||
-      !setupData.equipmentId
-    ) {
-      return toast.warn(
-        "Incomplete Manifest: Please ensure Client, Asset, and Inspector are assigned.",
-      );
-    }
 
+    setShowPreview(true);
+  };
+
+  // 2. Final Submission Logic (Inside the Modal)
+  const handleFinalConfirm = async () => {
     setIsSubmitting(true);
     try {
-      // Save project to central repository for the inspector to pick up
       await addDoc(collection(db, "projects"), {
         ...setupData,
         adminId: user?.uid,
-        adminName: user?.displayName || "System Admin",
+        adminName: user?.displayName || user?.name || "System Admin",
         deploymentDate: serverTimestamp(),
       });
 
-      toast.success(`Project Forwarded to ${setupData.inspectorName}`);
+      await addDoc(collection(db, "activity_logs"), {
+        message: `Project Deployed: ${setupData.projectName}`,
+        target: setupData.projectId,
+        userEmail: user?.email || "system@local",
+        type: "info",
+        timestamp: serverTimestamp(),
+      });
+
+      toast.success(`Project Successfully Forwarded to ${setupData.inspectorName}`);
       navigate("/admin/projects");
     } catch (error) {
-      toast.error("Forwarding Error: " + error.message);
+      toast.error("Deployment Failure: " + error.message);
     } finally {
       setIsSubmitting(false);
+      setShowPreview(false);
     }
-
-    await addDoc(collection(db, "activity_logs"), {
-      message: "New project deployed",
-      target: setupData.projectName,
-      userEmail: user.email,
-      type: "info",
-      timestamp: serverTimestamp(),
-    });
   };
 
   return (
@@ -199,8 +190,7 @@ const ProjectSetup = () => {
             </header>
 
             <form
-              onSubmit={handleCreateProject}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+              onSubmit={triggerPreview} className="grid grid-cols-1 lg:grid-cols-3 gap-8"
             >
               <div className="lg:col-span-2 space-y-6">
                 {/* SECTION 1: CLIENT & FACILITY (LINKED) */}
@@ -325,7 +315,7 @@ const ProjectSetup = () => {
                     <option value="">Assign Asset Tag...</option>
                     {masterEquipment.map((eq) => (
                       <option key={eq.id} value={eq.id}>
-                        {eq.tagNumber} — {eq.assetType}
+                        {eq.tagNumber} - {eq.assetType}
                       </option>
                     ))}
                   </select>
@@ -348,8 +338,9 @@ const ProjectSetup = () => {
                         ...setupData,
                         inspectorId: e.target.value,
                         inspectorName:
-                          selected?.fullName ||
+                          selected?.name ||
                           selected?.displayName ||
+                          selected?.fullName ||
                           "Technical Resource",
                       });
                     }}
@@ -357,7 +348,7 @@ const ProjectSetup = () => {
                     <option value="">Choose Assigned Inspector...</option>
                     {inspectors.map((ins) => (
                       <option key={ins.id} value={ins.id}>
-                        {ins.name || ins.displayName}
+                        {ins.name || ins.displayName || ins.fullName}
                       </option>
                     ))}
                   </select>
@@ -378,8 +369,9 @@ const ProjectSetup = () => {
                         ...setupData,
                         supervisorId: e.target.value,
                         supervisorName:
-                          selected?.fullName ||
                           selected?.displayName ||
+                          selected?.name ||
+                          selected?.fullName ||
                           "Technical Resource",
                       });
                     }}
@@ -424,7 +416,7 @@ const ProjectSetup = () => {
                       <option value="">Select Code...</option>
                       {inspectionTypes.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.title} — {t.fullName}
+                          {t.title} - {t.fullName}
                         </option>
                       ))}
                     </select>
@@ -487,8 +479,65 @@ const ProjectSetup = () => {
           </div>
         </main>
       </div>
+      {/* PREVIEW MODAL */}
+      {showPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-4 animate-in fade-in duration-300">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-orange-500 to-transparent opacity-50" />
+            
+            <header className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-2xl font-bold text-white uppercase tracking-tighter flex items-center gap-3">
+                  <FileText className="text-orange-500" /> Review Manifest
+                </h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Project ID: {setupData.projectId}</p>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-slate-800 rounded-full text-slate-500 transition-colors">
+                <X size={24} />
+              </button>
+            </header>
+
+            <div className="grid grid-cols-2 gap-8 mb-10">
+              <PreviewItem label="Project Name" value={setupData.projectName} icon={<Briefcase size={14}/>} />
+              <PreviewItem label="Client" value={setupData.clientName} icon={<Building2 size={14}/>} />
+              <PreviewItem label="Asset" value={setupData.equipmentTag} icon={<Package size={14}/>} />
+              <PreviewItem label="Technique" value={setupData.selectedTechnique} icon={<Zap size={14}/>} />
+              <PreviewItem label="Assigned Inspector" value={setupData.inspectorName} icon={<UserCheck size={14}/>} />
+              <PreviewItem label="Schedule Start" value={setupData.startDate} icon={<Calendar size={14}/>} />
+            </div>
+
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowPreview(false)}
+                className="flex-1 py-5 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-800 transition-all"
+              >
+                Back to Edit
+              </button>
+              <button 
+                onClick={handleFinalConfirm}
+                disabled={isSubmitting}
+                className="flex-[2] bg-orange-600 hover:bg-orange-700 text-white py-5 rounded-3xl font-black uppercase text-[11px] tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-orange-900/20 active:scale-95 disabled:opacity-50 transition-all"
+              >
+                {isSubmitting ? "Processing..." : "Confirm & Forward"}
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
+
 export default ProjectSetup;
+
+const PreviewItem = ({ label, value, icon }) => (
+  <div className="space-y-1">
+    <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
+      {icon} {label}
+    </label>
+    <p className="text-sm font-bold text-white uppercase truncate">{value || "Not Assigned"}</p>
+  </div>
+);
+

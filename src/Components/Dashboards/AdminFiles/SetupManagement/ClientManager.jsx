@@ -12,8 +12,10 @@ import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../Auth/AuthContext";
 
 const ClientManager = () => {
+  const { user } = useAuth();
   const navigate = useNavigate()
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,7 +51,7 @@ const ClientManager = () => {
       });
       const data = await res.json();
       setNewClient({ ...newClient, logo: data.secure_url });
-      toast.success("Identity Branding Synchronized");
+      toast.success("Client Logo Added");
     } catch (err) {
       toast.error("Cloudinary Link Failed");
     } finally {
@@ -64,10 +66,10 @@ const ClientManager = () => {
   };
 
   const handleDelete = async (clientId, name) => {
-    if (window.confirm(`CRITICAL: Purge ${name} from Enterprise Portfolio?`)) {
+    if (window.confirm(`CRITICAL: Delete ${name} from Enterprise Portfolio?`)) {
       try {
         await deleteDoc(doc(db, "clients", clientId));
-        toast.error("Client record purged");
+        toast.error("Client record Deleted");
       } catch (err) {
         toast.error("De-authorization failed");
       }
@@ -88,6 +90,13 @@ const ClientManager = () => {
           ...newClient,
           createdAt: serverTimestamp(),
         });
+        await addDoc(collection(db, "activity_logs"), {
+                        message: `Client Added: ${newClient.name}`,
+                        target: "",
+                        userEmail: user.email,
+                        type: "info",
+                        timestamp: serverTimestamp(),
+                      });
         toast.success("Client Authorized: Proceed to Location Mapping");
       }
       closeModal();
@@ -119,7 +128,7 @@ const ClientManager = () => {
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
                 <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">Client Portfolio</h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">Enterprise Directory</p>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">Clients Directory</p>
               </div>
 
               <div className="flex flex-col md:flex-row items-center gap-4">

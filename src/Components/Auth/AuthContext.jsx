@@ -1,33 +1,51 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import { auth } from '../Auth/firebase'; // Ensure this path is correct
+import { auth, db } from '../Auth/firebase'; // Import your Firestore 'db' instance
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore'; // Import Firestore methods
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  // 1. Initialize loading as TRUE so the app waits for Firebase
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 2. Listen for actual Firebase auth changes
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // If user exists, set them in your context
-        // You can also fetch their 'role' from Firestore here later
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || 'Alex',
-          role: 'Admin' // You can make this dynamic later
-        });
+        try {
+          // --- NEW: Fetch dynamic role from Firestore ---
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
+              // Map exactly what is in your database (e.g., 'Inspector', 'Supervisor', 'Admin')
+              role: userData.role || 'Inspector', 
+              ...userData // Spreads other profile fields if needed
+            });
+          } else {
+            // Fallback if auth exists but Firestore profile is missing
+            setUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              role: 'Guest'
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching user role:", error);
+          setUser(null);
+        }
       } else {
         setUser(null);
       }
-      setLoading(false); // 3. Firebase has responded, stop loading
+      setLoading(false);
     });
 
-    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, []);
 

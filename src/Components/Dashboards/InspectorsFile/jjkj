@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- GLOBAL HELPERS ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "Admin";
+    }
+
+    // --- COLLECTION RULES ---
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); 
+      allow create: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // Technical Registry Collections
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /locations/{locationId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // FIX: Explicitly allow Admin to read equipment registry
+    match /equipment/{assetId} {
+      allow read: if isAuthenticated() && (isAdmin() || request.auth != null);
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    match /inspection_types/{typeId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // PROJECTS: Operational manifests
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || (
+        isAuthenticated() && (
+          request.auth.uid == resource.data.inspectorId || 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "Supervisor"
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // FIX: Explicitly add inspections match block which was missing from your read rule
+    match /inspections/{docId} {
+      allow read: if isAuthenticated() && (isAdmin() || request.auth != null);
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    
+    // INSPECTION_REPORTS: Technical findings and photo data
+    match /inspection_reports/{reportId} {
+       // Consolidated Read Rule: Admin can see everything, others see what they own
+       allow read: if isAuthenticated() && (isAdmin() || request.auth.uid == resource.data.inspectorUid);
+       
+       allow create: if isAuthenticated();
+       
+       allow update: if isAdmin() || (
+         isAuthenticated() && 
+         (resource.data.status == "Forwarded to Inspector" || request.auth.uid == resource.data.inspectorUid)
+       );
+       
+       allow delete: if isAdmin();
+    }
+  }
+}

@@ -26,7 +26,7 @@ const Login = () => {
       if (docSnap.exists()) {
         const role = docSnap.data().role;
         if (role === "Admin") navigate("/admin-dashboard");
-        else if (role === "Manager") navigate("/manager-dashboard");
+        else if (role === "Manager") navigate("/ManagerDashboard");
         else if (role === "Supervisor") navigate("/SupervisorDashboard");
         else navigate("/inspectionDashboard");
       }

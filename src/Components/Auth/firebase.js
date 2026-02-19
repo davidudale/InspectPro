@@ -12,7 +12,14 @@ const firebaseConfig = {
   appId: "1:494949815374:web:c70da823340a29057a9f1f"
 }; 
 
+
+// Main App Instance (for Admin login session)
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Secondary Instance (for User Management ONLY)
+// We give it a unique name "Secondary" so it doesn't conflict with the main session
+const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+export const secondaryAuth = getAuth(secondaryApp);

@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc, query, where } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import InspectorNavbar from "../Dashboards/InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../Dashboards/InspectorsFile/InspectorSidebar";
 
 const InspectionDashboard = () => {
   const [userCount, setUserCount] = useState(0);
+  const [inspectionCount, setInspectionCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
 
@@ -25,6 +26,17 @@ const InspectionDashboard = () => {
     const usersRef = collection(db, "users");
     const unsubscribe = onSnapshot(usersRef, (snapshot) => {
       setUserCount(snapshot.size);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 1. Fetch live Inspection count
+  useEffect(() => {
+    const inspectionRef = query(collection(db, "projects"), where("inspectorId", "==", "inspectorId"));
+    const unsubscribe = onSnapshot(inspectionRef, (snapshot) => {
+      setInspectionCount(snapshot.size);
       setLoading(false);
     });
 
@@ -41,7 +53,9 @@ const InspectionDashboard = () => {
 
           if (docSnap.exists()) {
             // Assuming your Firestore field is called 'fullName'
-            setFullName(docSnap.data().fullName || docSnap.data().name || "Admin");
+            setFullName(
+              docSnap.data().fullName || docSnap.data().name || "Admin",
+            );
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
@@ -55,27 +69,26 @@ const InspectionDashboard = () => {
   const stats = [
     {
       label: "Active Inspections",
-      value: "12",
+      value: loading ? "...." : inspectionCount.toString(),
       icon: <Activity className="text-orange-500" />,
       trend: "+2 today",
-      href: ""
+      href: "",
     },
     {
       label: "Inspection Completed",
       value: "5",
       icon: <ShieldCheck className="text-emerald-500" />,
       trend: "Optimal",
-      href: ""
+      href: "",
     },
-    
+
     {
       label: "Projects",
       value: "3",
       icon: <AlertCircle className="text-red-500" />,
       trend: "Requires Action",
-      href: ""
+      href: "",
     },
-    
   ];
 
   return (
@@ -92,7 +105,11 @@ const InspectionDashboard = () => {
                   System Overview
                 </h1>
                 <p className="text-slate-400 text-sm mt-1">
-                  Welcome back, <span className="text-orange-500 font-semibold">{fullName || "Admin"}</span>.
+                  Welcome back,{" "}
+                  <span className="text-orange-500 font-semibold">
+                    {fullName || "Admin"}
+                  </span>
+                  .
                 </p>
               </div>
               <button className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20">
@@ -110,7 +127,7 @@ const InspectionDashboard = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="p-2 bg-slate-950 rounded-lg border border-slate-800 group-hover:border-orange-500/50 transition-colors">
-                     <a href={stat.href}>{stat.icon}</a>
+                      <a href={stat.href}>{stat.icon}</a>
                     </div>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                       {stat.trend}
@@ -142,9 +159,7 @@ const InspectionDashboard = () => {
                       className="flex gap-4 p-3 rounded-xl hover:bg-slate-800/30 transition-colors border-l-2 border-transparent hover:border-orange-500"
                     >
                       <div className="w-2 h-2 rounded-full bg-orange-600 mt-1.5 shrink-0" />
-                      <div>
-                        
-                      </div>
+                      <div></div>
                     </div>
                   ))}
                 </div>

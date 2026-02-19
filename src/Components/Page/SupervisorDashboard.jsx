@@ -1,94 +1,249 @@
-import React, { useState } from 'react';
-import { Menu, X, FileText, LogOut, User } from 'lucide-react'; // Example icons
+import { useEffect, useState } from "react";
+import React from "react";
+import {
+  Activity,
+  ShieldCheck,
+  AlertCircle,
+  Terminal,
+  PlusCircle,
+  User,
+  Clock
+} from "lucide-react";
+import AdminNavbar from "../Dashboards/AdminNavbar";
+import AdminSidebar from "../Dashboards/AdminSidebar";
+import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
+import { collection, onSnapshot, doc, getDoc, orderBy, limit, query } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
+import SupervisorNavbar from "../Dashboards/SupervisorFiles/SupervisorNavbar";
+import SupervisorSidebar from "../Dashboards/SupervisorFiles/SupervisorSidebar";
 
 const SupervisorDashboard = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userCount, setUserCount] = useState(0);
+  const [inspectionCount, setInspectionCount] = useState(0);
+  const [equipmentCount, setEquipmentCount] = useState(0);
+  const [reportCount, setReportCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState([]);
+  const [fullName, setFullName] = useState(""); // State for logged-in user's name
+
+  // 1. Fetch live user count
+  useEffect(() => {
+    const usersRef = collection(db, "users");
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      setUserCount(snapshot.size);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    // Query the latest 10 activities
+    const q = query(
+      collection(db, "activity_logs"), 
+      orderBy("timestamp", "desc"), 
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 1. Fetch live Active Inspection count
+  useEffect(() => {
+    const inspectionRef = collection(db, "projects");
+    const unsubscribe = onSnapshot(inspectionRef, (snapshot) => {
+      setInspectionCount(snapshot.size);  
+      setLoading(false);
+    });
+
+     return () => unsubscribe();
+  }, []);
+
+    // 1. Fetch live equipment count
+  useEffect(() => {
+    const equipmentRef = collection(db, "equipment");
+    const unsubscribe = onSnapshot(equipmentRef, (snapshot) => {
+      setEquipmentCount(snapshot.size);  
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+  
+  // 1. Fetch live Reports count
+  useEffect(() => {
+    const reportRef = collection(db, "inspection_type");
+    const unsubscribe = onSnapshot(reportRef, (snapshot) => {
+      setReportCount(snapshot.size);  
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Fetch logged-in user's Full Name
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const docRef = doc(db, "users", user.uid);
+          const docSnap = await getDoc(docRef);
+
+          if (docSnap.exists()) {
+            // Assuming your Firestore field is called 'fullName'
+            setFullName(docSnap.data().fullName || docSnap.data().name || "Admin");
+          }
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const stats = [
+    {
+      label: "Active Inspections",
+      value: loading ? "..." : inspectionCount.toString(),
+      icon: <Activity className="text-orange-500" />,
+      trend: "+2 today",
+      href: ""
+    },
+    {
+      label: "Reports Under Management",
+      value: loading ? "..." : reportCount.toString(),
+      icon: <ShieldCheck className="text-emerald-500" />,
+      trend: "Optimal",
+      href: ""
+    },
+    {
+      label: "System Users",
+      value: loading ? "..." : userCount.toString(),
+      icon: <User className="text-blue-500" />,
+      trend: "Live Data",
+      href: "/admin/users"
+    },
+    {
+      label: "Projects",
+      value: loading ? "..." : inspectionCount.toString(),
+      icon: <AlertCircle className="text-red-500" />,
+      trend: "Requires Action",
+      href: ""
+    },
+    {
+      label: "Equipments Under Management",
+      value: loading ? "..." : equipmentCount.toString(),
+      icon: <AlertCircle className="text-red-500" />,
+      trend: "Requires Action",
+      href: ""
+    },
+    
+  ];
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      {/* Navigation Bar */}
-      <nav className="sticky top-0 w-full border-b border-slate-800 bg-slate-900/50 backdrop-blur-md z-50">
-        <div className="flex items-center justify-between p-4 lg:px-8">
-          {/* Logo Section */}
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-700 rounded-sm flex items-center justify-center transform rotate-45">
-              <div className="w-3 h-3 bg-white rounded-full -rotate-45"></div>
-            </div>
-            <span className="text-xl lg:text-2xl font-bold tracking-tighter text-white">
-              InspectPro<span className="text-orange-500">.</span>
-            </span>
-          </div>
+      <SupervisorNavbar />
+      <div className="flex flex-1 min-h-screen">
+        <SupervisorSidebar />
 
-          {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center space-x-4">
-            <span className="text-slate-400 px-4 py-1 text-sm font-bold capitalize tracking-widest">Supervisor</span>
-            <button className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-1.5 rounded-sm text-xs font-bold uppercase tracking-widest transition-all hover:scale-105">
-              Generate Report
-            </button>
-            <button className="bg-red-900/40 hover:bg-red-700 text-white px-4 py-1.5 rounded-sm text-xs font-bold uppercase tracking-widest transition-all">
-              Logout
-            </button>
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="md:hidden p-2 text-white"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-          >
-            {isMenuOpen ? <X /> : <Menu />}
-          </button>
-        </div>
-
-        {/* Mobile Menu Dropdown */}
-        {isMenuOpen && (
-          <div className="md:hidden border-t border-slate-800 bg-slate-900 p-4 space-y-4 flex flex-col">
-            <button className="w-full text-left px-2 py-2 text-sm text-slate-300">Supervisor</button>
-            <button className="w-full bg-orange-600 text-white p-2 rounded-sm text-xs font-bold uppercase">Generate Report</button>
-            <button className="w-full bg-red-900 text-white p-2 rounded-sm text-xs font-bold uppercase">Logout</button>
-          </div>
-        )}
-      </nav>
-
-      <div className="flex flex-1">
-        {/* Sidebar - Collapses to thin bar on mobile, full width on large */}
-        <aside className="w-16 lg:w-64 border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
-          <div className="p-4 lg:p-6 border-b border-slate-800/50">
-            <div className="flex items-center gap-4">
-              <div className="relative shrink-0">
-                <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 p-0.5 shadow-orange-500/20">
-                  <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-white font-bold text-xs lg:text-base">
-                    AV
-                  </div>
-                </div>
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
-              </div>
-              <div className="hidden lg:block overflow-hidden">
-                <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
-                  Alex InspectPro
+        <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+          <div className="max-w-7xl mx-auto">
+            <header className="flex justify-between items-end mb-8">
+              <div>
+                <h1 className="text-3xl font-bold text-white tracking-tight">
+                  System Overview
+                </h1>
+                <p className="text-slate-400 text-sm mt-1">
+                  Welcome back, <span className="text-orange-500 font-semibold">{fullName || "Admin"}</span>.
                 </p>
               </div>
-            </div>
-          </div>
-          
-          {/* Example Sidebar Icons for Mobile */}
-          <div className="flex flex-col items-center lg:items-start p-4 space-y-6">
-             <div className="lg:flex items-center gap-3 text-slate-400 hover:text-orange-500 cursor-pointer">
-                <FileText size={20} />
-                <span className="hidden lg:block text-sm">Inspections</span>
-             </div>
-          </div>
-        </aside>
+              <button className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20">
+                <PlusCircle size={18} />
+                New Inspection
+              </button>
+            </header>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-8 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
-          <div className="max-w-7xl mx-auto">
-             <h1 className="text-2xl font-bold text-white">Dashboard Overview</h1>
-             {/* Your content goes here */}
-             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="h-32 rounded-xl border border-slate-800 bg-slate-900/50 p-4"></div>
-                <div className="h-32 rounded-xl border border-slate-800 bg-slate-900/50 p-4"></div>
-                <div className="h-32 rounded-xl border border-slate-800 bg-slate-900/50 p-4"></div>
-             </div>
+            {/* Metric Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {stats.map((stat, idx) => (
+                <div
+                  key={idx}
+                  className="group p-6 rounded-2xl border border-slate-800 bg-slate-900/40 hover:bg-slate-900/60 transition-all"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-2 bg-slate-950 rounded-lg border border-slate-800 group-hover:border-orange-500/50 transition-colors">
+                     <a href={stat.href}>{stat.icon}</a>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      {stat.trend}
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-xs font-medium uppercase tracking-tight">
+                    {stat.label}
+                  </p>
+                  <p className="text-3xl font-bold text-white mt-1">
+                    {stat.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            {/* Assistant Activity Log Section */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Terminal size={20} className="text-orange-500" />
+          <h2 className="font-bold text-white uppercase tracking-tight text-sm">
+            InspectPro Activity Log
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Feed</span>
+        </div>
+      </div>
+
+      <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
+        {loading ? (
+          <div className="py-10 text-center text-slate-600 text-xs animate-pulse uppercase">Syncing Manifests...</div>
+        ) : logs.length > 0 ? (
+          logs.map((log) => (
+            <div
+              key={log.id}
+              className="flex gap-4 p-4 rounded-xl hover:bg-slate-800/40 transition-all border border-transparent hover:border-slate-700 group"
+            >
+              <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${log.type === 'alert' ? 'bg-red-500' : 'bg-orange-600'}`} />
+              <div className="flex-1">
+                <p className="text-sm text-slate-200 leading-tight">
+                  {log.message}{" "}
+                  {log.target && <span className="text-orange-400 font-bold">[{log.target}]</span>}
+                </p>
+                <div className="flex items-center gap-2 mt-2 text-slate-500">
+                  <Clock size={10} />
+                  <p className="text-[10px] font-mono uppercase tracking-tighter">
+                    {log.timestamp?.toDate() 
+                      ? formatDistanceToNow(log.timestamp.toDate(), { addSuffix: true }) 
+                      : "just now"} 
+                    {" • "} 
+                    BY: {log.userEmail?.split('@')[0] || "System"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="py-10 text-center text-slate-700 text-xs uppercase italic">No recent activity detected</div>
+        )}
+      </div>
+    </div>
+  
           </div>
         </main>
       </div>

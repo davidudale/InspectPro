@@ -27,20 +27,87 @@ const sidebarLinks = [
   {
     name: "Dashboard",
     icon: <LayoutDashboard size={20} />,
-    href: "/inspectionDashboard",
+    href: "/ManagerDashboard",
   },
-  
    {
-    name: "Inspections",
+      name: "Inspections",
+      icon: <LayoutDashboard size={20} />,
+      href: "/Inspection_view",
+    },
+   {
+       name: "Pending Inspections",
+       icon: <LayoutDashboard size={20} />,
+       href: "/SubInspection_view",
+     },
+      {
+       name: "Confirmed Inspection",
+       icon: <LayoutDashboard size={20} />,
+       href: "/ConfirmedInspection",
+     },
+  {
+    name: "Pending Approval",
     icon: <LayoutDashboard size={20} />,
-    href: "/Inspection_view",
+    href: "/Pending_approval",
   },
- 
+  {
+    name: "Approval Projects",
+    icon: <LayoutDashboard size={20} />,
+    href: "/approval_projects",
+  },
+  {
+    name: "Project Management",
+    icon: <ClipboardCheck size={20} />,
+    // This item has a dropdown
+    subLinks: [
+      {
+        name: "View Projects",
+        icon: <FileText size={16} />,
+        href: "/admin/projects",
+      },
+      {
+        name: "Add Projects",
+        icon: <FileText size={16} />,
+        href: "/projects",
+      },
+    ],
+  },
+
+  
   {
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
-          {
+      {
+        name: "Client Management",
+        icon: <Wrench size={16} />,
+        href: "/Client",
+      },
+      {
+        name: "Location Management",
+        icon: <Wrench size={16} />,
+        href: "/location",
+      },
+      {
+        name: "Inspection Types",
+        icon: <Wrench size={16} />,
+        href: "/inspection_type",
+      },
+      {
+        name: "Equipment Management",
+        icon: <Wrench size={16} />,
+        href: "/equipment",
+      },
+      {
+        name: "Report Template",
+        icon: <FileText size={16} />,
+        href: "/admin/inspections",
+      },
+      {
+        name: "User Management",
+        icon: <Users size={20} />,
+        href: "/admin/users",
+      },
+      {
         name: "System Config",
         icon: <Sliders size={16} />,
         href: "/admin/config",
@@ -49,7 +116,7 @@ const sidebarLinks = [
   },
 ];
 
-const InspectorSidebar = () => {
+const ManagerSidebar = () => {
   const [userCount, setUserCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
@@ -179,4 +246,4 @@ const InspectorSidebar = () => {
   );
 };
 
-export default InspectorSidebar;
+export default ManagerSidebar;

@@ -29,7 +29,7 @@ const sidebarLinks = [
     icon: <LayoutDashboard size={20} />,
     href: "/admin-dashboard",
   },
-  
+
   {
     name: "Project Management",
     icon: <ClipboardCheck size={20} />,
@@ -48,7 +48,6 @@ const sidebarLinks = [
     ],
   },
 
-  
   {
     name: "System Setup",
     icon: <Settings size={20} />,
@@ -76,6 +75,18 @@ const sidebarLinks = [
       {
         name: "Report Template",
         icon: <FileText size={16} />,
+        subLinks: [
+          {
+            name: "View Projects",
+            icon: <FileText size={16} />,
+            href: "/admin/projects",
+          },
+          {
+            name: "Add Projects",
+            icon: <FileText size={16} />,
+            href: "/projects",
+          },
+        ],
         href: "/admin/inspections",
       },
       {

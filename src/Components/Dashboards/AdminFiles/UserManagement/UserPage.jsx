@@ -2,7 +2,7 @@ import { React, useEffect, useState } from "react";
 import AdminNavbar from "../../AdminNavbar";
 import { PlusCircle, Edit2, Trash2, User, X, Save, Lock } from "lucide-react";
 import AdminSidebar from "../../AdminSidebar";
-import { db, auth } from "../../../Auth/firebase"; // NEW: Ensure 'auth' is exported from your firebase config
+import { db, auth, secondaryAuth } from "../../../Auth/firebase"; // NEW: Ensure 'auth' is exported from your firebase config
 import { 
   collection, onSnapshot, doc, deleteDoc, 
   setDoc, updateDoc, serverTimestamp 
@@ -67,12 +67,12 @@ const UserPage = () => {
       } else {
         // --- NEW USER LOGIC (Auth + Firestore) ---
         
-        // 1. Create secure credentials in Firebase Auth
-        const userCredential = await createUserWithEmailAndPassword(
-          auth, 
-          formData.email, 
-          formData.password
-        );
+        // 1. Create credentials using the background instance
+      const userCredential = await createUserWithEmailAndPassword(
+        secondaryAuth, // CRITICAL CHANGE
+        formData.email, 
+        formData.password
+      );
         
         const newUserId = userCredential.user.uid;
 
@@ -84,6 +84,9 @@ const UserPage = () => {
           authUid: newUserId
         });
 
+        // 3. IMPORTANT: Sign out the secondary instance immediately
+      // This prevents the secondary instance from holding onto the new user's state
+      await secondaryAuth.signOut();
         toast.success("User Authenticated & Profile Created");
       }
       handleCloseModal();

@@ -29,7 +29,17 @@ import ProjectEdit from "./Components/Dashboards/AdminFiles/ProjectManagement/Pr
 import VisualReport from "./Components/Dashboards/AdminFiles/ReportManagement/VisualReport.jsx";
 import MutReport from "./Components/Dashboards/AdminFiles/ReportManagement/MutReport.jsx";
 import ViewInspectionsList from "./Components/Dashboards/InspectorsFile/ViewInspectionsList.jsx";
-
+import SupervisorDashboard from "./Components/Page/SupervisorDashboard.jsx";
+import SubInspectionsList from "./Components/Dashboards/SupervisorFiles/SubInspectionsList.jsx";
+import PendingApproval from "./Components/Dashboards/ManagerFile/PendingApprovals.jsx";
+import ReviewForConfirmation from "./Components/Dashboards/SupervisorFiles/ReviewForConfirmation.jsx";
+import ConfirmedInspection from "./Components/Dashboards/SupervisorFiles/ConfirmedInspection.jsx"
+import ReviewReport from "./Components/Dashboards/SupervisorFiles/ReviewReport.jsx";
+import ReviewForApproval from "./Components/Dashboards/ManagerFile/ReviewForApproval.jsx";
+import PendingApprovals from "./Components/Dashboards/ManagerFile/PendingApprovals.jsx";
+import ApprovedProjects from "./Components/Dashboards/ManagerFile/ApprovedProjects.jsx";
+import ReportDownloadView from "./Components/Dashboards/ManagerFile/ReportDownloadView.jsx";
+import ProjectPreview from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectPreview.jsx";
 function App() {
   return (
     <>
@@ -45,7 +55,7 @@ function App() {
           path="/inspectionDashboard"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Manager", "Admin"]}
             >
               <InspectionDashboard />
             </ProtectedRoute>
@@ -55,7 +65,7 @@ function App() {
           path="/Inspection_view"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Manager", "Admin"]}
             >
               <ViewInspectionsList />
             </ProtectedRoute>
@@ -65,7 +75,7 @@ function App() {
           path="/inspector/visual-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Manager", "Admin"]}
             >
               <VisualReport />
             </ProtectedRoute>
@@ -75,21 +85,61 @@ function App() {
           path="/inspector/aut-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Manager", "Admin"]}
             >
               <Aut />
             </ProtectedRoute>
           }
         />
 
-
-
         {/* Supervisor & Above */}
         <Route
           path="/SupervisorDashboard"
           element={
-            <ProtectedRoute allowedRoles={["Supervisor", "Manager", "Admin"]}>
-              <Supervisor />
+            <ProtectedRoute allowedRoles={["Supervisor", "Admin"]}>
+              <SupervisorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/SubInspection_view"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Supervisor", "Manager", "Admin"]}
+            >
+              <SubInspectionsList />
+            </ProtectedRoute>
+          }
+          
+        />
+        <Route
+          path="/pendinginspections"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Supervisor", "Manager", "Admin"]}
+            >
+              <ReviewForConfirmation />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/review/:id"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Supervisor", "Manager", "Admin"]}
+            >
+              <ReviewReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ConfirmedInspection"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Supervisor", "Manager", "Admin"]}
+            >
+              <ConfirmedInspection />
             </ProtectedRoute>
           }
         />
@@ -102,6 +152,103 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/Pending_approval"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <PendingApproval />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ReviewForApproval"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ReviewForApproval />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inspections"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <InspectionLogs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/approval_projects"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ApprovedProjects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inspection-details/:id"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ViewInspection />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/viewprojects/project-edit/:id"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ProjectEdit />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/project/:id"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ProjectPreview />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pending_approval"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <PendingApproval />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/inspection-item/:docId/:itemId"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <ItemDetailView />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports/aut"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <Aut />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports/visual"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <VisualReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports/mut"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <MutReport />
+            </ProtectedRoute>
+          }
+        />
+<Route path="/report/download/:id" element={<ReportDownloadView />} />
         
         {/* Admin Only */}
         <Route
@@ -144,63 +291,7 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/admin/inspections"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <InspectionLogs />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/inspection-details/:id"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <ViewInspection />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/viewprojects/project-edit/:id"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <ProjectEdit />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/inspection-item/:docId/:itemId"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <ItemDetailView />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/reports/aut"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <Aut />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/reports/visual"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <VisualReport />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/reports/mut"
-          element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
-              <MutReport />
-            </ProtectedRoute>
-          }
-        />
-
+        
         <Route
           path="/projects"
           element={
