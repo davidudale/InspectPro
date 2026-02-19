@@ -6,7 +6,7 @@ import {
 } from "firebase/firestore";
 
 import {
-  Eye, ChevronLeft, Printer, Activity, ShieldCheck, Camera, CheckCircle
+  Eye, ChevronLeft, Printer, Activity, ShieldCheck, Camera, Check
 } from "lucide-react";
 import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
@@ -125,7 +125,7 @@ const ReviewForApproval = () => {
                   disabled={isSaving}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  <CheckCircle size={16} /> {isSaving ? "Syncing..." : "Approve"}
+                  <Check size={16} /> {isSaving ? "Syncing..." : "OK"}
                 </button>
               </div>
             </header>

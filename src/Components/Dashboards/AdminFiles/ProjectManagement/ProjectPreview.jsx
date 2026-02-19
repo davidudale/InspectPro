@@ -1,195 +1,187 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { 
-  collection, doc, getDoc, getDocs, serverTimestamp, updateDoc, query, where, limit 
-} from "firebase/firestore";
-import { ChevronLeft, Activity, ShieldCheck, Camera, CheckCircle } from "lucide-react";
-import AdminNavbar from "../../AdminNavbar";
-import AdminSidebar from "../../AdminSidebar";
-import { toast } from "react-toastify";
-import { useAuth } from "../../../Auth/AuthContext";
+import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { Printer, ChevronLeft, Activity, Shield, FileDown } from "lucide-react";
+import html2pdf from "html2pdf.js"; // Import the library
 
 const ProjectPreview = () => {
-  const { user } = useAuth();
-  const location = useLocation();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { id } = useParams(); 
-
+  const reportRef = useRef(); // Create a reference for the PDF generator
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [reportData, setReportData] = useState(null);
+  const [project, setProject] = useState(null);
+  const [report, setReport] = useState(null);
 
   useEffect(() => {
-    const fetchFullReport = async () => {
-      setLoading(true);
+    const fetchFullData = async () => {
       try {
-        const routeDocId = id || location.state?.preFill?.id;
-        
-        // Priority 1: Fetch the core project document to get the internal projectId code
-        const projectSnap = await getDoc(doc(db, "projects", routeDocId));
-        if (!projectSnap.exists()) {
-          toast.error("Project manifest not found.");
-          return;
-        }
+        setLoading(true);
+        const projectDoc = await getDoc(doc(db, "projects", id));
+        if (projectDoc.exists()) setProject(projectDoc.data());
 
-        const projectData = projectSnap.data();
-        // Use the custom projectId field (e.g. PRJ-1234) to find the technical report
-        const technicalId = projectData.projectId || routeDocId;
-
-        // Fetch technical findings from inspection_reports
         const q = query(
-          collection(db, "inspection_reports"), 
-          where("general.projectId", "==", technicalId), 
+          collection(db, "inspection_reports"),
+          where("general.projectId", "==", id),
           limit(1)
         );
-        
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          setReportData(querySnapshot.docs[0].data());
-        } else {
-          toast.warn("No inspection report attached to this manifest.");
-          // Fallback to project manifest data for the header fields
-          setReportData({
-            general: {
-              tag: projectData.equipmentTag || projectData.tag,
-              assetType: projectData.equipmentCategory || projectData.assetType,
-              reportNum: "PENDING",
-            },
-            observations: []
-          });
-        }
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        toast.error("Access Denied or Database Error");
+        const reportSnap = await getDocs(q);
+        if (!reportSnap.empty) setReport(reportSnap.docs[0].data());
+      } catch (error) {
+        console.error("PDF Fetch Error:", error);
       } finally {
         setLoading(false);
       }
     };
+    fetchFullData();
+  }, [id]);
 
-    fetchFullReport();
-  }, [id, location.state]);
+  // --- PDF GENERATION LOGIC ---
+  const downloadPDF = () => {
+    const element = reportRef.current;
+    const opt = {
+      margin: 0,
+      filename: `INSPECTPRO_REPORT_${project?.equipmentTag || "EXPORT"}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, logging: true }, // scale: 2 for HD quality
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
 
-  const handleConfirmProject = async () => {
-    const projectDocId = id || location.state?.preFill?.id;
-    if (!projectDocId) return toast.error("Reference ID Missing");
-
-    setIsSaving(true);
-    try {
-      const projectRef = doc(db, "projects", projectDocId);
-      
-      await updateDoc(projectRef, {
-        status: "Approved",
-        approvedBy: user?.displayName || user?.email,
-        approvedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      toast.success("Project status updated to Approved");
-      navigate("/admin/projects"); 
-    } catch (error) {
-      toast.error(`Approval Failed: ${error.message}`);
-    } finally {
-      setIsSaving(false);
-    }
+    html2pdf().set(opt).from(element).save();
   };
 
-  const evidencePhotos = reportData?.observations?.filter((obs) => obs.photoRef) || [];
-
   if (loading) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <Activity className="animate-spin text-orange-500" size={40} />
+    <div className="h-screen flex items-center justify-center bg-slate-950">
+      <Activity className="animate-spin text-orange-500" />
     </div>
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <AdminNavbar /> 
-      <div className="flex flex-1">
-        <AdminSidebar /> 
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
-          <div className="max-w-6xl mx-auto">
-            <header className="flex justify-between items-center mb-10 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
-              <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="p-2 bg-slate-950 border border-slate-800 rounded-lg text-orange-500 hover:bg-orange-600 transition-all shadow-inner">
-                  <ChevronLeft size={20} />
-                </button>
-                <h1 className="text-2xl font-bold uppercase tracking-tighter flex items-center gap-2 text-white">
-                  <ShieldCheck className="text-emerald-500" /> Project Dashboard
-                </h1>
-              </div>
-              <button 
-                onClick={handleConfirmProject} 
-                disabled={isSaving || reportData?.status === "Approved"}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
-              >
-                <CheckCircle size={16} /> {isSaving ? "Updating..." : "Approve Manifest"}
-              </button>
-            </header>
+    <div className="min-h-screen bg-slate-900 p-4 md:p-8 pb-20 print:p-0 print:bg-white">
+      {/* UI Controls */}
+      <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors">
+          <ChevronLeft size={18} /> Back
+        </button>
+        <div className="flex gap-4">
+          <button onClick={() => window.print()} className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 border border-slate-700">
+            <Printer size={18} /> Print
+          </button>
+          <button onClick={downloadPDF} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-900/20">
+            <FileDown size={18} /> Save as PDF
+          </button>
+        </div>
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <StaticField label="Asset Tag" value={reportData.general?.tag} />
-              <StaticField label="Category" value={reportData.general?.assetType} />
-              <StaticField label="Report #" value={reportData.general?.reportNum} />
-              <StaticField label="Sync Status" value={reportData.general?.projectId ? "Technical Data Linked" : "Manifest Only"} />
-            </div>
+      {/* TARGET CONTAINER FOR PDF GENERATION */}
+      <div ref={reportRef} className="max-w-[210mm] mx-auto space-y-0">
+        
+        {/* --- PAGE 1: COVER PAGE --- */}
+        <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] flex flex-col page-break">
+          <div className="flex justify-between items-start border-b-2 border-slate-950 pb-6 mb-20">
+             <div className="text-blue-800 font-black text-xl">INSPECTPRO™</div>
+             {project?.clientLogo && <img src={project.clientLogo} alt="Client" className="h-16 w-auto" />}
+          </div>
 
-            {/* Observations Section */}
-            <div className="space-y-4 mb-12">
-              <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 ml-2">Technical Observations</h2>
-              <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 overflow-hidden">
-                {reportData.observations?.length > 0 ? reportData.observations.map((item) => (
-                  <div key={item.sn} className="grid grid-cols-12 gap-4 p-5 border-b border-slate-800/50 items-center last:border-0 hover:bg-white/5 transition-colors">
-                    <div className="col-span-1 text-[10px] font-mono text-slate-500">{item.sn}</div>
-                    <div className="col-span-4 text-[11px] font-bold uppercase text-white">{item.component}</div>
-                    <div className="col-span-2">
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.condition === 'Satisfactory' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                        {item.condition}
-                      </span>
-                    </div>
-                    <div className="col-span-5 text-slate-400 text-xs italic">{item.notes || "No technical remarks."}</div>
-                  </div>
-                )) : (
-                  <div className="p-10 text-center text-slate-600 text-xs uppercase font-bold tracking-widest">Awaiting Inspector Data Submission</div>
-                )}
-              </div>
-            </div>
-
-            {/* Image Gallery */}
-            <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800">
-              <h2 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-2">
-                <Camera size={14} /> Technical Evidence Gallery
-              </h2>
-              {evidencePhotos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {evidencePhotos.map((obs, idx) => (
-                    <div key={idx} className="group bg-slate-950 border border-slate-800 p-2 rounded-2xl">
-                      <img src={obs.photoRef} className="aspect-video overflow-hidden rounded-xl bg-slate-900 object-cover w-full mb-3" alt="Evidence" />
-                      <div className="px-2 pb-2">
-                        <span className="text-[9px] font-bold text-orange-500 uppercase">Ref {obs.sn}</span>
-                        <p className="text-[10px] text-slate-400 truncate mt-1">{obs.component}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 text-center text-slate-600 border-2 border-dashed border-slate-800 rounded-3xl uppercase text-[10px] font-bold tracking-widest">
-                  No photographic evidence available
-                </div>
-              )}
+          <div className="flex-1 flex flex-col justify-center text-center">
+            <h1 className="text-5xl font-serif font-bold underline mb-6 uppercase tracking-tight">
+              {project?.locationName}
+            </h1>
+            <h2 className="text-2xl font-bold mb-16 uppercase tracking-[0.2em] text-slate-700 border-y py-4 border-slate-200">
+              Visual Testing (VT) Technical Report
+            </h2>
+            
+            <div className="space-y-6 text-left inline-block mx-auto min-w-[300px] bg-slate-50 p-8 rounded-2xl border border-slate-100">
+              <ReportRow label="Report ID" value={project?.projectId} />
+              <ReportRow label="Asset Reference" value={project?.equipmentTag} />
+              <ReportRow label="Inspection Date" value={project?.startDate} />
+              <ReportRow label="Regulatory Code" value={report?.general?.assetType} />
             </div>
           </div>
-        </main>
+
+          <div className="mt-auto pt-10 border-t-4 border-slate-900 text-center">
+             <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">CONFIDENTIAL ENGINEERING DOCUMENT</p>
+          </div>
+        </div>
+
+        {/* --- PAGE 2: TECHNICAL FINDINGS --- */}
+        <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] flex flex-col page-break">
+          <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8 flex items-center gap-2">
+            <Shield size={16} className="text-orange-600" /> Section 01: Technical Observations
+          </h3>
+          
+          <table className="w-full text-left border-collapse mb-10">
+            <thead>
+              <tr className="bg-slate-100 border-y border-slate-300">
+                <th className="py-3 px-3 text-[10px] font-black uppercase">Ref</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase">Component</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase">Condition</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase">Remarks</th>
+              </tr>
+            </thead>
+            <tbody className="text-[11px] divide-y divide-slate-200">
+              {report?.observations?.map((obs) => (
+                <tr key={obs.sn}>
+                  <td className="p-4 font-mono font-bold">{obs.sn}</td>
+                  <td className="p-4 font-bold uppercase">{obs.component}</td>
+                  <td className="p-4">
+                    <span className={`font-black uppercase ${obs.condition === "Satisfactory" ? "text-emerald-600" : "text-red-600"}`}>
+                      {obs.condition}
+                    </span>
+                  </td>
+                  <td className="p-4 italic text-slate-600">{obs.notes || "Standard spec maintained."}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div className="mt-auto grid grid-cols-2 gap-10">
+            <SignatureBlock label="Field Inspector" name={report?.inspector} />
+            <SignatureBlock label="Authorized By" name={project?.authorizedBy || "System Admin"} />
+          </div>
+        </div>
+
+        {/* --- PAGE 3: PHOTOGRAPHIC APPENDIX --- */}
+        {report?.observations?.some(o => o.photoRef) && (
+          <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] page-break">
+            <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8">
+              Section 02: Photographic Appendix
+            </h3>
+            <div className="grid grid-cols-2 gap-8">
+              {report?.observations?.filter((o) => o.photoRef).map((img, idx) => (
+                <div key={idx} className="space-y-2 break-inside-avoid">
+                  <div className="border-2 border-slate-100 p-1 rounded-lg">
+                    <img src={img.photoRef} crossOrigin="anonymous" className="w-full aspect-[4/3] object-cover rounded" alt="Evidence" />
+                  </div>
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[10px] font-black uppercase">Ref {img.sn}</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase truncate">{img.component}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-const StaticField = ({ label, value }) => (
-  <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 shadow-inner">
-    <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">{label}</label>
-    <div className="text-sm font-bold text-white uppercase truncate">{value || "-"}</div>
+const ReportRow = ({ label, value }) => (
+  <div className="flex justify-between border-b border-slate-100 pb-1">
+    <span className="font-black text-slate-400 uppercase text-[9px]">{label}</span>
+    <span className="font-bold text-right uppercase">{value || "N/A"}</span>
+  </div>
+);
+
+const SignatureBlock = ({ label, name }) => (
+  <div className="space-y-4">
+    <p className="text-[9px] font-black uppercase text-slate-400">{label}</p>
+    <div className="border-b-2 border-slate-950 pb-1 font-serif italic text-lg text-slate-900">
+      {name || "____________________"}
+    </div>
+    <p className="text-[8px] text-slate-500 uppercase">Electronic Verification Signature</p>
   </div>
 );
 
