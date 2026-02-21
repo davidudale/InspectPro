@@ -182,7 +182,7 @@ const ProjectSetup = () => {
           <div className="max-w-6xl mx-auto">
             <header className="mb-10 border-b border-slate-900 pb-8">
               <h1 className="text-3xl font-bold uppercase tracking-tighter flex items-center gap-3 text-white">
-                <Shield className="text-orange-500" /> Project Deployment
+                <Shield className="text-orange-500" /> Project Initialization
               </h1>
               <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
                 Project ID: {setupData.projectId}
@@ -488,7 +488,7 @@ const ProjectSetup = () => {
             <header className="flex justify-between items-center mb-8">
               <div>
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tighter flex items-center gap-3">
-                  <FileText className="text-orange-500" /> Review Manifest
+                  <FileText className="text-orange-500" /> Project Initiation
                 </h2>
                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Project ID: {setupData.projectId}</p>
               </div>

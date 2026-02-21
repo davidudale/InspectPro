@@ -1,26 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Menu,
-  X,
   FileText,
-  LogOut,
-  User,
   LayoutDashboard,
   ClipboardCheck,
   Users,
   Settings,
-  ShieldAlert,
-  HelpCircle,
   ChevronDown,
-  Briefcase,
   Wrench,
   Sliders,
-} from "lucide-react"; // Example icons
-import { useState, useEffect } from "react";
+} from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
-import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { db, auth } from "../Auth/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const sidebarLinks = [
@@ -63,30 +55,19 @@ const sidebarLinks = [
         href: "/location",
       },
       {
-        name: "Inspection Types",
-        icon: <Wrench size={16} />,
-        href: "/inspection_type",
-      },
-      {
         name: "Equipment Management",
         icon: <Wrench size={16} />,
         href: "/equipment",
       },
       {
+        name: "Inspection Types",
+        icon: <Wrench size={16} />,
+        href: "/inspection_type",
+      },
+      
+      {
         name: "Report Template",
         icon: <FileText size={16} />,
-        subLinks: [
-          {
-            name: "View Projects",
-            icon: <FileText size={16} />,
-            href: "/admin/projects",
-          },
-          {
-            name: "Add Projects",
-            icon: <FileText size={16} />,
-            href: "/projects",
-          },
-        ],
         href: "/admin/inspections",
       },
       {
@@ -104,30 +85,15 @@ const sidebarLinks = [
 ];
 
 const AdminSidebar = () => {
-  const [userCount, setUserCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [fullName, setFullName] = useState(""); // State for logged-in user's name
+  const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  // State to track which dropdown is open (by name)
   const [openDropdown, setOpenDropdown] = useState(null);
 
   const toggleDropdown = (name) => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
 
-  // 1. Fetch live user count
-  useEffect(() => {
-    const usersRef = collection(db, "users");
-    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
-      setUserCount(snapshot.size);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Fetch logged-in user's Full Name
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -136,7 +102,6 @@ const AdminSidebar = () => {
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
-            // Assuming your Firestore field is called 'fullName'
             setFullName(
               docSnap.data().fullName || docSnap.data().name || "Admin",
             );
@@ -149,6 +114,11 @@ const AdminSidebar = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const isPathActive = (href) => {
+    if (!href) return false;
+    return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
 
   return (
     <aside className="w-16 h-screen lg:w-64 fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
@@ -171,14 +141,15 @@ const AdminSidebar = () => {
       </div>
       {/* Example Sidebar Icons for Mobile */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {sidebarLinks.map((link, index) => {
+        {sidebarLinks.map((link) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;
-          const isActive = location.pathname === link.href;
+          const isActive = hasSubLinks
+            ? link.subLinks.some((sub) => isPathActive(sub.href))
+            : isPathActive(link.href);
 
           return (
-            <div key={index} className="w-full">
-              {/* Main Link or Dropdown Trigger */}
+            <div key={link.name} className="w-full">
               <div
                 onClick={() =>
                   hasSubLinks ? toggleDropdown(link.name) : navigate(link.href)
@@ -197,7 +168,6 @@ const AdminSidebar = () => {
                   </span>
                 </div>
 
-                {/* Chevron Icon for Dropdowns */}
                 {hasSubLinks && (
                   <ChevronDown
                     size={16}
@@ -206,16 +176,15 @@ const AdminSidebar = () => {
                 )}
               </div>
 
-              {/* Dropdown Content */}
               {hasSubLinks && isOpen && (
                 <div className="hidden lg:block ml-9 mt-1 space-y-1 border-l border-slate-800">
-                  {link.subLinks.map((sub, subIdx) => (
+                  {link.subLinks.map((sub) => (
                     <button
-                      key={subIdx}
+                      key={sub.name}
                       onClick={() => navigate(sub.href)}
                       className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
                         ${
-                          location.pathname === sub.href
+                          isPathActive(sub.href)
                             ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}

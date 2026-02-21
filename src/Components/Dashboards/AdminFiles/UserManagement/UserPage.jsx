@@ -127,6 +127,8 @@ const UserPage = () => {
               <button 
                 className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20 active:scale-95" 
                 onClick={() => handleOpenModal()} 
+                title="Add User"
+                aria-label="Add User"
               >
                 <PlusCircle size={16} />
                 Add User
@@ -169,10 +171,10 @@ const UserPage = () => {
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex justify-end gap-2">
-                              <button onClick={() => handleOpenModal(u)} className="p-2 text-slate-500 hover:text-orange-500 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm">
+                              <button onClick={() => handleOpenModal(u)} title="Edit User" aria-label={`Edit ${u.name}`} className="p-2 text-slate-500 hover:text-orange-500 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm">
                                 <Edit2 size={14} />
                               </button>
-                              <button onClick={() => handleDelete(u.id, u.name)} className="p-2 text-slate-500 hover:text-red-500 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm">
+                              <button onClick={() => handleDelete(u.id, u.name)} title="Delete User" aria-label={`Delete ${u.name}`} className="p-2 text-slate-500 hover:text-red-500 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm">
                                 <Trash2 size={14} />
                               </button>
                             </div>

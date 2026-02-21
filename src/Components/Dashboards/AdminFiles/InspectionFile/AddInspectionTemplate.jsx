@@ -161,7 +161,7 @@ const AddInspectionTemplate = () => {
                 <div key={item.id} className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md relative animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
                     <span className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.3em]">Technical Unit #{index + 1}</span>
-                    <button type="button" onClick={() => setInspectionItems(inspectionItems.filter(i => i.id !== item.id))} className="p-2 bg-slate-800 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
+                    <button type="button" title="Delete Row" aria-label={`Delete technical unit ${index + 1}`} onClick={() => setInspectionItems(inspectionItems.filter(i => i.id !== item.id))} className="p-2 bg-slate-800 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all"><Trash2 size={16} /></button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./App.css";
 import { Routes, Route } from "react-router-dom";
 import Homepage from "./Components/MainComponent/Homepage";
@@ -29,6 +29,7 @@ import ProjectEdit from "./Components/Dashboards/AdminFiles/ProjectManagement/Pr
 import VisualReport from "./Components/Dashboards/AdminFiles/ReportManagement/VisualReport.jsx";
 import MutReport from "./Components/Dashboards/AdminFiles/ReportManagement/MutReport.jsx";
 import ViewInspectionsList from "./Components/Dashboards/InspectorsFile/ViewInspectionsList.jsx";
+import UserPreferences from "./Components/Dashboards/InspectorsFile/UserPreferences.jsx";
 import SupervisorDashboard from "./Components/Page/SupervisorDashboard.jsx";
 import SubInspectionsList from "./Components/Dashboards/SupervisorFiles/SubInspectionsList.jsx";
 import PendingApproval from "./Components/Dashboards/ManagerFile/PendingApprovals.jsx";
@@ -41,6 +42,13 @@ import ApprovedProjects from "./Components/Dashboards/ManagerFile/ApprovedProjec
 import ReportDownloadView from "./Components/Dashboards/ManagerFile/ReportDownloadView.jsx";
 import ProjectPreview from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectPreview.jsx";
 function App() {
+  useEffect(() => {
+    const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
+    const accent = localStorage.getItem("inspectpro_ui_accent") || "orange";
+    document.documentElement.setAttribute("data-theme-mode", themeMode);
+    document.documentElement.setAttribute("data-theme-accent", accent);
+  }, []);
+
   return (
     <>
       <Routes>
@@ -88,6 +96,16 @@ function App() {
               allowedRoles={["Inspector", "Manager", "Admin"]}
             >
               <Aut />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspector/settings"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Manager", "Admin"]}
+            >
+              <UserPreferences />
             </ProtectedRoute>
           }
         />

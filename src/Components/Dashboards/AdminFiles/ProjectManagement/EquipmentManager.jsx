@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../../../Auth/firebase";
+import { auth, db } from "../../../Auth/firebase";
 import {
   collection,
   onSnapshot,
@@ -162,7 +162,7 @@ const EquipmentManager = () => {
         await addDoc(collection(db, "activity_logs"), {
                 message: `Equipment Added: ${newAsset.description}`,
                 target: "",
-                userEmail: "",
+                userEmail: auth.currentUser?.email || "system@local",
                 type: "info",
                 timestamp: serverTimestamp(),
               });
@@ -258,6 +258,8 @@ const EquipmentManager = () => {
                 </div>
                 <button
                   onClick={() => setIsModalOpen(true)}
+                  title="Add Equipment"
+                  aria-label="Add Equipment"
                   className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg transition-all"
                 >
                   <Plus size={16} /> Add Equipment
@@ -352,6 +354,8 @@ const EquipmentManager = () => {
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleOpenEdit(asset)}
+                              title="Edit Equipment"
+                              aria-label={`Edit ${asset.tagNumber}`}
                               className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 transition-all shadow-inner"
                             >
                               <Edit2 size={14} />
@@ -360,6 +364,8 @@ const EquipmentManager = () => {
                               onClick={() =>
                                 handleDelete(asset.id, asset.tagNumber)
                               }
+                              title="Delete Equipment"
+                              aria-label={`Delete ${asset.tagNumber}`}
                               className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-inner"
                             >
                               <Trash2 size={14} />
@@ -578,7 +584,7 @@ const EquipmentManager = () => {
                     ? "Processing..."
                     : editingId
                       ? "Sync Changes"
-                      : "Authorize Entry"}
+                      : "Authorize Equipment"}
                 </button>
               </div>
             </form>

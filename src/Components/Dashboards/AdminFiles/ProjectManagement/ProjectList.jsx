@@ -29,10 +29,10 @@ const ProjectList = () => {
   }, []);
 
   const handleDelete = async (projectId, name) => {
-    if (window.confirm(`CRITICAL: Permanently purge project "${name}" and all linked manifests?`)) {
+    if (window.confirm(`CRITICAL: Permanently Delete project "${name}" and all linked Reports?`)) {
       try {
         await deleteDoc(doc(db, "projects", projectId));
-        toast.error(`${name} purged from database`);
+        toast.error(`${name} Deleted from database`);
       } catch (error) {
         toast.error("Deletion failed: Admin permissions required");
       }
@@ -151,14 +151,14 @@ const ProjectList = () => {
                               <button 
                                 onClick={() => handleDelete(project.id, project.projectName)}
                                 className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-red-500 hover:border-red-500/50 transition-all rounded-xl shadow-inner"
-                                title="Purge Manifest"
+                                title="Delete Manifest"
                               >
                                 <Trash2 size={14} />
                               </button>
                               <button 
                                 onClick={() => navigate(`/admin/project/${project.id}`)}
                                 className="ml-2 p-2.5 bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
-                                title="Access Dashboard"
+                                title="Template Preview"
                               >
                                 <ArrowUpRight size={14} />
                               </button>
@@ -174,7 +174,7 @@ const ProjectList = () => {
                 {/* Table Footer */}
                 <div className="p-4 bg-slate-950/30 border-t border-slate-800 flex justify-between items-center">
                   <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em]">
-                    Total Registered Manifests: {filteredProjects.length}
+                    Total Registered Reports: {filteredProjects.length}
                   </p>
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>

@@ -1,26 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Menu,
-  X,
-  FileText,
-  LogOut,
-  User,
   LayoutDashboard,
-  ClipboardCheck,
-  Users,
   Settings,
-  ShieldAlert,
-  HelpCircle,
   ChevronDown,
-  Briefcase,
-  Wrench,
-  Sliders,
-} from "lucide-react"; // Example icons
-import { useState, useEffect } from "react";
+  Lock,
+} from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
-import { db, auth } from "../../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { db, auth } from "../../Auth/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const sidebarLinks = [
@@ -29,51 +17,35 @@ const sidebarLinks = [
     icon: <LayoutDashboard size={20} />,
     href: "/inspectionDashboard",
   },
-  
-   {
+  {
     name: "Inspections",
     icon: <LayoutDashboard size={20} />,
     href: "/Inspection_view",
   },
- 
+
   {
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
-          {
-        name: "System Config",
-        icon: <Sliders size={16} />,
-        href: "/admin/config",
+      {
+        name: "Preferences",
+        icon: <Lock size={16} />,
+        href: "/inspector/settings",
       },
     ],
   },
 ];
 
 const InspectorSidebar = () => {
-  const [userCount, setUserCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [fullName, setFullName] = useState(""); // State for logged-in user's name
+  const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  // State to track which dropdown is open (by name)
   const [openDropdown, setOpenDropdown] = useState(null);
 
   const toggleDropdown = (name) => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
 
-  // 1. Fetch live user count
-  useEffect(() => {
-    const usersRef = collection(db, "users");
-    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
-      setUserCount(snapshot.size);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Fetch logged-in user's Full Name
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -82,19 +54,26 @@ const InspectorSidebar = () => {
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
-            // Assuming your Firestore field is called 'fullName'
             setFullName(
-              docSnap.data().fullName || docSnap.data().name || "Admin",
+              docSnap.data().fullName || docSnap.data().name || "Inspector",
             );
+          } else {
+            setFullName(user.displayName || user.email || "Inspector");
           }
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          setFullName(user.displayName || user.email || "Inspector");
         }
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  const isPathActive = (href) => {
+    if (!href) return false;
+    return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
 
   return (
     <aside className="w-16 h-screen lg:w-64 fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
@@ -110,20 +89,22 @@ const InspectorSidebar = () => {
           </div>
           <div className="hidden lg:block overflow-hidden">
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
-              {fullName || "Admin"}
+              {fullName || "Inspector"}
             </p>
           </div>
         </div>
       </div>
       {/* Example Sidebar Icons for Mobile */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        {sidebarLinks.map((link, index) => {
+        {sidebarLinks.map((link) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;
-          const isActive = location.pathname === link.href;
+          const isActive = hasSubLinks
+            ? link.subLinks.some((sub) => isPathActive(sub.href))
+            : isPathActive(link.href);
 
           return (
-            <div key={index} className="w-full">
+            <div key={link.name} className="w-full">
               {/* Main Link or Dropdown Trigger */}
               <div
                 onClick={() =>
@@ -155,13 +136,13 @@ const InspectorSidebar = () => {
               {/* Dropdown Content */}
               {hasSubLinks && isOpen && (
                 <div className="hidden lg:block ml-9 mt-1 space-y-1 border-l border-slate-800">
-                  {link.subLinks.map((sub, subIdx) => (
+                  {link.subLinks.map((sub) => (
                     <button
-                      key={subIdx}
+                      key={sub.name}
                       onClick={() => navigate(sub.href)}
                       className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
                         ${
-                          location.pathname === sub.href
+                          isPathActive(sub.href)
                             ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}

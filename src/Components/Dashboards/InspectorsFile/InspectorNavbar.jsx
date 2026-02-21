@@ -1,6 +1,6 @@
-import { React, useState, useEffect } from "react";
-import { Menu, X, FileText, LogOut, User } from "lucide-react";
-import { auth, db } from "../../Auth/firebase";
+import React, { useEffect, useState } from "react";
+import { Menu, X } from "lucide-react";
+import { auth } from "../../Auth/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { toast } from "react-toastify";
 
@@ -13,9 +13,11 @@ const InspectorNavbar = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-    
-        setUserEmail(user.email);
-        setUserFname(user.fname);
+        setUserEmail(user.email || "Guest");
+        setUserFname(user.displayName || "Inspector");
+      } else {
+        setUserEmail("Guest");
+        setUserFname("");
       }
     });
     return () => unsubscribe();

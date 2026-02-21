@@ -6,17 +6,15 @@ import {
 } from "firebase/firestore";
 import { 
   Building2, Mail, Globe, Phone, Plus, Camera,
-  ExternalLink, Search, Edit2, Trash2, X, MapPin
+  Search, Edit2, Trash2, X, MapPin
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../Auth/AuthContext";
 
 const ClientManager = () => {
   const { user } = useAuth();
-  const navigate = useNavigate()
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,6 +48,9 @@ const ClientManager = () => {
         body: formData,
       });
       const data = await res.json();
+      if (!res.ok || !data?.secure_url) {
+        throw new Error(data?.error?.message || "Upload failed");
+      }
       setNewClient({ ...newClient, logo: data.secure_url });
       toast.success("Client Logo Added");
     } catch (err) {
@@ -69,7 +70,7 @@ const ClientManager = () => {
     if (window.confirm(`CRITICAL: Delete ${name} from Enterprise Portfolio?`)) {
       try {
         await deleteDoc(doc(db, "clients", clientId));
-        toast.error("Client record Deleted");
+        toast.success("Client record Deleted");
       } catch (err) {
         toast.error("De-authorization failed");
       }
@@ -80,8 +81,9 @@ const ClientManager = () => {
     e.preventDefault();
     try {
       if (editingId) {
+        const { id, createdAt, ...clientPayload } = newClient;
         await updateDoc(doc(db, "clients", editingId), {
-          ...newClient,
+          ...clientPayload,
           updatedAt: serverTimestamp()
         });
         toast.success("Client Profile Updated");
@@ -93,7 +95,7 @@ const ClientManager = () => {
         await addDoc(collection(db, "activity_logs"), {
                         message: `Client Added: ${newClient.name}`,
                         target: "",
-                        userEmail: user.email,
+                        userEmail: user?.email || "system@local",
                         type: "info",
                         timestamp: serverTimestamp(),
                       });
@@ -111,11 +113,13 @@ const ClientManager = () => {
     setNewClient({ name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "", address: "" });
   };
 
-  const filteredClients = clients.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = clients.filter((c) => {
+    const name = (c.name || "").toLowerCase();
+    const industry = (c.industry || "").toLowerCase();
+    const email = (c.email || "").toLowerCase();
+    const term = searchTerm.toLowerCase();
+    return name.includes(term) || industry.includes(term) || email.includes(term);
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -142,7 +146,7 @@ const ClientManager = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-orange-900/20 transition-all active:scale-95">
+                <button onClick={() => setIsModalOpen(true)} title="Add Client" aria-label="Add Client" className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-orange-900/20 transition-all active:scale-95">
                   <Plus size={16}/> Register New Client
                 </button>
               </div>
@@ -200,10 +204,10 @@ const ClientManager = () => {
                         </td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleEditOpen(client)} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 hover:border-blue-500/50 transition-all shadow-inner">
+                            <button onClick={() => handleEditOpen(client)} title="Edit Client" aria-label={`Edit ${client.name}`} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 hover:border-blue-500/50 transition-all shadow-inner">
                               <Edit2 size={14}/>
                             </button>
-                            <button onClick={() => handleDelete(client.id, client.name)} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-500/50 transition-all shadow-inner">
+                            <button onClick={() => handleDelete(client.id, client.name)} title="Delete Client" aria-label={`Delete ${client.name}`} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-red-500 hover:border-red-500/50 transition-all shadow-inner">
                               <Trash2 size={14}/>
                             </button>
                           </div>

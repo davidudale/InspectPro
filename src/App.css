@@ -1,1 +1,34 @@
 @import "tailwindcss";
+
+:root {
+  --inspectpro-accent: #f97316;
+}
+
+html[data-theme-accent="orange"] {
+  --inspectpro-accent: #f97316;
+}
+
+html[data-theme-accent="emerald"] {
+  --inspectpro-accent: #10b981;
+}
+
+html[data-theme-accent="blue"] {
+  --inspectpro-accent: #3b82f6;
+}
+
+html[data-theme-mode="light"] {
+  color-scheme: light;
+}
+
+html[data-theme-mode="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme-mode="system"] {
+  color-scheme: light dark;
+}
+
+::selection {
+  background: var(--inspectpro-accent);
+  color: white;
+}

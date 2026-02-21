@@ -14,14 +14,11 @@ import {
 import {
   MapPin,
   Navigation,
-  Globe,
   Plus,
   Trash2,
   Edit2,
   Search,
   X,
-  Map,
-  AlertCircle,
   Building2,
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
@@ -30,7 +27,7 @@ import { toast } from "react-toastify";
 
 const LocationManager = () => {
   const [locations, setLocations] = useState([]);
-  const [clients, setClients] = useState([]); // Master Client Directory
+  const [clients, setClients] = useState([]); // Master Client Location
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +58,7 @@ const LocationManager = () => {
       setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
 
-    // 2. Sync Client Directory for Linking
+    // 2. Sync Client Location for Linking
     const qClients = query(collection(db, "clients"), orderBy("name", "asc"));
     const unsubClients = onSnapshot(qClients, (snapshot) => {
       setClients(
@@ -78,7 +75,20 @@ const LocationManager = () => {
   const handleEditOpen = (loc) => {
     setEditingId(loc.id);
     setNewLocation({ ...loc });
+    setIsCustom(false);
+    setCustomValue("");
     setIsModalOpen(true);
+  };
+
+  const handleDelete = async (locationId, name) => {
+    if (window.confirm(`CRITICAL: Delete ${name} from Facility Location?`)) {
+      try {
+        await deleteDoc(doc(db, "locations", locationId));
+        toast.success("Facility record deleted");
+      } catch (err) {
+        toast.error("Delete operation failed");
+      }
+    }
   };
 
   const handleFormSubmit = async (e) => {
@@ -89,8 +99,9 @@ const LocationManager = () => {
     setIsSubmitting(true);
     try {
       if (editingId) {
+        const { id, createdAt, updatedAt, ...locationPayload } = newLocation;
         await updateDoc(doc(db, "locations", editingId), {
-          ...newLocation,
+          ...locationPayload,
           updatedAt: serverTimestamp(),
         });
         toast.success("Facility Updated");
@@ -112,6 +123,8 @@ const LocationManager = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
+    setIsCustom(false);
+    setCustomValue("");
     setNewLocation({
       name: "",
       region: "",
@@ -123,12 +136,13 @@ const LocationManager = () => {
     });
   };
 
-  const filteredLocations = locations.filter(
-    (l) =>
-      l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.region.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredLocations = locations.filter((l) => {
+    const name = (l.name || "").toLowerCase();
+    const clientName = (l.clientName || "").toLowerCase();
+    const region = (l.region || "").toLowerCase();
+    const term = searchTerm.toLowerCase();
+    return name.includes(term) || clientName.includes(term) || region.includes(term);
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -140,7 +154,7 @@ const LocationManager = () => {
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
                 <h1 className="text-3xl font-bold uppercase tracking-tighter text-white">
-                  Facility Directory
+                  Facility Location
                 </h1>
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
                   Clients Infrastructure
@@ -163,6 +177,8 @@ const LocationManager = () => {
                 </div>
                 <button
                   onClick={() => setIsModalOpen(true)}
+                  title="Add Facility"
+                  aria-label="Add Facility"
                   className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95"
                 >
                   <Plus size={16} /> Register Clients Facility
@@ -236,12 +252,16 @@ const LocationManager = () => {
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleEditOpen(loc)}
+                              title="Edit Facility"
+                              aria-label={`Edit ${loc.name}`}
                               className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 transition-all shadow-inner"
                             >
                               <Edit2 size={14} />
                             </button>
                             <button
                               onClick={() => handleDelete(loc.id, loc.name)}
+                              title="Delete Facility"
+                              aria-label={`Delete ${loc.name}`}
                               className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-inner"
                             >
                               <Trash2 size={14} />
@@ -286,6 +306,14 @@ const LocationManager = () => {
                     const selected = clients.find(
                       (c) => c.id === e.target.value,
                     );
+                    if (!selected) {
+                      setNewLocation({
+                        ...newLocation,
+                        clientId: "",
+                        clientName: "",
+                      });
+                      return;
+                    }
                     setNewLocation({
                       ...newLocation,
                       clientId: selected.id,
@@ -364,16 +392,22 @@ const LocationManager = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          if (customValue.trim()) {
-                            setOptions([...options, customValue]); // Add to the temporary list
+                          const normalizedValue = customValue.trim();
+                          if (normalizedValue) {
+                            const exists = options.some(
+                              (opt) => opt.toLowerCase() === normalizedValue.toLowerCase(),
+                            );
+                            if (!exists) {
+                              setOptions((prev) => [...prev, normalizedValue]);
+                            }
                             setNewLocation({
                               ...newLocation,
-                              type: customValue,
-                            }); // Select it
+                              type: normalizedValue,
+                            });
                             setCustomValue("");
                             setIsCustom(false);
                           } else {
-                            setIsCustom(false); // Cancel if empty
+                            setIsCustom(false);
                           }
                         }}
                         className="bg-orange-600 px-1 rounded-2xl text-white font-black text-[8px] capitalize tracking-widest hover:bg-orange-500 transition-colors shadow-lg shadow-orange-900/20"

@@ -41,9 +41,14 @@ const ViewInspectionsList = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (!user?.uid) return;
+  if (!user?.uid) {
+    setProjects([]);
+    setLoading(false);
+    return;
+  }
 
   let q;
+  let fallbackUnsubscribe = null;
 
   // 1. DYNAMIC QUERY SELECTION BASED ON ROLE
   // Managers and Admins see EVERYTHING with this status
@@ -54,12 +59,11 @@ const ViewInspectionsList = () => {
       orderBy("startDate", "desc")
     );
   } 
-  // Inspectors ONLY see their own specific confirmed assignments
+  // Inspectors see all their assignments so status remains visible across workflow stages
   else {
     q = query(
       collection(db, "projects"),
       where("inspectorId", "==", user.uid),
-      where("status", "==", "Forwarded to Inspector"),
       orderBy("startDate", "desc")
     );
   }
@@ -77,25 +81,31 @@ const ViewInspectionsList = () => {
     (error) => {
       console.error("Firestore Error:", error);
       // Simplified fallback to avoid index issues during role transition
-      const fallbackQ = query(
-        collection(db, "projects"),
-        where("status", "==", "Forwarded to Inspector"),
-        
-      );
-      onSnapshot(fallbackQ, (snap) => {
+      const fallbackQ =
+        user?.role === "Manager" || user?.role === "Admin"
+          ? query(
+              collection(db, "projects"),
+              where("status", "==", "Confirmed and Forwarded"),
+            )
+          : query(
+              collection(db, "projects"),
+              where("inspectorId", "==", user.uid),
+            );
+
+      fallbackUnsubscribe = onSnapshot(fallbackQ, (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        // Manual filter for fallback if index isn't ready
-        if (user?.role === "Inspector") {
-          setProjects(data.filter(p => p.inspectorId === user.uid));
-        } else {
-          setProjects(data);
-        }
+        // Keep rows visible for inspector across all status values
+        if (user?.role === "Inspector") setProjects(data.filter((p) => p.inspectorId === user.uid));
+        else setProjects(data);
         setLoading(false);
       });
     }
   );
 
-  return () => unsubscribe();
+  return () => {
+    unsubscribe();
+    if (fallbackUnsubscribe) fallbackUnsubscribe();
+  };
 }, [user]);
 
   // Restrict Delete: Usually inspectors shouldn't delete projects, but keeping it if needed
@@ -116,6 +126,27 @@ const ViewInspectionsList = () => {
       p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) || // Use clientName from setupData
       p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
+
+  const getInspectionActionState = (project) => {
+    const status = (project?.status || "").toLowerCase();
+    if (
+      status === "pending confirmation" ||
+      status === "completed" ||
+      status === "confirmed and forwarded" ||
+      status === "approved"
+    ) {
+      return "completed";
+    }
+    return "active";
+  };
+
+  const getReturnFeedback = (project) => {
+    const status = (project?.status || "").toLowerCase();
+    if (status === "forwarded to inspector" && project?.returnNote) {
+      return project.returnNote;
+    }
+    return "";
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -172,6 +203,9 @@ const ViewInspectionsList = () => {
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                           Status
                         </th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          Feedback
+                        </th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
                           Action
                         </th>
@@ -223,58 +257,65 @@ const ViewInspectionsList = () => {
                               </span>
                             </div>
                           </td>
+                          <td className="p-6">
+                            <p className="text-xs text-slate-300 max-w-xs break-words">
+                              {getReturnFeedback(project)}
+                            </p>
+                          </td>
 
                           <td className="p-6 text-right">
-                            <button
-                              onClick={() => {
-                                // 1. Identify the technical route based on the selected technique
-                                let route = "/inspector/default-report"; // Fallback route
+                            {getInspectionActionState(project) === "active" && (
+                              <button
+                                onClick={() => {
+                                  // 1. Identify the technical route based on the selected technique
+                                  let route = "/inspector/default-report"; // Fallback route
 
-                                const technique = project.selectedTechnique;
+                                  const technique = project.selectedTechnique;
 
-                                if (
-                                  technique === "Visual" ||
-                                  technique === "Visual Testing (VT)"
-                                ) {
-                                  route = "/inspector/visual-report";
-                                } else if (
-                                  technique === "AUT" ||
-                                  technique === "Corrosion Mapping"
-                                ) {
-                                  route = "/inspector/aut-report";
-                                } else if (
-                                  technique === "Manual UT" ||
-                                  technique === "MUT"
-                                ) {
-                                  route = "/inspector/manual-ut-report";
-                                } else if (
-                                  technique === "Piping" ||
-                                  technique === "Piping System (P)"
-                                ) {
-                                  route = "/inspector/piping-report";
-                                }
+                                  if (
+                                    technique === "Visual" ||
+                                    technique === "Visual Testing (VT)"
+                                  ) {
+                                    route = "/inspector/visual-report";
+                                  } else if (
+                                    technique === "AUT" ||
+                                    technique === "Corrosion Mapping"
+                                  ) {
+                                    route = "/inspector/aut-report";
+                                  } else if (
+                                    technique === "Manual UT" ||
+                                    technique === "MUT"
+                                  ) {
+                                    route = "/inspector/manual-ut-report";
+                                  } else if (
+                                    technique === "Piping" ||
+                                    technique === "Piping System (P)"
+                                  ) {
+                                    route = "/inspector/piping-report";
+                                  }
 
-                                // 2. Navigate and pass the specific project manifest as preFill data
-                                navigate(route, {
-                                  state: {
-                                    preFill: {
-                                      ...project,
-                                      // Ensure assetType matches the schema keys for the useEffect hook
-                                      assetType:
-                                        project.equipmentCategory ||
-                                        project.assetType,
+                                  // 2. Navigate and pass the specific project manifest as preFill data
+                                  navigate(route, {
+                                    state: {
+                                      preFill: {
+                                        ...project,
+                                        // Ensure assetType matches the schema keys for the useEffect hook
+                                        assetType:
+                                          project.equipmentCategory ||
+                                          project.assetType,
+                                      },
                                     },
-                                  },
-                                });
+                                  });
 
-                                toast.info(
-                                  `Initializing ${technique} Manifest...`,
-                                );
-                              }}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
-                            >
-                              Start Inspection
-                            </button>
+                                  toast.info(
+                                    `Initializing ${technique} Manifest...`,
+                                  );
+                                }}
+                                className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+                              >
+                                Start Inspection
+                              </button>
+                            )}
                           </td>
                         </tr>
                       ))}

@@ -12,7 +12,15 @@ import {
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc, orderBy, limit, query } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  getDoc,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
 import SupervisorNavbar from "../Dashboards/SupervisorFiles/SupervisorNavbar";
@@ -26,6 +34,7 @@ const SupervisorDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
 
   // 1. Fetch live user count
   useEffect(() => {
@@ -39,20 +48,35 @@ const SupervisorDashboard = () => {
   }, []);
 
   useEffect(() => {
-    // Query the latest 10 activities
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUserEmail(user?.email || "");
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserEmail) {
+      setLogs([]);
+      return undefined;
+    }
+
     const q = query(
-      collection(db, "activity_logs"), 
-      orderBy("timestamp", "desc"), 
-      limit(10)
+      collection(db, "activity_logs"),
+      where("userEmail", "==", currentUserEmail),
+      limit(20),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const nextLogs = snapshot.docs
+        .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
+        .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0))
+        .slice(0, 10);
+      setLogs(nextLogs);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUserEmail]);
 
   // 1. Fetch live Active Inspection count
   useEffect(() => {

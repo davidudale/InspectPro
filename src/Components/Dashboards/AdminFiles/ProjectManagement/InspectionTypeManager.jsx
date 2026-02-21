@@ -12,33 +12,16 @@ import {
   orderBy,
 } from "firebase/firestore";
 import {
-  ShieldCheck,
   Plus,
   Check,
   Trash2,
   Edit2,
   Search,
   X,
-  Zap,
-  AlertTriangle,
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
-
-const CATEGORIES = [
-  "Static Equipment",
-  "Piping Systems",
-  "Rotating Equipment",
-  "Engineering Evaluation",
-];
-const DESIGN_CODES = [
-  "ASME Section VIII",
-  "ASME B31.3",
-  "API 650",
-  "ASME B31.8",
-  "ASME FFS-1",
-];
 
 const InspectionTypeManager = () => {
   const [types, setTypes] = useState([]);
@@ -118,6 +101,7 @@ const InspectionTypeManager = () => {
   const handleStandardChange = (e) => {
     if (e.target.value === "ADD_NEW") {
       setIsAddingStandard(true);
+      setCustomStandard({ title: "", fullName: "" });
       return;
     }
 
@@ -134,14 +118,21 @@ const InspectionTypeManager = () => {
   };
 
   const handleAddCustomStandard = () => {
-    if (customStandard.title.trim()) {
+    const title = customStandard.title.trim().toUpperCase();
+    const fullName = customStandard.fullName.trim() || "Custom Reference";
+
+    if (title) {
+      const exists = standardOptions.some(
+        (opt) => opt.title.toLowerCase() === title.toLowerCase(),
+      );
       const newEntry = {
-        title: customStandard.title.toUpperCase(),
-        fullName: customStandard.fullName || "Custom Reference",
+        title,
+        fullName,
       };
 
-      // Add to options list and auto-select
-      setStandardOptions([...standardOptions, newEntry]);
+      if (!exists) {
+        setStandardOptions((prev) => [...prev, newEntry]);
+      }
       setNewType({
         ...newType,
         title: newEntry.title,
@@ -168,7 +159,23 @@ const InspectionTypeManager = () => {
   const handleEditOpen = (type) => {
     setEditingId(type.id);
     setNewType(type);
+    setIsAddingStandard(false);
+    setIsAddingCategory(false);
+    setIsAddingDesignCode(false);
+    setTempInput("");
+    setCustomStandard({ title: "", fullName: "" });
     setIsModalOpen(true);
+  };
+
+  const handleDelete = async (typeId, name) => {
+    if (window.confirm(`CRITICAL: Delete ${name} from inspection standards?`)) {
+      try {
+        await deleteDoc(doc(db, "inspection_types", typeId));
+        toast.success("Standard deleted");
+      } catch (err) {
+        toast.error("Delete operation failed");
+      }
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -176,8 +183,9 @@ const InspectionTypeManager = () => {
     setIsSubmitting(true);
     try {
       if (editingId) {
+        const { id, createdAt, updatedAt, ...typePayload } = newType;
         await updateDoc(doc(db, "inspection_types", editingId), {
-          ...newType,
+          ...typePayload,
           updatedAt: serverTimestamp(),
         });
         toast.success("Standard updated successfully");
@@ -199,6 +207,11 @@ const InspectionTypeManager = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
+    setIsAddingStandard(false);
+    setIsAddingCategory(false);
+    setIsAddingDesignCode(false);
+    setTempInput("");
+    setCustomStandard({ title: "", fullName: "" });
     setNewType({
       title: "",
       fullName: "",
@@ -253,13 +266,24 @@ const InspectionTypeManager = () => {
           <button
             type="button"
             onClick={() => {
-              if (tempInput.trim()) {
+              const normalizedValue = tempInput.trim();
+              if (normalizedValue) {
                 if (fieldKey === "cat") {
-                  setCategories([...categories, tempInput]);
+                  const exists = categories.some(
+                    (opt) => opt.toLowerCase() === normalizedValue.toLowerCase(),
+                  );
+                  if (!exists) {
+                    setCategories((prev) => [...prev, normalizedValue]);
+                  }
                 } else {
-                  setDesignCodes([...designCodes, tempInput]);
+                  const exists = designCodes.some(
+                    (opt) => opt.toLowerCase() === normalizedValue.toLowerCase(),
+                  );
+                  if (!exists) {
+                    setDesignCodes((prev) => [...prev, normalizedValue]);
+                  }
                 }
-                onSelect(tempInput);
+                onSelect(normalizedValue);
               }
               setTempInput("");
               setIsAdding(false);
@@ -273,11 +297,12 @@ const InspectionTypeManager = () => {
     </div>
   );
 
-  const filteredTypes = types.filter(
-    (t) =>
-      t.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.fullName.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredTypes = types.filter((t) => {
+    const title = (t.title || "").toLowerCase();
+    const fullName = (t.fullName || "").toLowerCase();
+    const term = searchTerm.toLowerCase();
+    return title.includes(term) || fullName.includes(term);
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -311,6 +336,8 @@ const InspectionTypeManager = () => {
                 </div>
                 <button
                   onClick={() => setIsModalOpen(true)}
+                  title="Add Inspection Type"
+                  aria-label="Add Inspection Type"
                   className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3.5 rounded-2xl font-bold uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all"
                 >
                   <Plus size={16} /> Add Inspection Type
@@ -374,12 +401,16 @@ const InspectionTypeManager = () => {
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleEditOpen(type)}
+                              title="Edit Inspection Type"
+                              aria-label={`Edit ${type.title}`}
                               className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 transition-all shadow-inner"
                             >
                               <Edit2 size={14} />
                             </button>
                             <button
                               onClick={() => handleDelete(type.id, type.title)}
+                              title="Delete Inspection Type"
+                              aria-label={`Delete ${type.title}`}
                               className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-inner"
                             >
                               <Trash2 size={14} />

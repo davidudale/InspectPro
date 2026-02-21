@@ -184,6 +184,8 @@ const AdminDashboard = () => {
               <button
                 className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20"
                 onClick={() => navigate("/projects")}
+                title="Add Project"
+                aria-label="Add Project"
               >
                 <PlusCircle size={18} />
                 Add Project

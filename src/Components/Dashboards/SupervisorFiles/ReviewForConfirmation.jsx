@@ -2,11 +2,20 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import { 
-  collection, doc, getDocs, serverTimestamp, updateDoc, query, where, limit 
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 
 import {
-  Eye, ChevronLeft, Printer, Activity, ShieldCheck, Camera, CheckCircle
+  Eye, ChevronLeft, Printer, Activity, ShieldCheck, Camera, CheckCircle, RotateCcw
 } from "lucide-react";
 import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
@@ -23,7 +32,10 @@ const ReviewForConfirmation = () => {
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReturning, setIsReturning] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnFeedback, setReturnFeedback] = useState("");
 
   useEffect(() => {
     const fetchFullReport = async () => {
@@ -92,6 +104,67 @@ const ReviewForConfirmation = () => {
     }
   };
 
+  const handleReturnReport = async () => {
+    const projectId = id || reportData?.general?.projectId || location.state?.preFill?.id;
+    const feedback = returnFeedback.trim();
+
+    if (!projectId) {
+      return toast.error("Technical Error: Project Reference Missing");
+    }
+    if (!feedback) {
+      return toast.error("Please provide feedback for the inspector.");
+    }
+
+    setIsReturning(true);
+    try {
+      const projectRef = doc(db, "projects", projectId);
+      const projectSnap = await getDoc(projectRef);
+      const projectData = projectSnap.exists() ? projectSnap.data() : {};
+      const inspectorUserId =
+        projectData?.inspectorId || reportData?.general?.inspectorId || location.state?.preFill?.inspectorId || "";
+      let inspectorEmail = projectData?.inspectorEmail || "";
+
+      if (!inspectorEmail && inspectorUserId) {
+        const inspectorRef = doc(db, "users", inspectorUserId);
+        const inspectorSnap = await getDoc(inspectorRef);
+        inspectorEmail = inspectorSnap.exists()
+          ? inspectorSnap.data()?.email || ""
+          : "";
+      }
+
+      if (!inspectorEmail && !inspectorUserId) {
+        throw new Error("Inspector reference not found. Cannot deliver feedback log.");
+      }
+
+      await updateDoc(projectRef, {
+        status: "Forwarded to Inspector",
+        returnNote: feedback,
+        returnedBy: user?.displayName || user?.email || "Supervisor",
+        returnedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      await addDoc(collection(db, "activity_logs"), {
+        message: `Supervisor returned report for corrections: ${feedback}`,
+        target: projectData?.projectId || projectId,
+        userEmail: inspectorEmail || "",
+        userId: inspectorUserId || "",
+        type: "alert",
+        timestamp: serverTimestamp(),
+      });
+
+      toast.warning("Report returned to inspector");
+      setShowReturnModal(false);
+      setReturnFeedback("");
+      navigate("/ConfirmedInspection");
+    } catch (error) {
+      console.error("Return Error:", error);
+      toast.error(`Return failed: ${error.message}`);
+    } finally {
+      setIsReturning(false);
+    }
+  };
+
   const evidencePhotos = reportData?.observations?.filter((obs) => obs.photoRef) || [];
 
   if (loading) return (
@@ -120,9 +193,16 @@ const ReviewForConfirmation = () => {
                 </h1>
               </div>
               <div className="flex gap-3">
+                <button
+                  onClick={() => setShowReturnModal(true)}
+                  disabled={isSaving || isReturning}
+                  className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  <RotateCcw size={16} /> {isReturning ? "Returning..." : "Return Report"}
+                </button>
                 <button 
                   onClick={handleConfirmProject} 
-                  disabled={isSaving}
+                  disabled={isSaving || isReturning}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   <CheckCircle size={16} /> {isSaving ? "Syncing..." : "Confirm & Forward"}
@@ -187,6 +267,43 @@ const ReviewForConfirmation = () => {
           </div>
         </main>
       </div>
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Return Report Feedback</h3>
+            <p className="mt-1 text-xs text-slate-400 uppercase tracking-wider">
+              Note required corrections for the inspector.
+            </p>
+            <textarea
+              value={returnFeedback}
+              onChange={(e) => setReturnFeedback(e.target.value)}
+              placeholder="State clearly what should be corrected before resubmission..."
+              className="mt-4 h-32 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200 outline-none focus:border-amber-500"
+            />
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setReturnFeedback("");
+                }}
+                disabled={isReturning}
+                className="rounded-lg border border-slate-600 px-4 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReturnReport}
+                disabled={isReturning}
+                className="rounded-lg bg-amber-600 px-5 py-2 text-xs font-bold uppercase text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {isReturning ? "Returning..." : "Submit Return"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

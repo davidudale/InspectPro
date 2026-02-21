@@ -12,7 +12,15 @@ import {
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc, orderBy, limit, query } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  getDoc,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
 import ManagerNavbar from "../Dashboards/ManagerFile/ManagerNavbar";
@@ -26,6 +34,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
 
   // 1. Fetch live user count
   useEffect(() => {
@@ -39,20 +48,35 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
-    // Query the latest 10 activities
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUserEmail(user?.email || "");
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserEmail) {
+      setLogs([]);
+      return undefined;
+    }
+
     const q = query(
-      collection(db, "activity_logs"), 
-      orderBy("timestamp", "desc"), 
-      limit(10)
+      collection(db, "activity_logs"),
+      where("userEmail", "==", currentUserEmail),
+      limit(20),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setLogs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const nextLogs = snapshot.docs
+        .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
+        .sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0))
+        .slice(0, 10);
+      setLogs(nextLogs);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUserEmail]);
 
   // 1. Fetch live Active Inspection count
   useEffect(() => {
@@ -164,7 +188,7 @@ const AdminDashboard = () => {
                   Welcome back, <span className="text-orange-500 font-semibold">{fullName || "Admin"}</span>.
                 </p>
               </div>
-              <button className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20">
+              <button title="Add Inspection" aria-label="Add Inspection" className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20">
                 <PlusCircle size={18} />
                 New Inspection
               </button>
