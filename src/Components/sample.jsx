@@ -136,7 +136,7 @@ const InspectionTypeManager = () => {
                       />
                     </div>
 
-                    {/* ... Techniques Multi-select and Submit Buttons (remains same) */}
+                   
                   </form>
                 </div>
               </div>
