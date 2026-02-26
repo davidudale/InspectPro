@@ -51,7 +51,7 @@ const Sustainability = () => {
             <div className="absolute -inset-4 bg-orange-600/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-full"></div>
             <div className="relative glass-effect p-2 rounded-sm transform hover:rotate-1 transition-transform duration-500">
               <img
-                src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop"
+                src="https://images.unsplash.com/photo-1594818378824-766485bcd33b?q=80&w=2070&auto=format&fit=crop"
                 alt="Inspection analytics dashboard"
                 className="w-full rounded-sm"
               />
@@ -68,3 +68,4 @@ const Sustainability = () => {
 };
 
 export default Sustainability;
+

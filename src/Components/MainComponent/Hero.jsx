@@ -6,7 +6,7 @@ const Hero = () => {
       {/* Background Image / Overlay */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=2070&auto=format&fit=crop"
+          src="https://images.unsplash.com/photo-1714204385179-0102ca278981?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Inspection team reviewing digital checklist"
           className="w-full h-full object-cover"
         />
@@ -55,3 +55,4 @@ const Hero = () => {
 };
 
 export default Hero;
+

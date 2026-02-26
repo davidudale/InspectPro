@@ -5,19 +5,19 @@ const news = [
     category: 'Workflow',
     title: 'Unlock Efficiency: Streamline your inspections with InspectPro\'s all-in-one platform',
     date: 'Feature Highlight',
-    image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop'
+    image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2070&auto=format&fit=crop'
   },
   {
     category: 'Flexibility',
     title: 'Customizable: Tailor InspectPro to fit your specific business needs',
     date: 'Platform Benefit',
-    image: 'https://images.unsplash.com/photo-1467232004584-a241de8b5c5d?q=80&w=2071&auto=format&fit=crop'
+    image: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=2070&auto=format&fit=crop'
   },
   {
     category: 'Access',
     title: 'Anywhere, Anytime: Access InspectPro on any device, online or offline',
     date: 'Team Ready',
-    image: 'https://images.unsplash.com/photo-1516387938699-a93567ec168e?q=80&w=2070&auto=format&fit=crop'
+    image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?q=80&w=2070&auto=format&fit=crop'
   }
 ];
 
@@ -67,3 +67,4 @@ const NewsSection = () => {
 };
 
 export default NewsSection;
+
