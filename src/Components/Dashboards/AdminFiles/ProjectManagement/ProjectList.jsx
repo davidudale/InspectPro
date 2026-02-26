@@ -188,7 +188,7 @@ const ProjectList = () => {
                 <ShieldAlert size={48} className="text-slate-800 mb-4" />
                 <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">No Active Projects Found</p>
                 <button 
-                  onClick={() => navigate("/admin/project-setup")}
+                  onClick={() => navigate("/projects")}
                   className="mt-6 text-orange-500 text-[10px] font-bold uppercase border-b border-orange-500 pb-1 hover:text-white hover:border-white transition-all"
                 >
                   Launch First Operational Manifest

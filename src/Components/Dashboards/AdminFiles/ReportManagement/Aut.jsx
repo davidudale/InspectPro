@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  getDocs,
+  query,
+  where,
+  limit,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
 import { 
   ShieldCheck, Activity, Ruler, Camera, 
   ChevronLeft, CheckCircle2, XCircle, FileText, Printer, Save, Plus, Trash2
@@ -18,11 +28,13 @@ const Aut = () => {
   const [activeTab, setActiveTab] = useState("general");
   const [reportMode, setReportMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [existingReportId, setExistingReportId] = useState(null);
 
   const [reportData, setReportData] = useState({
     general: { 
       platform: "", equipment: "", tag: "", reportNum: "", date: "",
-      client: "", contract: "", procedure: "", testCode: "API 510", criteria: "Client's Requirement"
+      client: "", contract: "", procedure: "", testCode: "API 510", criteria: "Client's Requirement",
+      projectId: ""
     },
     vesselData: { 
       serialNo: "", designPressure: "", testPressure: "", mdmt: "",
@@ -44,21 +56,46 @@ const Aut = () => {
   });
 
   useEffect(() => {
-    if (location.state?.preFill) {
+    const initializeManifest = async () => {
+      if (!location.state?.preFill) return;
+
       const p = location.state.preFill;
-      setReportData(prev => ({
+      const projectKey = p.id || p.projectId || "";
+
+      // Bootstrap from assigned project details first.
+      setReportData((prev) => ({
         ...prev,
-        general: { 
-          ...prev.general, 
-          tag: p.tag, 
-          equipment: p.equipment, 
-          platform: p.location, 
-          client: p.client,
-          reportNum: p.reportNo, 
-          date: new Date().toISOString().split('T')[0] 
-        }
+        general: {
+          ...prev.general,
+          tag: p.equipmentTag || p.tag || "",
+          equipment: p.equipmentCategory || p.assetType || p.equipment || "",
+          platform: p.locationName || p.location || "",
+          client: p.clientName || p.client || "",
+          reportNum: p.reportNum || p.reportNo || "",
+          date: new Date().toISOString().split("T")[0],
+          projectId: projectKey,
+        },
       }));
-    }
+
+      if (!projectKey) return;
+
+      // If a previous draft/report exists (e.g. returned for correction), load it.
+      const existingQuery = query(
+        collection(db, "inspection_reports"),
+        where("general.projectId", "==", projectKey),
+        limit(1),
+      );
+      const snapshot = await getDocs(existingQuery);
+
+      if (!snapshot.empty) {
+        const existingDoc = snapshot.docs[0];
+        setExistingReportId(existingDoc.id);
+        setReportData(existingDoc.data());
+        toast.info("Previous inspection details loaded for correction.");
+      }
+    };
+
+    initializeManifest();
   }, [location.state]);
 
   // Fixed syntax error by properly closing preceding function
@@ -75,11 +112,18 @@ const Aut = () => {
   const handleSaveToFirebase = async () => {
     setIsSaving(true);
     try {
-      await addDoc(collection(db, "inspection_reports"), {
+      const payload = {
         ...reportData,
         inspector: user?.displayName || "Technical Lead",
-        timestamp: serverTimestamp()
-      });
+        timestamp: serverTimestamp(),
+      };
+
+      if (existingReportId) {
+        await updateDoc(doc(db, "inspection_reports", existingReportId), payload);
+      } else {
+        const created = await addDoc(collection(db, "inspection_reports"), payload);
+        setExistingReportId(created.id);
+      }
       toast.success("Inspection Data Saved to Firebase");
       setReportMode(true); 
     } catch (error) {

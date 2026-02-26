@@ -79,7 +79,7 @@ const AdminNavbar = () => {
       {isMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-900 p-4 space-y-4 flex flex-col">
           <div className="w-full text-left px-2 py-2 text-sm text-slate-300">
-            {userFname || "Supervisor"}
+            {userFname || "Lead Inspector"}
           </div>
           <button
             className="w-full bg-orange-600 text-white p-2 rounded-sm text-xs font-bold uppercase"

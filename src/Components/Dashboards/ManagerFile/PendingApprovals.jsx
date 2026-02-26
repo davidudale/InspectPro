@@ -78,7 +78,7 @@ const PendingApprovals = () => {
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           // Manual filter for fallback if index isn't ready
-          if (user?.role === "Supervisor") {
+          if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
             setProjects(data.filter(p => p.supervisorId === user.uid));
           } else {
             setProjects(data);
@@ -93,7 +93,7 @@ const PendingApprovals = () => {
 
   // --- NEW: Function to return manifest to Inspector ---
   const handleReturnToInspector = async (projectId, name) => {
-    if (window.confirm(`Return "${name}" to Supervisor for corrections?`)) {
+    if (window.confirm(`Return "${name}" to Lead Inspector for corrections?`)) {
       try {
         const projectRef = doc(db, "projects", projectId);
         await updateDoc(projectRef, {

@@ -79,7 +79,7 @@ const SubInspectionsList = () => {
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           // Manual filter for fallback if index isn't ready
-          if (user?.role === "Supervisor") {
+          if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
             setProjects(data.filter(p => p.supervisorId === user.uid));
           } else {
             setProjects(data);
@@ -98,9 +98,9 @@ const SubInspectionsList = () => {
       try {
         const projectRef = doc(db, "projects", projectId);
         await updateDoc(projectRef, {
-          status: "Forwarded to Inspector", // Reverting status
+          status: "Returned for correction", // Reverting status
           lastUpdated: serverTimestamp(),
-          returnNote: "Supervisor requested review/corrections",
+          returnNote: "Lead Inspector requested review/corrections",
         });
         toast.warning(`Project ${name} reverted to field status`);
       } catch (error) {

@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
-              // Map exactly what is in your database (e.g., 'Inspector', 'Supervisor', 'Admin')
+              // Map exactly what is in your database (e.g., 'Inspector', 'Lead Inspector', 'Admin')
               role: userData.role || 'Inspector', 
               ...userData // Spreads other profile fields if needed
             });

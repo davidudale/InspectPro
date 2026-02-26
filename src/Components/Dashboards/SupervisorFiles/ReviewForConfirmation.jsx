@@ -89,7 +89,7 @@ const ReviewForConfirmation = () => {
       // Update ONLY the project manifest status
       await updateDoc(projectRef, {
         status: "Confirmed and Forwarded",
-        confirmedBy: user?.displayName || user?.email || "Supervisor",
+        confirmedBy: user?.displayName || user?.email || "Lead Inspector",
         confirmedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
@@ -137,15 +137,15 @@ const ReviewForConfirmation = () => {
       }
 
       await updateDoc(projectRef, {
-        status: "Forwarded to Inspector",
+        status: "Returned for correction",
         returnNote: feedback,
-        returnedBy: user?.displayName || user?.email || "Supervisor",
+        returnedBy: user?.displayName || user?.email || "Lead Inspector",
         returnedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
       await addDoc(collection(db, "activity_logs"), {
-        message: `Supervisor returned report for corrections: ${feedback}`,
+        message: `Lead Inspector returned report for corrections: ${feedback}`,
         target: projectData?.projectId || projectId,
         userEmail: inspectorEmail || "",
         userId: inspectorUserId || "",
@@ -166,6 +166,15 @@ const ReviewForConfirmation = () => {
   };
 
   const evidencePhotos = reportData?.observations?.filter((obs) => obs.photoRef) || [];
+  const techniqueRaw = (
+    reportData?.technique ||
+    reportData?.general?.selectedTechnique ||
+    location.state?.preFill?.selectedTechnique ||
+    ""
+  ).toLowerCase();
+  const isDetailed = techniqueRaw.includes("detailed");
+  const autMetrics = reportData?.autMetrics || [];
+  const mutNozzles = reportData?.mutNozzles || [];
 
   if (loading) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -238,6 +247,88 @@ const ReviewForConfirmation = () => {
                 ))}
               </div>
             </div>
+
+            {isDetailed && (
+              <>
+                <div className="space-y-4 mb-12">
+                  <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 ml-2">
+                    AUT Thickness Mapping
+                  </h2>
+                  <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/40 border-b border-slate-800">
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Axial X</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Axial Y</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nominal</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Minimum</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Location</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Remark</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50 text-xs text-slate-300">
+                        {autMetrics.length > 0 ? (
+                          autMetrics.map((row, idx) => (
+                            <tr key={row.id || idx} className="hover:bg-white/5">
+                              <td className="p-4">{row.axialX || "-"}</td>
+                              <td className="p-4">{row.axialY || "-"}</td>
+                              <td className="p-4">{row.nominal || "-"}</td>
+                              <td className="p-4">{row.min || "-"}</td>
+                              <td className="p-4">{row.location || "-"}</td>
+                              <td className="p-4">{row.remark || "-"}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td className="p-5 text-slate-500 uppercase tracking-wider" colSpan={6}>
+                              No AUT data available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-12">
+                  <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 ml-2">
+                    MUT Nozzle Measurements
+                  </h2>
+                  <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-950/40 border-b border-slate-800">
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nozzle Tag</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Diameter</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nominal</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Actual</th>
+                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Thk</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50 text-xs text-slate-300">
+                        {mutNozzles.length > 0 ? (
+                          mutNozzles.map((row, idx) => (
+                            <tr key={row.id || idx} className="hover:bg-white/5">
+                              <td className="p-4">{row.nozzleTag || "-"}</td>
+                              <td className="p-4">{row.dia || "-"}</td>
+                              <td className="p-4">{row.nominal || "-"}</td>
+                              <td className="p-4">{row.actual || "-"}</td>
+                              <td className="p-4">{row.minThk || "-"}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td className="p-5 text-slate-500 uppercase tracking-wider" colSpan={5}>
+                              No MUT data available
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Evidence Gallery */}
             <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800">

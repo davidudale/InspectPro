@@ -13,6 +13,30 @@ const ReportDownloadView = () => {
   const [project, setProject] = useState(null);
   const [report, setReport] = useState(null);
 
+  const getTechniqueType = () => {
+    const raw = (
+      project?.selectedTechnique ||
+      report?.technique ||
+      report?.general?.selectedTechnique ||
+      ""
+    ).toLowerCase();
+
+    if (raw.includes("detailed")) return "detailed";
+    if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
+    if (raw.includes("mut") || raw.includes("manual ut")) return "mut";
+    return "visual";
+  };
+
+  const techniqueType = getTechniqueType();
+  const techniqueTitle =
+    techniqueType === "detailed"
+      ? "Detailed Inspection Report"
+      : techniqueType === "aut"
+      ? "AUT Technical Report"
+      : techniqueType === "mut"
+        ? "MUT Technical Report"
+        : "Visual Testing (VT) Technical Report";
+
   useEffect(() => {
     const fetchFullData = async () => {
       try {
@@ -89,14 +113,14 @@ const ReportDownloadView = () => {
               {project?.locationName}
             </h1>
             <h2 className="text-2xl font-bold mb-16 uppercase tracking-[0.2em] text-slate-700 border-y py-4 border-slate-200">
-              Visual Testing (VT) Technical Report
+              {techniqueTitle}
             </h2>
             
             <div className="space-y-6 text-left inline-block mx-auto min-w-[300px] bg-slate-50 p-8 rounded-2xl border border-slate-100">
               <ReportRow label="Report ID" value={project?.projectId} />
               <ReportRow label="Asset Reference" value={project?.equipmentTag} />
               <ReportRow label="Inspection Date" value={project?.startDate} />
-              <ReportRow label="Regulatory Code" value={report?.general?.assetType} />
+              <ReportRow label="Technique" value={project?.selectedTechnique || report?.technique} />
             </div>
           </div>
 
@@ -110,31 +134,161 @@ const ReportDownloadView = () => {
           <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8 flex items-center gap-2">
             <Shield size={16} className="text-orange-600" /> Section 01: Technical Observations
           </h3>
-          
-          <table className="w-full text-left border-collapse mb-10">
-            <thead>
-              <tr className="bg-slate-100 border-y border-slate-300">
-                <th className="py-3 px-3 text-[10px] font-black uppercase">Ref</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase">Component</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase">Condition</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase">Remarks</th>
-              </tr>
-            </thead>
-            <tbody className="text-[11px] divide-y divide-slate-200">
-              {report?.observations?.map((obs) => (
-                <tr key={obs.sn}>
-                  <td className="p-4 font-mono font-bold">{obs.sn}</td>
-                  <td className="p-4 font-bold uppercase">{obs.component}</td>
-                  <td className="p-4">
-                    <span className={`font-black uppercase ${obs.condition === "Satisfactory" ? "text-emerald-600" : "text-red-600"}`}>
-                      {obs.condition}
-                    </span>
-                  </td>
-                  <td className="p-4 italic text-slate-600">{obs.notes || "Standard spec maintained."}</td>
+
+          {techniqueType === "detailed" ? (
+            <div className="space-y-8 mb-10">
+              <div>
+                <h4 className="text-[11px] font-black uppercase text-slate-700 mb-3">Visual Findings</h4>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-y border-slate-300">
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Ref</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Component</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Condition</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[11px] divide-y divide-slate-200">
+                    {(report?.observations || []).map((obs) => (
+                      <tr key={obs.sn}>
+                        <td className="p-3 font-mono font-bold">{obs.sn}</td>
+                        <td className="p-3 font-bold uppercase">{obs.component}</td>
+                        <td className="p-3">{obs.condition || "-"}</td>
+                        <td className="p-3 italic text-slate-600">{obs.notes || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <h4 className="text-[11px] font-black uppercase text-slate-700 mb-3">AUT Thickness Mapping</h4>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-y border-slate-300">
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Axial X</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Axial Y</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Minimum</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Location</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Remark</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[11px] divide-y divide-slate-200">
+                    {(report?.autMetrics || []).map((row, idx) => (
+                      <tr key={row.id || idx}>
+                        <td className="p-3">{row.axialX || "-"}</td>
+                        <td className="p-3">{row.axialY || "-"}</td>
+                        <td className="p-3">{row.nominal || "-"}</td>
+                        <td className="p-3">{row.min || "-"}</td>
+                        <td className="p-3">{row.location || "-"}</td>
+                        <td className="p-3 italic text-slate-600">{row.remark || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <h4 className="text-[11px] font-black uppercase text-slate-700 mb-3">MUT Nozzle Measurements</h4>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 border-y border-slate-300">
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Nozzle Tag</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Diameter</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Actual</th>
+                      <th className="py-2 px-2 text-[10px] font-black uppercase">Min Thk</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-[11px] divide-y divide-slate-200">
+                    {(report?.mutNozzles || []).map((row, idx) => (
+                      <tr key={row.id || idx}>
+                        <td className="p-3">{row.nozzleTag || "-"}</td>
+                        <td className="p-3">{row.dia || "-"}</td>
+                        <td className="p-3">{row.nominal || "-"}</td>
+                        <td className="p-3">{row.actual || "-"}</td>
+                        <td className="p-3">{row.minThk || "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : techniqueType === "aut" ? (
+            <table className="w-full text-left border-collapse mb-10">
+              <thead>
+                <tr className="bg-slate-100 border-y border-slate-300">
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Axial X</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Axial Y</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Nominal</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Minimum</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Location</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Remark</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200">
+                {(report?.autMetrics || []).map((row, idx) => (
+                  <tr key={row.id || idx}>
+                    <td className="p-4">{row.axialX || "-"}</td>
+                    <td className="p-4">{row.axialY || "-"}</td>
+                    <td className="p-4">{row.nominal || "-"}</td>
+                    <td className="p-4">{row.min || "-"}</td>
+                    <td className="p-4">{row.location || "-"}</td>
+                    <td className="p-4 italic text-slate-600">{row.remark || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : techniqueType === "mut" ? (
+            <table className="w-full text-left border-collapse mb-10">
+              <thead>
+                <tr className="bg-slate-100 border-y border-slate-300">
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Nozzle Tag</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Diameter</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Nominal</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Actual</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Min Thk</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200">
+                {(report?.mutNozzles || []).map((row, idx) => (
+                  <tr key={row.id || idx}>
+                    <td className="p-4">{row.nozzleTag || "-"}</td>
+                    <td className="p-4">{row.dia || "-"}</td>
+                    <td className="p-4">{row.nominal || "-"}</td>
+                    <td className="p-4">{row.actual || "-"}</td>
+                    <td className="p-4">{row.minThk || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left border-collapse mb-10">
+              <thead>
+                <tr className="bg-slate-100 border-y border-slate-300">
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Ref</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Component</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Condition</th>
+                  <th className="py-3 px-3 text-[10px] font-black uppercase">Remarks</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200">
+                {(report?.observations || []).map((obs) => (
+                  <tr key={obs.sn}>
+                    <td className="p-4 font-mono font-bold">{obs.sn}</td>
+                    <td className="p-4 font-bold uppercase">{obs.component}</td>
+                    <td className="p-4">
+                      <span className={`font-black uppercase ${obs.condition === "Satisfactory" ? "text-emerald-600" : "text-red-600"}`}>
+                        {obs.condition}
+                      </span>
+                    </td>
+                    <td className="p-4 italic text-slate-600">{obs.notes || "Standard spec maintained."}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <div className="mt-auto grid grid-cols-2 gap-10">
             <SignatureBlock label="Field Inspector" name={report?.inspector} />
@@ -143,7 +297,7 @@ const ReportDownloadView = () => {
         </div>
 
         {/* --- PAGE 3: PHOTOGRAPHIC APPENDIX --- */}
-        {report?.observations?.some(o => o.photoRef) && (
+        {(techniqueType === "visual" || techniqueType === "detailed") && report?.observations?.some(o => o.photoRef) && (
           <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] page-break">
             <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8">
               Section 02: Photographic Appendix

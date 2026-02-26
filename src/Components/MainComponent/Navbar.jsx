@@ -1,13 +1,25 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../Auth/AuthContext";
 
-// Navbar Component
-// Props: scrolled (boolean) - indicates if the page has been scrolled past a certain point
-// Features: Responsive design, mobile menu toggle, dynamic styling based on scroll position
+const getDashboardPathByRole = (role) => {
+  switch (role) {
+    case "Admin":
+      return "/admin-dashboard";
+    case "Manager":
+      return "/ManagerDashboard";
+    case "Lead Inspector":
+    case "Supervisor":
+      return "/SupervisorDashboard";
+    default:
+      return "/inspectionDashboard";
+  }
+};
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const navLinks = [
     { name: "Solutions", href: "#services" },
@@ -17,11 +29,25 @@ const Navbar = () => {
     { name: "News", href: "#news" },
   ];
 
+  const userLabel =
+    user?.displayName ||
+    user?.name ||
+    user?.fullName ||
+    user?.email?.split("@")[0] ||
+    "Account";
+
+  const handleAccountAction = () => {
+    if (user) {
+      navigate(getDashboardPathByRole(user.role));
+      return;
+    }
+    navigate("/login");
+  };
+
   return (
     <nav className="fixed p-2 top-0 left-0 w-full z-100 transition-all duration-300 bg-dark-900/70">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
-          {/* Logo */}
           <div className="flex items-center">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-700 rounded-sm flex items-center justify-center transform rotate-45">
@@ -33,7 +59,6 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Desktop Links */}
           <div className="hidden md:flex items-center space-x-8">
             {navLinks.map((link) => (
               <a
@@ -44,15 +69,21 @@ const Navbar = () => {
                 {link.name}
               </a>
             ))}
+
+            {user && (
+              <span className="text-slate-300 text-xs font-semibold uppercase tracking-widest">
+                {userLabel}
+              </span>
+            )}
+
             <button
-              onClick={() => navigate("/login")}
+              onClick={handleAccountAction}
               className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase tracking-widest transition-all transform hover:scale-105"
             >
-              Login
+              {user ? "Dashboard" : "Login"}
             </button>
           </div>
 
-          {/* Mobile toggle */}
           <div className="md:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -80,7 +111,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden glass-effect border-t border-slate-800">
           <div className="px-4 pt-2 pb-6 space-y-2">
@@ -94,11 +124,21 @@ const Navbar = () => {
                 {link.name}
               </a>
             ))}
+
+            {user && (
+              <div className="px-3 py-2 text-slate-300 text-xs font-semibold uppercase tracking-widest">
+                Signed in as {userLabel}
+              </div>
+            )}
+
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleAccountAction();
+              }}
               className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase tracking-widest transition-all transform hover:scale-105"
             >
-              Login
+              {user ? "Dashboard" : "Login"}
             </button>
           </div>
         </div>

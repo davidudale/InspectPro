@@ -157,7 +157,7 @@ const INSPECTION_SCHEMAS = {
   ]
 };
 
-const VisualReport = () => {
+const DetailedReport = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -191,6 +191,27 @@ const VisualReport = () => {
       temp: "Ambient",
     },
     observations: [],
+    autMetrics: [
+      {
+        id: Date.now(),
+        axialX: "",
+        axialY: "",
+        nominal: "",
+        min: "",
+        location: "",
+        remark: "",
+      },
+    ],
+    mutNozzles: [
+      {
+        id: Date.now() + 1,
+        nozzleTag: "",
+        dia: "",
+        nominal: "",
+        actual: "",
+        minThk: "",
+      },
+    ],
     images: [],
   });
 
@@ -299,6 +320,20 @@ const VisualReport = () => {
     }
   };
 
+  const updateTableRow = (tableKey, rowId, field, value) => {
+    const nextRows = (reportData[tableKey] || []).map((row) =>
+      row.id === rowId ? { ...row, [field]: value } : row,
+    );
+    setReportData({ ...reportData, [tableKey]: nextRows });
+  };
+
+  const addTableRow = (tableKey, template) => {
+    setReportData((prev) => ({
+      ...prev,
+      [tableKey]: [...(prev[tableKey] || []), { ...template, id: Date.now() + Math.random() }],
+    }));
+  };
+
   const handleSaveToFirebase = async (isFinalizing = false) => {
     setIsSaving(true);
 
@@ -340,7 +375,7 @@ const VisualReport = () => {
         // --- FIRST TIME SAVE ---
         const newDoc = await addDoc(collection(db, "inspection_reports"), {
           ...reportData,
-          technique: "Visual (VT)",
+          technique: "Detailed Report",
           inspector: currentUserIdentifier,
           inspectorUid: user.uid,
           status: workflowStatus,
@@ -403,6 +438,8 @@ const VisualReport = () => {
   // --- SUB-COMPONENT: WEB REPORT VIEW ---
   const WebView = () => {
     const observations = reportData.observations || [];
+    const autMetrics = reportData.autMetrics || [];
+    const mutNozzles = reportData.mutNozzles || [];
     const evidencePhotos = observations.filter((obs) => obs.photoRef);
     const satisfactoryCount = observations.filter(
       (obs) => (obs.condition || "").toLowerCase() === "satisfactory",
@@ -493,10 +530,10 @@ const VisualReport = () => {
 
             <div className="flex-1">
               <h1 className="text-4xl font-black uppercase tracking-tight mb-3">
-                Oil & Gas Visual Inspection Report
+                Oil & Gas Detailed Inspection Report
               </h1>
               <p className="text-sm text-slate-600 mb-8 uppercase tracking-[0.2em] font-bold">
-                Visual Testing (VT) | Condition and Integrity Screening
+                Detailed Inspection Report | Condition and Integrity Screening
               </p>
 
               <div className="grid grid-cols-2 gap-6 mb-8">
@@ -531,7 +568,7 @@ const VisualReport = () => {
                   Scope & Reference Standards
                 </h3>
                 <p className="text-xs text-slate-700 leading-relaxed mb-3">
-                  This report presents visual inspection findings for externally accessible components.
+                  This report presents Detailed Inspection Report findings for externally accessible components.
                   Scope includes visible corrosion, coating condition, leaks, deformation, mechanical
                   damage, and general asset integrity indicators.
                 </p>
@@ -595,7 +632,77 @@ const VisualReport = () => {
 
             <div className="mb-8">
               <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">
-                Section 02: Recommendations
+                Section 02: AUT Thickness Mapping
+              </h4>
+              <table className="w-full text-left border-collapse mb-8">
+                <thead>
+                  <tr className="bg-slate-100 border-y border-slate-300">
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Axial X</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Axial Y</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Minimum</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Location</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Remark</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] divide-y divide-slate-200">
+                  {autMetrics.length > 0 ? (
+                    autMetrics.map((row) => (
+                      <tr key={row.id}>
+                        <td className="p-2">{row.axialX || "-"}</td>
+                        <td className="p-2">{row.axialY || "-"}</td>
+                        <td className="p-2">{row.nominal || "-"}</td>
+                        <td className="p-2">{row.min || "-"}</td>
+                        <td className="p-2">{row.location || "-"}</td>
+                        <td className="p-2">{row.remark || "-"}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="p-3 text-slate-500" colSpan={6}>
+                        No AUT records captured.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">
+                Section 03: MUT Nozzle Measurements
+              </h4>
+              <table className="w-full text-left border-collapse mb-8">
+                <thead>
+                  <tr className="bg-slate-100 border-y border-slate-300">
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Nozzle</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Dia</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Actual</th>
+                    <th className="py-2 px-2 text-[10px] font-black uppercase">Min Thk</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[11px] divide-y divide-slate-200">
+                  {mutNozzles.length > 0 ? (
+                    mutNozzles.map((row) => (
+                      <tr key={row.id}>
+                        <td className="p-2">{row.nozzleTag || "-"}</td>
+                        <td className="p-2">{row.dia || "-"}</td>
+                        <td className="p-2">{row.nominal || "-"}</td>
+                        <td className="p-2">{row.actual || "-"}</td>
+                        <td className="p-2">{row.minThk || "-"}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="p-3 text-slate-500" colSpan={5}>
+                        No MUT records captured.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+
+              <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">
+                Section 04: Recommendations
               </h4>
               <ul className="text-xs text-slate-700 list-disc pl-4 space-y-1">
                 <li>
@@ -667,7 +774,7 @@ const VisualReport = () => {
                   <ChevronLeft size={20} />
                 </button>
                 <h1 className="text-2xl font-bold uppercase tracking-tighter flex items-center gap-2">
-                  <Eye className="text-orange-500" /> Visual Inspection 
+                  <Eye className="text-orange-500" /> Detailed Inspection Report
                 </h1>
               </div>
               <div className="flex gap-3">
@@ -814,7 +921,100 @@ const VisualReport = () => {
                     </div>
                   ))}
                 </div>
-           
+
+                <div className="mt-10">
+                  <h3 className="text-[11px] font-black text-orange-500 uppercase tracking-widest mb-3">
+                    AUT Thickness Mapping
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-950/50">
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Axial X</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Axial Y</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Nominal</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Minimum</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Location</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Remark</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {(reportData.autMetrics || []).map((row) => (
+                          <tr key={row.id}>
+                            <td className="p-2"><input value={row.axialX} onChange={(e) => updateTableRow("autMetrics", row.id, "axialX", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.axialY} onChange={(e) => updateTableRow("autMetrics", row.id, "axialY", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.nominal} onChange={(e) => updateTableRow("autMetrics", row.id, "nominal", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.min} onChange={(e) => updateTableRow("autMetrics", row.id, "min", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.location} onChange={(e) => updateTableRow("autMetrics", row.id, "location", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.remark} onChange={(e) => updateTableRow("autMetrics", row.id, "remark", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      addTableRow("autMetrics", {
+                        axialX: "",
+                        axialY: "",
+                        nominal: "",
+                        min: "",
+                        location: "",
+                        remark: "",
+                      })
+                    }
+                    className="mt-3 text-xs font-bold uppercase tracking-widest text-orange-500 hover:text-orange-400"
+                  >
+                    + Add AUT Row
+                  </button>
+                </div>
+
+                <div className="mt-10">
+                  <h3 className="text-[11px] font-black text-orange-500 uppercase tracking-widest mb-3">
+                    MUT Nozzle Measurements
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-800 bg-slate-950/50">
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Nozzle</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Dia</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Nominal</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Actual</th>
+                          <th className="p-3 text-[10px] font-black uppercase text-slate-500">Min Thk</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {(reportData.mutNozzles || []).map((row) => (
+                          <tr key={row.id}>
+                            <td className="p-2"><input value={row.nozzleTag} onChange={(e) => updateTableRow("mutNozzles", row.id, "nozzleTag", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.dia} onChange={(e) => updateTableRow("mutNozzles", row.id, "dia", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.nominal} onChange={(e) => updateTableRow("mutNozzles", row.id, "nominal", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.actual} onChange={(e) => updateTableRow("mutNozzles", row.id, "actual", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                            <td className="p-2"><input value={row.minThk} onChange={(e) => updateTableRow("mutNozzles", row.id, "minThk", e.target.value)} className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-white" /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      addTableRow("mutNozzles", {
+                        nozzleTag: "",
+                        dia: "",
+                        nominal: "",
+                        actual: "",
+                        minThk: "",
+                      })
+                    }
+                    className="mt-3 text-xs font-bold uppercase tracking-widest text-orange-500 hover:text-orange-400"
+                  >
+                    + Add MUT Row
+                  </button>
+                </div>
+            
             </div>
           </div>
         </main>
@@ -845,6 +1045,5 @@ const InputField = ({
   </div>
 );
 
-export default VisualReport;
-
+export default DetailedReport;
 

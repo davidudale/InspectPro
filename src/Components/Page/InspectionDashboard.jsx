@@ -17,17 +17,37 @@ import InspectorSidebar from "../Dashboards/InspectorsFile/InspectorSidebar";
 const InspectionDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [metrics, setMetrics] = useState({
-    active: 0,
-    completed: 0,
-    total: 0,
+    const [metrics, setMetrics] = useState({
+      active: 0,
+      returned: 0,
+      completed: 0,
+      total: 0,
   });
   const [loading, setLoading] = useState(true);
   const [activityLogs, setActivityLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(true);
+  const [notificationQueue, setNotificationQueue] = useState([]);
+  const [activeNotification, setActiveNotification] = useState(null);
 
   const fullName =
     user?.fullName || user?.name || user?.displayName || user?.email || "Inspector";
+
+  const getSeenNotifications = (uid) => {
+    try {
+      const raw = localStorage.getItem(`inspectpro_seen_notifications_${uid}`);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return {
+        newSent: Array.isArray(parsed.newSent) ? parsed.newSent : [],
+        returned: Array.isArray(parsed.returned) ? parsed.returned : [],
+      };
+    } catch {
+      return { newSent: [], returned: [] };
+    }
+  };
+
+  const saveSeenNotifications = (uid, data) => {
+    localStorage.setItem(`inspectpro_seen_notifications_${uid}`, JSON.stringify(data));
+  };
 
   const formatTimeAgo = (timestamp) => {
     if (!timestamp?.toDate) return "just now";
@@ -44,17 +64,22 @@ const InspectionDashboard = () => {
   // Live dashboard metrics for inspector workload
   useEffect(() => {
     if (!user?.uid) {
-      setMetrics({ active: 0, completed: 0, total: 0 });
+      setMetrics({ active: 0, returned: 0, completed: 0, total: 0 });
       setLoading(false);
       return undefined;
     }
 
     setLoading(true);
-    const initialized = { active: false, completed: false, total: false };
+    const initialized = { active: false, returned: false, completed: false, total: false };
     const markReady = (key) => {
       if (!initialized[key]) {
         initialized[key] = true;
-        if (initialized.active && initialized.completed && initialized.total) {
+        if (
+          initialized.active &&
+          initialized.returned &&
+          initialized.completed &&
+          initialized.total
+        ) {
           setLoading(false);
         }
       }
@@ -70,6 +95,11 @@ const InspectionDashboard = () => {
       where("inspectorId", "==", user.uid),
       where("status", "==", "Completed"),
     );
+    const returnedRef = query(
+      collection(db, "projects"),
+      where("inspectorId", "==", user.uid),
+      where("status", "==", "Returned for correction"),
+    );
     const totalRef = query(
       collection(db, "projects"),
       where("inspectorId", "==", user.uid),
@@ -78,6 +108,10 @@ const InspectionDashboard = () => {
     const unsubActive = onSnapshot(activeRef, (snapshot) => {
       setMetrics((prev) => ({ ...prev, active: snapshot.size }));
       markReady("active");
+    });
+    const unsubReturned = onSnapshot(returnedRef, (snapshot) => {
+      setMetrics((prev) => ({ ...prev, returned: snapshot.size }));
+      markReady("returned");
     });
     const unsubCompleted = onSnapshot(completedRef, (snapshot) => {
       setMetrics((prev) => ({ ...prev, completed: snapshot.size }));
@@ -90,6 +124,7 @@ const InspectionDashboard = () => {
 
     return () => {
       unsubActive();
+      unsubReturned();
       unsubCompleted();
       unsubTotal();
     };
@@ -166,12 +201,91 @@ const InspectionDashboard = () => {
     };
   }, [user?.email, user?.uid]);
 
+  // Login-time inspector notifications: new assignments and returned inspections
+  useEffect(() => {
+    if (!user?.uid) {
+      setNotificationQueue([]);
+      setActiveNotification(null);
+      return undefined;
+    }
+
+    const projectNotificationsRef = query(
+      collection(db, "projects"),
+      where("inspectorId", "==", user.uid),
+      limit(100),
+    );
+
+    const unsubscribe = onSnapshot(projectNotificationsRef, (snapshot) => {
+      const seen = getSeenNotifications(user.uid);
+      const nextNotifications = [];
+
+      snapshot.docs.forEach((docItem) => {
+        const project = docItem.data();
+        const projectDocId = docItem.id;
+        const projectLabel = project.projectName || project.projectId || projectDocId;
+        const status = (project.status || "").toLowerCase();
+        const isReturned =
+          status === "returned for correction" ||
+          (status === "forwarded to inspector" && Boolean(project.returnedAt || project.returnNote));
+
+        if (isReturned && !seen.returned.includes(projectDocId)) {
+          nextNotifications.push({
+            key: `returned-${projectDocId}`,
+            title: "Returned Inspection",
+            message: `Inspection ${projectLabel} was returned for corrections.`,
+            tone: "returned",
+          });
+          seen.returned.push(projectDocId);
+          return;
+        }
+
+        if (status === "forwarded to inspector" && !seen.newSent.includes(projectDocId)) {
+          nextNotifications.push({
+            key: `new-${projectDocId}`,
+            title: "New Inspection Sent",
+            message: `A new inspection (${projectLabel}) has been assigned to you.`,
+            tone: "new",
+          });
+          seen.newSent.push(projectDocId);
+        }
+      });
+
+      if (nextNotifications.length > 0) {
+        const returnedFirst = [
+          ...nextNotifications.filter((item) => item.tone === "returned"),
+          ...nextNotifications.filter((item) => item.tone !== "returned"),
+        ];
+
+        setNotificationQueue((prev) => {
+          const existingKeys = new Set(prev.map((item) => item.key));
+          const dedupedIncoming = returnedFirst.filter((item) => !existingKeys.has(item.key));
+          return [...prev, ...dedupedIncoming];
+        });
+        saveSeenNotifications(user.uid, seen);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (activeNotification || notificationQueue.length === 0) return;
+    setActiveNotification(notificationQueue[0]);
+    setNotificationQueue((prev) => prev.slice(1));
+  }, [activeNotification, notificationQueue]);
+
   const stats = [
     {
       label: "Active Inspections",
       value: loading ? "..." : metrics.active.toString(),
       icon: <Activity className="text-orange-500" />,
       trend: "Live assignments",
+    },
+    {
+      label: "Returned Inspections",
+      value: loading ? "..." : metrics.returned.toString(),
+      icon: <AlertCircle className="text-amber-500" />,
+      trend: "Needs correction",
     },
     {
       label: "Inspection Completed",
@@ -221,7 +335,7 @@ const InspectionDashboard = () => {
             </header>
 
             {/* Metric Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
               {stats.map((stat) => (
                 <div
                   key={stat.label}
@@ -300,6 +414,38 @@ const InspectionDashboard = () => {
           </div>
         </main>
       </div>
+      {activeNotification && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <p
+              className={`text-xs font-bold uppercase tracking-[0.2em] ${
+                activeNotification.tone === "returned" ? "text-rose-400" : "text-orange-400"
+              }`}
+            >
+              Notification
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-white">{activeNotification.title}</h3>
+            <p className="mt-3 text-sm text-slate-300">{activeNotification.message}</p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setActiveNotification(null);
+                  navigate("/Inspection_view");
+                }}
+                className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+              >
+                Open Inspections
+              </button>
+              <button
+                onClick={() => setActiveNotification(null)}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,11 +1,10 @@
-
 import React from 'react';
 
 const stats = [
-  { label: 'Market Presence', value: '40', suffix: '+' },
-  { label: 'Annual Production', value: '1.2', suffix: 'M Barrels' },
-  { label: 'Safety Record', value: '0.05', suffix: 'LTI Rate' },
-  { label: 'Clean Energy Goal', value: '2030', suffix: 'Net Zero' },
+  { label: 'Anywhere, Anytime', value: 'Online', suffix: '+ Offline' },
+  { label: 'Increase Accuracy', value: 'Fewer', suffix: 'Errors' },
+  { label: 'Enhance Safety', value: 'Proactive', suffix: 'Risk Alerts' },
+  { label: 'Simplify Compliance', value: 'Always', suffix: 'Audit-Ready' },
 ];
 
 const Stats = () => {

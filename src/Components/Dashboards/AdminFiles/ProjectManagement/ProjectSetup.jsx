@@ -97,9 +97,9 @@ const ProjectSetup = () => {
         setInspectors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
 
-    // Sync qualified Supervisor from Users Management
+    // Sync qualified Lead Inspectors from Users Management
     const unsubSupervisor = onSnapshot(
-      query(collection(db, "users"), where("role", "==", "Supervisor")),
+      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "Supervisor"])),
       (snap) =>
         setSupervisor(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
@@ -137,7 +137,7 @@ const ProjectSetup = () => {
       !setupData.equipmentId ||
       !setupData.supervisorId // Ensure you have actually selected a supervisor in the UI
     ) {
-      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, and Supervisor are assigned.");
+      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, and Lead Inspector are assigned.");
       return;
     }
 
@@ -162,6 +162,33 @@ const ProjectSetup = () => {
         type: "info",
         timestamp: serverTimestamp(),
       });
+
+      // Inspector-targeted log so InspectionDashboard feed updates instantly.
+      const targetInspectorIds =
+        Array.isArray(setupData.inspectorIds) && setupData.inspectorIds.length > 0
+          ? setupData.inspectorIds
+          : setupData.inspectorId
+            ? [setupData.inspectorId]
+            : [];
+
+      const selectedInspectors = inspectors.filter((ins) =>
+        targetInspectorIds.includes(ins.id),
+      );
+
+      if (selectedInspectors.length > 0) {
+        await Promise.all(
+          selectedInspectors.map((ins) =>
+            addDoc(collection(db, "activity_logs"), {
+              message: `New Inspection Sent: ${setupData.projectName}`,
+              target: setupData.projectId,
+              userEmail: ins?.email || "",
+              userId: ins?.id || "",
+              type: "alert",
+              timestamp: serverTimestamp(),
+            }),
+          ),
+        );
+      }
 
       toast.success(`Project Successfully Forwarded to ${setupData.inspectorName}`);
       navigate("/admin/projects");
@@ -355,7 +382,7 @@ const ProjectSetup = () => {
                 </div>
                 <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <UserCheck size={14} /> 3. Assign Supervisor
+                    <UserCheck size={14} /> 3. Assign Lead Inspector
                   </h2>
                   <select
                     required
@@ -376,7 +403,7 @@ const ProjectSetup = () => {
                       });
                     }}
                   >
-                    <option value="">Choose Supervisor...</option>
+                    <option value="">Choose Lead Inspector...</option>
                     {supervisor.map((ins) => (
                       <option key={ins.id} value={ins.id}>
                         {ins.name || ins.displayName}

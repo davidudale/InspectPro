@@ -142,7 +142,10 @@ const ViewInspectionsList = () => {
 
   const getReturnFeedback = (project) => {
     const status = (project?.status || "").toLowerCase();
-    if (status === "forwarded to inspector" && project?.returnNote) {
+    if (
+      (status === "returned for correction" || status === "forwarded to inspector") &&
+      project?.returnNote
+    ) {
       return project.returnNote;
     }
     return "";
@@ -282,6 +285,11 @@ const ViewInspectionsList = () => {
                                     technique === "Corrosion Mapping"
                                   ) {
                                     route = "/inspector/aut-report";
+                                  }else if (
+                                    technique === "Detailed" ||
+                                    technique === "Detailed Inspection Report"
+                                  ) {
+                                    route = "/inspector/Detailed-report";
                                   } else if (
                                     technique === "Manual UT" ||
                                     technique === "MUT"

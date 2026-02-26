@@ -254,7 +254,7 @@ const UserPage = () => {
                   onChange={(e) => setFormData({...formData, role: e.target.value})}
                 >
                   <option value="Inspector">Inspector</option>
-                  <option value="Supervisor">Supervisor</option>
+                  <option value="Lead Inspector">Lead Inspector</option>
                   <option value="Manager">Manager</option>
                   <option value="Admin">Administrator</option>
                 </select>

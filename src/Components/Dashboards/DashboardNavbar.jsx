@@ -2,16 +2,17 @@ import { React, useState } from "react";
 import { Menu, X, FileText, LogOut, User } from "lucide-react";
 import { auth, db } from "../Auth/firebase";
 import { signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 
 const DashboardNavbar = () => {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
       console.log("User signed out successfully");
-      // Optional: Redirect to login page using window.location or a router
-      window.location.href = "/login";
+      navigate("/login", { replace: true });
     } catch (error) {
       console.error("Error signing out: ", error);
     }
@@ -55,7 +56,7 @@ const DashboardNavbar = () => {
       {isMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-900 p-4 space-y-4 flex flex-col">
           <button className="w-full text-left px-2 py-2 text-sm text-slate-300">
-            Supervisor
+            Lead Inspector
           </button>
           <button className="w-full bg-orange-600 text-white p-2 rounded-sm text-xs font-bold uppercase">
             Start Inspection

@@ -86,7 +86,7 @@ const Register = () => {
               className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
             >
               <option value="Inspector">Inspector</option>
-              <option value="Supervisor">Supervisor</option>
+              <option value="Lead Inspector">Lead Inspector</option>
               <option value="Manager">Manager</option>
               <option value="Admin">Admin</option>
             </select>
@@ -181,7 +181,7 @@ const Register = () => {
         </p>*/}
         <div>
           <button
-            onClick={() => navigate("/Login")}
+            onClick={() => navigate("/login")}
             className="w-full px-10 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(234,88,12,0.4)] rounded-sm"
           >
             <ArrowBigLeftIcon className="inline-block mr-2" size={20} />

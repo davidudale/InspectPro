@@ -26,7 +26,7 @@ export const ProtectedRoute = ({ children, allowedRoles }) => {
       </div>
     );
 
-  return allowedRoles.includes(role) ? children : <Navigate to="/Login" />;
+  return allowedRoles.includes(role) ? children : <Navigate to="/login" />;
 
   const hasAccess = allowedRoles.includes(role);
 

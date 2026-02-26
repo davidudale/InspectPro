@@ -114,7 +114,7 @@ const ConfirmedInspections = () => {
               <div>
                 <h1 className="text-3xl font-bold uppercase tracking-tighter text-white flex items-center gap-3">
                   <Activity className="text-orange-500" />
-                  Supervisor Confirmed Inspections
+                  Lead Inspector Confirmed Inspections
                 </h1>
                 <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
                   Completed Inspections as Supervised
