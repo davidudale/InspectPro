@@ -10,6 +10,8 @@ import {
   deleteDoc,
   doc,
   where,
+  updateDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import {
   Briefcase,
@@ -151,12 +153,79 @@ const ViewInspectionsList = () => {
     return "";
   };
 
+  const getInspectorStatusLabel = (project) => {
+    const status = (project?.status || "").toLowerCase();
+    if (status === "forwarded to inspector" && !project?.inspectionStartedAt) {
+      return "New";
+    }
+    if (status === "forwarded to inspector" && project?.inspectionStartedAt) {
+      return "Pending";
+    }
+    return project?.status || "Pending";
+  };
+
+  const getInspectionActionLabel = (project) => {
+    const status = (project?.status || "").toLowerCase();
+    if (status === "returned for correction") return "Continue";
+    if (project?.inspectionStartedAt) return "Continue Inspection";
+    return "Start Inspection";
+  };
+
+  const handleOpenInspection = async (project) => {
+    const label = getInspectionActionLabel(project);
+
+    // First open only: mark inspection as started so button changes on return.
+    if (label === "Start Inspection" && user?.role === "Inspector") {
+      try {
+        await updateDoc(doc(db, "projects", project.id), {
+          inspectionStartedAt: serverTimestamp(),
+          inspectionStartedBy: user?.uid || "",
+          status: "Pending",
+        });
+      } catch (error) {
+        console.error("Failed to stamp inspection start:", error);
+      }
+    }
+
+    let route = "/inspector/default-report";
+    const technique = project.selectedTechnique;
+
+    if (technique === "Visual" || technique === "Visual Testing (VT)") {
+      route = "/inspector/visual-report";
+    } else if (technique === "AUT" || technique === "Corrosion Mapping") {
+      route = "/inspector/aut-report";
+    } else if (
+      technique === "Detailed" ||
+      technique === "Detailed Inspection Report"
+    ) {
+      route = "/inspector/Detailed-report";
+    } else if (technique === "Manual UT" || technique === "MUT") {
+      route = "/inspector/manual-ut-report";
+    } else if (
+      technique === "Piping" ||
+      technique === "Piping System (P)"
+    ) {
+      route = "/inspector/piping-report";
+    }
+
+    navigate(route, {
+      state: {
+        preFill: {
+          ...project,
+          assetType: project.equipmentCategory || project.assetType,
+        },
+      },
+    });
+
+    toast.info(`Initializing ${technique} Manifest...`);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
        {user?.role === "Manager" ? <ManagerNavbar /> : <InspectorNavbar />}
       <div className="flex">
         {user?.role === "Manager" ? <ManagerSidebar /> : <InspectorSidebar />}
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
@@ -256,7 +325,7 @@ const ViewInspectionsList = () => {
                                 className="text-orange-500/50"
                               />
                               <span className="text-xs font-medium">
-                                {project.status}
+                                {getInspectorStatusLabel(project)}
                               </span>
                             </div>
                           </td>
@@ -269,59 +338,10 @@ const ViewInspectionsList = () => {
                           <td className="p-6 text-right">
                             {getInspectionActionState(project) === "active" && (
                               <button
-                                onClick={() => {
-                                  // 1. Identify the technical route based on the selected technique
-                                  let route = "/inspector/default-report"; // Fallback route
-
-                                  const technique = project.selectedTechnique;
-
-                                  if (
-                                    technique === "Visual" ||
-                                    technique === "Visual Testing (VT)"
-                                  ) {
-                                    route = "/inspector/visual-report";
-                                  } else if (
-                                    technique === "AUT" ||
-                                    technique === "Corrosion Mapping"
-                                  ) {
-                                    route = "/inspector/aut-report";
-                                  }else if (
-                                    technique === "Detailed" ||
-                                    technique === "Detailed Inspection Report"
-                                  ) {
-                                    route = "/inspector/Detailed-report";
-                                  } else if (
-                                    technique === "Manual UT" ||
-                                    technique === "MUT"
-                                  ) {
-                                    route = "/inspector/manual-ut-report";
-                                  } else if (
-                                    technique === "Piping" ||
-                                    technique === "Piping System (P)"
-                                  ) {
-                                    route = "/inspector/piping-report";
-                                  }
-
-                                  // 2. Navigate and pass the specific project manifest as preFill data
-                                  navigate(route, {
-                                    state: {
-                                      preFill: {
-                                        ...project,
-                                        // Ensure assetType matches the schema keys for the useEffect hook
-                                        assetType:
-                                          project.equipmentCategory ||
-                                          project.assetType,
-                                      },
-                                    },
-                                  });
-
-                                  toast.info(
-                                    `Initializing ${technique} Manifest...`,
-                                  );
-                                }}
+                                onClick={() => handleOpenInspection(project)}
                                 className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
                               >
-                                Start Inspection
+                                {getInspectionActionLabel(project)}
                               </button>
                             )}
                           </td>
@@ -350,3 +370,4 @@ const ViewInspectionsList = () => {
 };
 
 export default ViewInspectionsList;
+

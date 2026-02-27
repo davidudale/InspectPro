@@ -1,18 +1,18 @@
 import React from "react";
 import {
-  Menu,
-  X,
+  BadgeCheck,
+  Building2,
+  ClipboardList,
+  ClipboardPlus,
+  FileClock,
   FileText,
-  LogOut,
-  User,
+  FolderKanban,
+  FolderOpen,
   LayoutDashboard,
-  ClipboardCheck,
+  MapPin,
   Users,
   Settings,
-  ShieldAlert,
-  HelpCircle,
   ChevronDown,
-  Briefcase,
   Wrench,
   Sliders,
 } from "lucide-react"; // Example icons
@@ -20,7 +20,7 @@ import { useState, useEffect } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const sidebarLinks = [
@@ -31,42 +31,42 @@ const sidebarLinks = [
   },
    {
       name: "Inspections",
-      icon: <LayoutDashboard size={20} />,
+      icon: <ClipboardList size={20} />,
       href: "/Inspection_view",
     },
    {
        name: "Pending Inspections",
-       icon: <LayoutDashboard size={20} />,
+       icon: <FileClock size={20} />,
        href: "/SubInspection_view",
      },
       {
        name: "Confirmed Inspection",
-       icon: <LayoutDashboard size={20} />,
+       icon: <BadgeCheck size={20} />,
        href: "/ConfirmedInspection",
      },
   {
     name: "Pending Approval",
-    icon: <LayoutDashboard size={20} />,
+    icon: <FileClock size={20} />,
     href: "/Pending_approval",
   },
   {
-    name: "Approval Projects",
-    icon: <LayoutDashboard size={20} />,
+    name: "Approved Projects",
+    icon: <BadgeCheck size={20} />,
     href: "/approval_projects",
   },
   {
     name: "Project Management",
-    icon: <ClipboardCheck size={20} />,
+    icon: <FolderKanban size={20} />,
     // This item has a dropdown
     subLinks: [
       {
         name: "View Projects",
-        icon: <FileText size={16} />,
+        icon: <FolderOpen size={16} />,
         href: "/admin/projects",
       },
       {
         name: "Add Projects",
-        icon: <FileText size={16} />,
+        icon: <ClipboardPlus size={16} />,
         href: "/projects",
       },
     ],
@@ -79,17 +79,17 @@ const sidebarLinks = [
     subLinks: [
       {
         name: "Client Management",
-        icon: <Wrench size={16} />,
+        icon: <Building2 size={16} />,
         href: "/Client",
       },
       {
         name: "Location Management",
-        icon: <Wrench size={16} />,
+        icon: <MapPin size={16} />,
         href: "/location",
       },
       {
         name: "Inspection Types",
-        icon: <Wrench size={16} />,
+        icon: <ClipboardList size={16} />,
         href: "/inspection_type",
       },
       {
@@ -117,8 +117,6 @@ const sidebarLinks = [
 ];
 
 const ManagerSidebar = () => {
-  const [userCount, setUserCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,18 +127,7 @@ const ManagerSidebar = () => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
 
-  // 1. Fetch live user count
-  useEffect(() => {
-    const usersRef = collection(db, "users");
-    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
-      setUserCount(snapshot.size);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Fetch logged-in user's Full Name
+  // Fetch logged-in user's Full Name
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -187,7 +174,10 @@ const ManagerSidebar = () => {
         {sidebarLinks.map((link, index) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;
-          const isActive = location.pathname === link.href;
+          const isSubLinkActive = hasSubLinks
+            ? link.subLinks.some((sub) => location.pathname === sub.href)
+            : false;
+          const isActive = location.pathname === link.href || isSubLinkActive;
 
           return (
             <div key={index} className="w-full">
@@ -233,6 +223,7 @@ const ManagerSidebar = () => {
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
                     >
+                      <span>{sub.icon}</span>
                       {sub.name}
                     </button>
                   ))}

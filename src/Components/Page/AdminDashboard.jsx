@@ -265,7 +265,7 @@ const AdminDashboard = () => {
                                   addSuffix: true,
                                 })
                               : "just now"}
-                            {" • "}
+                            {" â€¢ "}
                             BY: {log.userEmail?.split("@")[0] || "System"}
                           </p>
                         </div>

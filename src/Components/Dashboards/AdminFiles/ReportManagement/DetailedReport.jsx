@@ -16,13 +16,9 @@ import {
 import {
   Eye,
   ChevronLeft,
-  Save,
   XCircle,
   Printer,
-  Zap,
-  ClipboardCheck,
   Activity,
-  ShieldCheck,
   Camera,
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
@@ -334,6 +330,20 @@ const DetailedReport = () => {
     }));
   };
 
+  const setGeneralField = (field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      general: { ...prev.general, [field]: value },
+    }));
+  };
+
+  const setEnvironmentalField = (field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      environmental: { ...prev.environmental, [field]: value },
+    }));
+  };
+
   const handleSaveToFirebase = async (isFinalizing = false) => {
     setIsSaving(true);
 
@@ -445,51 +455,21 @@ const DetailedReport = () => {
       (obs) => (obs.condition || "").toLowerCase() === "satisfactory",
     ).length;
     const actionRequiredCount = Math.max(observations.length - satisfactoryCount, 0);
-
     const standardsUsed = [
       reportData.general.defaultStandard,
       reportData.general.designCode,
       reportData.general.assetType,
       "API 510 / API 570 / API 653 (as applicable)",
     ].filter(Boolean);
-
-    const classifyFinding = (condition) => {
-      const normalized = (condition || "").toLowerCase();
-      if (normalized === "satisfactory") return "Acceptable";
-      if (normalized.includes("minor") || normalized.includes("monitor")) return "Monitor";
-      return "Action Required";
-    };
-
-    const findingClassName = (classification) => {
-      if (classification === "Acceptable") return "text-emerald-700";
-      if (classification === "Monitor") return "text-amber-700";
-      return "text-red-700";
-    };
-
-    const ReportRow = ({ label, value }) => (
-      <div className="flex justify-between border-b border-slate-100 pb-1">
-        <span className="font-black text-slate-400 uppercase text-[9px]">{label}</span>
-        <span className="font-bold text-right uppercase">{value || "N/A"}</span>
-      </div>
-    );
-
-    const SummaryCard = ({ label, value }) => (
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{label}</p>
-        <p className="text-2xl font-black text-slate-900 mt-1">{value}</p>
-      </div>
-    );
-
-    const SignatureBlock = ({ label, name }) => (
-      <div className="space-y-4">
-        <p className="text-[9px] font-black uppercase text-slate-400">{label}</p>
-        <div className="border-b-2 border-slate-950 pb-1 font-serif italic text-lg text-slate-900">
-          {name || "____________________"}
-        </div>
-        <p className="text-[8px] text-slate-500 uppercase">Electronic Verification Signature</p>
-      </div>
-    );
-
+    const hasActionRequired = actionRequiredCount > 0;
+    const introText = `At the request of ${
+      reportData.general.client || "the client"
+    }, corrosion mapping inspection was carried out on ${
+      reportData.general.tag || "the identified vessel"
+    } at ${reportData.general.platform || "the stated location"}.`;
+    const inspectionSummary = hasActionRequired
+      ? `${actionRequiredCount} finding(s) require corrective action before the next operation cycle.`
+      : "No critical defect indication was observed from the inspected points.";
     return (
       <div className="min-h-screen bg-slate-900 p-4 md:p-8 pb-20 print:p-0 print:bg-white">
         <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
@@ -514,11 +494,10 @@ const DetailedReport = () => {
             </button>
           </div>
         </div>
-
-        <div className="max-w-[210mm] mx-auto space-y-0">
-          <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] flex flex-col page-break">
-            <div className="flex justify-between items-start border-b-2 border-slate-950 pb-6 mb-12">
-              <div className="text-blue-800 font-black text-xl">INSPECTPRO</div>
+        <div className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
+          <div className="bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
+            <div className="flex justify-between items-start border-b border-slate-400 pb-6 mb-10">
+              <div className="text-blue-900 font-black text-xl tracking-tight">INSPECTPRO</div>
               {reportData.general.clientLogo ? (
                 <img
                   src={reportData.general.clientLogo}
@@ -527,226 +506,283 @@ const DetailedReport = () => {
                 />
               ) : null}
             </div>
-
             <div className="flex-1">
-              <h1 className="text-4xl font-black uppercase tracking-tight mb-3">
-                Oil & Gas Detailed Inspection Report
+              <p className="text-sm uppercase tracking-widest font-bold text-slate-600 mb-2">
+                {reportData.general.platform || "Work Location"}
+              </p>
+              <h1 className="text-[28px] font-black uppercase leading-tight tracking-tight mb-2">
+                Corrosion Mapping Inspection Report
               </h1>
-              <p className="text-sm text-slate-600 mb-8 uppercase tracking-[0.2em] font-bold">
-                Detailed Inspection Report | Condition and Integrity Screening
-              </p>
-
-              <div className="grid grid-cols-2 gap-6 mb-8">
-                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                  <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">
-                    Project Information
-                  </h3>
-                  <ReportRow label="Client" value={reportData.general.client} />
-                  <ReportRow label="Facility/Location" value={reportData.general.platform} />
-                  <ReportRow label="Report Number" value={reportData.general.reportNum} />
-                  <ReportRow label="Inspection Date" value={reportData.general.date} />
-                </div>
-                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                  <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">
-                    Asset Information
-                  </h3>
-                  <ReportRow label="Asset Tag" value={reportData.general.tag} />
-                  <ReportRow label="Asset Type" value={reportData.general.assetType} />
-                  <ReportRow label="Equipment Class" value={reportData.general.equipment} />
-                  <ReportRow label="Ambient Temp" value={`${reportData.environmental.temp || "N/A"} �C`} />
-                </div>
+              <h2 className="text-[18px] font-bold uppercase mb-10">
+                {reportData.general.assetType || "Vessel"} ({reportData.general.tag || "N/A"})
+              </h2>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-[11px] mb-8">
+                <p className="font-bold">Client: <span className="font-normal">{reportData.general.client || "N/A"}</span></p>
+                <p className="font-bold">Report Number: <span className="font-normal">{reportData.general.reportNum || "N/A"}</span></p>
+                <p className="font-bold">Contract Number: <span className="font-normal">{reportData.general.contractNum || "N/A"}</span></p>
+                <p className="font-bold">Location: <span className="font-normal">{reportData.general.platform || "N/A"}</span></p>
+                <p className="font-bold">Date of Inspection: <span className="font-normal">{reportData.general.date || "N/A"}</span></p>
+                <p className="font-bold">Inspected By: <span className="font-normal">{reportData.general.inspect_by || reportData.inspector || "N/A"}</span></p>
+                <p className="font-bold">Test Code: <span className="font-normal">{reportData.general.testCode || "API 510"}</span></p>
+                <p className="font-bold">Acceptance Criteria: <span className="font-normal">Client&apos;s requirement</span></p>
               </div>
-
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <SummaryCard label="Total Findings" value={observations.length} />
-                <SummaryCard label="Acceptable" value={satisfactoryCount} />
-                <SummaryCard label="Action Required" value={actionRequiredCount} />
+              <div className="border border-slate-300 p-4 text-[11px]">
+                <p className="font-black uppercase mb-2">Introduction</p>
+                <p className="leading-relaxed">{introText}</p>
               </div>
-
-              <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-3">
-                  Scope & Reference Standards
-                </h3>
-                <p className="text-xs text-slate-700 leading-relaxed mb-3">
-                  This report presents Detailed Inspection Report findings for externally accessible components.
-                  Scope includes visible corrosion, coating condition, leaks, deformation, mechanical
-                  damage, and general asset integrity indicators.
-                </p>
-                <ul className="text-xs text-slate-700 list-disc pl-4 space-y-1">
-                  {standardsUsed.map((standard, idx) => (
-                    <li key={`${standard}-${idx}`}>{standard}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="mt-auto pt-10 border-t-4 border-slate-900 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                CONTROLLED ENGINEERING DOCUMENT - CONFIDENTIAL
-              </p>
             </div>
           </div>
-
-          <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] flex flex-col page-break">
-            <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8 flex items-center gap-2">
-              <ShieldCheck size={16} className="text-orange-600" /> Section 01: Findings Register
+          <div className="bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
+            <h3 className="text-sm font-black uppercase border-b border-slate-500 pb-2 mb-5">
+              Contents
             </h3>
-
-            <table className="w-full text-left border-collapse mb-10">
+            <table className="w-full text-[11px] border-collapse mb-6">
               <thead>
-                <tr className="bg-slate-100 border-y border-slate-300">
-                  <th className="py-3 px-3 text-[10px] font-black uppercase">Ref</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase">Component</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase">Observed Condition</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase">Classification</th>
-                  <th className="py-3 px-3 text-[10px] font-black uppercase">Remarks / Evidence</th>
+                <tr className="border-b border-slate-300">
+                  <th className="py-2 text-left font-black uppercase">S/N</th>
+                  <th className="py-2 text-left font-black uppercase">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                <tr><td className="py-2">1</td><td className="py-2">Summary of Inspection Results</td></tr>
+                <tr><td className="py-2">2</td><td className="py-2">Vessel General Data</td></tr>
+                <tr><td className="py-2">3</td><td className="py-2">External Visual Inspection</td></tr>
+                <tr><td className="py-2">4</td><td className="py-2">Photographic Details</td></tr>
+                <tr><td className="py-2">5</td><td className="py-2">AUT Corrosion Mapping Inspection</td></tr>
+                <tr><td className="py-2">6</td><td className="py-2">Manual Ultrasonic Thickness Measurement on Nozzles</td></tr>
+                <tr><td className="py-2">7</td><td className="py-2">Ultrasonic Shear Wave Examination of Nozzle/Shell Welds</td></tr>
+              </tbody>
+            </table>
+            <div className="space-y-6 text-[11px] leading-relaxed">
+              <div>
+                <h4 className="font-black uppercase mb-2">1. Summary of Inspection Results</h4>
+                <p><span className="font-bold">Visual Inspection:</span> {inspectionSummary}</p>
+                <p><span className="font-bold">AUT Inspection:</span> {autMetrics.length > 0 ? `${autMetrics.length} AUT reading point(s) captured.` : "No AUT records captured."}</p>
+                <p><span className="font-bold">MUT Inspection:</span> {mutNozzles.length > 0 ? `${mutNozzles.length} nozzle record(s) captured.` : "No MUT records captured."}</p>
+                <p><span className="font-bold">Shear Wave UT of Welds:</span> No defect indication reported in this template section.</p>
+              </div>
+              <div>
+                <h4 className="font-black uppercase mb-2">2. Vessel General Data</h4>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                  <p>Vessel Tag No: {reportData.general.tag || "N/A"}</p>
+                  <p>Vessel Name: {reportData.general.equipment || reportData.general.assetType || "N/A"}</p>
+                  <p>Design Data: Obtained from nameplate</p>
+                  <p>Test Code: {reportData.general.testCode || "API 510"}</p>
+                  <p>Operating Procedure: {reportData.general.vesselOperatingProcedure || "N/A"}</p>
+                  <p>Ambient Temp: {reportData.environmental.temp || "N/A"} C</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
+            <h3 className="text-sm font-black uppercase border-b border-slate-500 pb-2 mb-5">
+              3. External Visual Inspection
+            </h3>
+            <h4 className="text-[11px] font-black uppercase mb-2">3.1 External Surface of The Vessel</h4>
+            <table className="w-full text-left border-collapse mb-6">
+              <thead>
+                <tr className="border-y border-slate-300">
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">S/N</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Vessel Components</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Observations</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Photos</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200 align-top">
+                {observations.map((obs) => (
+                  <tr key={obs.sn}>
+                    <td className="p-2 font-bold">{obs.sn}</td>
+                    <td className="p-2">{obs.component}</td>
+                    <td className="p-2">
+                      {obs.notes || (obs.condition === "Satisfactory" ? "No adverse condition observed." : "Condition requires attention.")}
+                    </td>
+                    <td className="p-2">{obs.photoRef ? obs.sn : "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <h4 className="text-[11px] font-black uppercase mb-2">3.2 Auxiliary Components Associated with Vessel</h4>
+            <table className="w-full text-left border-collapse mb-6">
+              <thead>
+                <tr className="border-y border-slate-300">
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">S/N</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Vessel Components</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Observation</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Photos</th>
                 </tr>
               </thead>
               <tbody className="text-[11px] divide-y divide-slate-200">
-                {observations.map((obs) => {
-                  const classification = classifyFinding(obs.condition);
-                  return (
-                    <tr key={obs.sn}>
-                      <td className="p-4 font-mono font-bold">{obs.sn}</td>
-                      <td className="p-4 font-bold uppercase">{obs.component}</td>
-                      <td className="p-4">
-                        <span
-                          className={`font-black uppercase ${
-                            obs.condition === "Satisfactory" ? "text-emerald-600" : "text-red-600"
-                          }`}
-                        >
-                          {obs.condition}
-                        </span>
-                      </td>
-                      <td className={`p-4 font-black uppercase ${findingClassName(classification)}`}>
-                        {classification}
-                      </td>
-                      <td className="p-4 italic text-slate-600">
-                        {obs.notes || "No adverse condition observed during VT."}
-                      </td>
-                    </tr>
-                  );
-                })}
+                <tr>
+                  <td className="p-2">3.2.1</td>
+                  <td className="p-2">Platforms and Handrails</td>
+                  <td className="p-2">
+                    {observations.some((o) => (o.component || "").toLowerCase().includes("platform"))
+                      ? "Findings captured in section 3.1."
+                      : "N/A"}
+                  </td>
+                  <td className="p-2">-</td>
+                </tr>
+                <tr>
+                  <td className="p-2">3.2.2</td>
+                  <td className="p-2">Ladders / Stairways</td>
+                  <td className="p-2">
+                    {observations.some((o) => (o.component || "").toLowerCase().includes("ladder"))
+                      ? "Relevant observations recorded."
+                      : "N/A"}
+                  </td>
+                  <td className="p-2">-</td>
+                </tr>
               </tbody>
             </table>
-
-            <div className="mb-8">
-              <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">
-                Section 02: AUT Thickness Mapping
-              </h4>
-              <table className="w-full text-left border-collapse mb-8">
-                <thead>
-                  <tr className="bg-slate-100 border-y border-slate-300">
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Axial X</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Axial Y</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Minimum</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Location</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Remark</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[11px] divide-y divide-slate-200">
-                  {autMetrics.length > 0 ? (
-                    autMetrics.map((row) => (
-                      <tr key={row.id}>
-                        <td className="p-2">{row.axialX || "-"}</td>
-                        <td className="p-2">{row.axialY || "-"}</td>
-                        <td className="p-2">{row.nominal || "-"}</td>
-                        <td className="p-2">{row.min || "-"}</td>
-                        <td className="p-2">{row.location || "-"}</td>
-                        <td className="p-2">{row.remark || "-"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="p-3 text-slate-500" colSpan={6}>
-                        No AUT records captured.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">
-                Section 03: MUT Nozzle Measurements
-              </h4>
-              <table className="w-full text-left border-collapse mb-8">
-                <thead>
-                  <tr className="bg-slate-100 border-y border-slate-300">
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Nozzle</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Dia</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Actual</th>
-                    <th className="py-2 px-2 text-[10px] font-black uppercase">Min Thk</th>
-                  </tr>
-                </thead>
-                <tbody className="text-[11px] divide-y divide-slate-200">
-                  {mutNozzles.length > 0 ? (
-                    mutNozzles.map((row) => (
-                      <tr key={row.id}>
-                        <td className="p-2">{row.nozzleTag || "-"}</td>
-                        <td className="p-2">{row.dia || "-"}</td>
-                        <td className="p-2">{row.nominal || "-"}</td>
-                        <td className="p-2">{row.actual || "-"}</td>
-                        <td className="p-2">{row.minThk || "-"}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="p-3 text-slate-500" colSpan={5}>
-                        No MUT records captured.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-              <h4 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-2">
-                Section 04: Recommendations
-              </h4>
-              <ul className="text-xs text-slate-700 list-disc pl-4 space-y-1">
-                <li>
-                  Address all items classified as <span className="font-black">Action Required</span>{" "}
-                  before the next operational cycle.
-                </li>
-                <li>
-                  Items classified as <span className="font-black">Monitor</span> should be trended and
-                  reassessed at the next planned inspection interval.
-                </li>
-                <li>
-                  Re-inspection interval should align with asset criticality and the site integrity
-                  management plan.
-                </li>
-              </ul>
+            <h4 className="text-[11px] font-black uppercase mb-2">3.3 Instrumentation and Associated Hardware</h4>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-y border-slate-300">
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">S/N</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Vessel Components</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Observation</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Photos</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200">
+                <tr>
+                  <td className="p-2">3.3.1</td>
+                  <td className="p-2">Pressure / Level / Temperature Instruments</td>
+                  <td className="p-2">
+                    {observations.some((o) =>
+                      /(gauge|instrument|thermo|level|pressure)/i.test(o.component || ""),
+                    )
+                      ? "Instrument-related notes available in findings."
+                      : "No specific anomaly captured."}
+                  </td>
+                  <td className="p-2">-</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] page-break">
+            <h3 className="text-sm font-black uppercase border-b border-slate-500 pb-2 mb-5">
+              5. AUT Corrosion Mapping Inspection
+            </h3>
+            <div className="text-[11px] space-y-3 mb-6">
+              <h4 className="font-black uppercase">5.1 AUT HydroForm Technique - Introduction and Limitation</h4>
+              <p>
+                This report details wall thickness measurement using AUT corrosion mapping.
+                Measurements are used to assess vessel integrity and maintenance priority.
+              </p>
+              <p>
+                Limitations apply in inaccessible areas such as welded surroundings, nozzles,
+                and support interfaces where manual UT may be required.
+              </p>
+              <p className="font-bold">
+                Reference Standards: {standardsUsed.length > 0 ? standardsUsed.join(", ") : "Client standard"}
+              </p>
             </div>
-
-            <div className="mt-auto grid grid-cols-2 gap-10">
-              <SignatureBlock label="Field Inspector" name={reportData.inspector} />
-              <SignatureBlock label="Authorized By" name={user?.displayName || user?.name || user?.email} />
+            <h4 className="text-[11px] font-black uppercase mb-2">5.4 AUT Data Acquisition</h4>
+            <table className="w-full text-left border-collapse mb-6">
+              <thead>
+                <tr className="border-y border-slate-300">
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Axial X</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Axial Y</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Minimum</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Location</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Remark</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200">
+                {autMetrics.length > 0 ? (
+                  autMetrics.map((row) => (
+                    <tr key={row.id}>
+                      <td className="p-2">{row.axialX || "-"}</td>
+                      <td className="p-2">{row.axialY || "-"}</td>
+                      <td className="p-2">{row.nominal || "-"}</td>
+                      <td className="p-2">{row.min || "-"}</td>
+                      <td className="p-2">{row.location || "-"}</td>
+                      <td className="p-2">{row.remark || "-"}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="p-2 text-slate-500" colSpan={6}>
+                      No AUT records captured.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <h3 className="text-sm font-black uppercase border-b border-slate-500 pb-2 mb-5">
+              6. Manual Ultrasonic Thickness Measurement on Nozzles
+            </h3>
+            <table className="w-full text-left border-collapse mb-6">
+              <thead>
+                <tr className="border-y border-slate-300">
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Nozzle</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Dia</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Nominal</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Actual</th>
+                  <th className="py-2 px-2 text-[10px] font-black uppercase">Min Thk</th>
+                </tr>
+              </thead>
+              <tbody className="text-[11px] divide-y divide-slate-200">
+                {mutNozzles.length > 0 ? (
+                  mutNozzles.map((row) => (
+                    <tr key={row.id}>
+                      <td className="p-2">{row.nozzleTag || "-"}</td>
+                      <td className="p-2">{row.dia || "-"}</td>
+                      <td className="p-2">{row.nominal || "-"}</td>
+                      <td className="p-2">{row.actual || "-"}</td>
+                      <td className="p-2">{row.minThk || "-"}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="p-2 text-slate-500" colSpan={5}>
+                      No MUT records captured.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            <h3 className="text-sm font-black uppercase border-b border-slate-500 pb-2 mb-4">
+              7. Ultrasonic Shear Wave Examination of Nozzle/Shell Circumferential Welds
+            </h3>
+            <p className="text-[11px]">
+              No defect indication was logged from nozzle/shell circumferential weld checks in this report template.
+            </p>
+            <div className="mt-auto pt-8 grid grid-cols-2 gap-8 text-[10px]">
+              <div>
+                <p className="font-black uppercase mb-6">Inspected By</p>
+                <div className="border-b border-slate-600 pb-1">
+                  {reportData.general.inspect_by || reportData.inspector || "________________"}
+                </div>
+              </div>
+              <div>
+                <p className="font-black uppercase mb-6">Authorized By</p>
+                <div className="border-b border-slate-600 pb-1">
+                  {user?.displayName || user?.name || user?.email || "________________"}
+                </div>
+              </div>
             </div>
           </div>
-
           {evidencePhotos.length > 0 && (
-            <div className="bg-white text-slate-950 p-[20mm] min-h-[297mm] page-break">
-              <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8">
-                Section 03: Photographic Evidence Appendix
+            <div className="bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] page-break">
+              <h3 className="text-sm font-black uppercase border-b border-slate-500 pb-2 mb-5">
+                4. Photographic Details
               </h3>
               <div className="grid grid-cols-2 gap-8">
                 {evidencePhotos.map((obs, idx) => (
                   <div key={idx} className="space-y-2 break-inside-avoid">
-                    <div className="border-2 border-slate-100 p-1 rounded-lg">
+                    <div className="border border-slate-200 p-1 rounded">
                       <img
                         src={obs.photoRef}
                         className="w-full aspect-[4/3] object-cover rounded"
-                        alt="Technical Evidence"
+                        alt="Inspection evidence"
                       />
                     </div>
-                    <div className="flex justify-between items-center px-1">
-                      <span className="text-[10px] font-black uppercase">Ref {obs.sn}</span>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase truncate">
-                        {obs.component?.split("(")[0] || "Component"}
-                      </span>
-                    </div>
+                    <p className="text-[10px] font-bold">
+                      Photo #{String(idx + 1).padStart(2, "0")}: {obs.notes || obs.component || "Inspection detail"}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -763,7 +799,7 @@ const DetailedReport = () => {
       {user?.role === "Admin" ? <AdminNavbar /> : <InspectorNavbar />}
       <div className="flex">
         {user?.role === "Admin" ? <AdminSidebar /> : <InspectorSidebar />}
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
             <header className="flex justify-between items-center mb-8 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
               <div className="flex items-center gap-4">
@@ -814,40 +850,61 @@ const DetailedReport = () => {
               
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
                   <InputField
+                    label="Client"
+                    value={reportData.general.client}
+                    onChange={(v) => setGeneralField("client", v)}
+                  />
+                  <InputField
+                    label="Contract Number"
+                    value={reportData.general.contractNum}
+                    onChange={(v) => setGeneralField("contractNum", v)}
+                  />
+                  <InputField
+                    label="Date of Inspection"
+                    type="date"
+                    value={reportData.general.date}
+                    onChange={(v) => setGeneralField("date", v)}
+                  />
+                  <InputField
+                    label="Inspected By"
+                    value={reportData.general.inspect_by}
+                    onChange={(v) => setGeneralField("inspect_by", v)}
+                  />
+                  <InputField
+                    label="Test Code"
+                    value={reportData.general.testCode}
+                    onChange={(v) => setGeneralField("testCode", v)}
+                  />
+                  <InputField
+                    label="Operating Procedure"
+                    value={reportData.general.vesselOperatingProcedure || ""}
+                    onChange={(v) => setGeneralField("vesselOperatingProcedure", v)}
+                  />
+                  <InputField
                     label="Asset Tag Number"
                     value={reportData.general.tag}
                     readOnly
                   />
                   <InputField
-                    label="Asset Category"
+                    label="Asset Type"
                     value={reportData.general.assetType}
                     readOnly
                   />
                   <InputField
-                    label="Asset Category"
+                    label="Location"
                     value={reportData.general.platform}
-                    readOnly
+                    onChange={(v) => setGeneralField("platform", v)}
                   />
                   <InputField
-                    label="Report #"
+                    label="Report Number"
                     value={reportData.general.reportNum}
-                    onChange={(v) =>
-                      setReportData({
-                        ...reportData,
-                        general: { ...reportData.general, reportNum: v },
-                      })
-                    }
+                    onChange={(v) => setGeneralField("reportNum", v)}
                   />
                   
                   <InputField
-                    label="Ambient Temp (°C)"
+                    label="Ambient Temp (C)"
                     value={reportData.environmental.temp}
-                    onChange={(v) =>
-                      setReportData({
-                        ...reportData,
-                        environmental: { ...reportData.environmental, temp: v },
-                      })
-                    }
+                    onChange={(v) => setEnvironmentalField("temp", v)}
                   />
                 </div>
               
@@ -1046,4 +1103,7 @@ const InputField = ({
 );
 
 export default DetailedReport;
+
+
+
 

@@ -120,7 +120,7 @@ const ViewInspection = () => {
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-5xl mx-auto">
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
               <div>

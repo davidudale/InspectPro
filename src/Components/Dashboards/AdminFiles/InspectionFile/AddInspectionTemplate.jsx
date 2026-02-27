@@ -150,7 +150,7 @@ const AddInspectionTemplate = () => {
                     <option value="">Select Project Reference...</option>
                     {projects.map(p => (
                         <option key={p.id} value={p.id}>
-                          {p.projectId} — {p.client} | {p.projectName}
+                          {p.projectId} â€” {p.client} | {p.projectName}
                         </option>
                     ))}
                 </select>

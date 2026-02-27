@@ -134,7 +134,7 @@ const SupervisorDashboard = () => {
 
   const stats = [
     {
-      label: "Active Inspections",
+      label: "Inspections",
       value: loading ? "..." : inspectionCount.toString(),
       icon: <Activity className="text-orange-500" />,
       trend: "+2 today",
@@ -147,13 +147,7 @@ const SupervisorDashboard = () => {
       trend: "Optimal",
       href: ""
     },
-    {
-      label: "System Users",
-      value: loading ? "..." : userCount.toString(),
-      icon: <User className="text-blue-500" />,
-      trend: "Live Data",
-      href: "/admin/users"
-    },
+    
     {
       label: "Projects",
       value: loading ? "..." : inspectionCount.toString(),
@@ -161,14 +155,7 @@ const SupervisorDashboard = () => {
       trend: "Requires Action",
       href: ""
     },
-    {
-      label: "Equipments Under Management",
-      value: loading ? "..." : equipmentCount.toString(),
-      icon: <AlertCircle className="text-red-500" />,
-      trend: "Requires Action",
-      href: ""
-    },
-    
+   
   ];
 
   return (
@@ -255,7 +242,7 @@ const SupervisorDashboard = () => {
                     {log.timestamp?.toDate() 
                       ? formatDistanceToNow(log.timestamp.toDate(), { addSuffix: true }) 
                       : "just now"} 
-                    {" • "} 
+                    {" â€¢ "} 
                     BY: {log.userEmail?.split('@')[0] || "System"}
                   </p>
                 </div>

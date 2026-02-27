@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
+  ClipboardList,
   LayoutDashboard,
   Settings,
   ChevronDown,
-  Lock,
+  Sliders,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -19,7 +20,7 @@ const sidebarLinks = [
   },
   {
     name: "Inspections",
-    icon: <LayoutDashboard size={20} />,
+    icon: <ClipboardList size={20} />,
     href: "/Inspection_view",
   },
 
@@ -29,7 +30,7 @@ const sidebarLinks = [
     subLinks: [
       {
         name: "Preferences",
-        icon: <Lock size={16} />,
+        icon: <Sliders size={16} />,
         href: "/inspector/settings",
       },
     ],
@@ -147,6 +148,7 @@ const InspectorSidebar = () => {
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
                     >
+                      <span>{sub.icon}</span>
                       {sub.name}
                     </button>
                   ))}

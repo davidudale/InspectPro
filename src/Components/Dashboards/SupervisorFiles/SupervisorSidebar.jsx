@@ -1,26 +1,17 @@
 import React from "react";
 import {
-  Menu,
-  X,
-  FileText,
-  LogOut,
-  User,
+  BadgeCheck,
+  FileClock,
   LayoutDashboard,
-  ClipboardCheck,
-  Users,
   Settings,
-  ShieldAlert,
-  HelpCircle,
   ChevronDown,
-  Briefcase,
-  Wrench,
   Sliders,
 } from "lucide-react"; // Example icons
 import { useState, useEffect } from "react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../Auth/firebase"; // Ensure auth is exported from your firebase config
-import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
 const sidebarLinks = [
@@ -29,14 +20,14 @@ const sidebarLinks = [
     icon: <LayoutDashboard size={20} />,
     href: "/SupervisorDashboard",
   },
-   {
+  {
     name: "Pending Inspections",
-    icon: <LayoutDashboard size={20} />,
+    icon: <FileClock size={20} />,
     href: "/SubInspection_view",
   },
    {
     name: "Confirmed Inspection",
-    icon: <LayoutDashboard size={20} />,
+    icon: <BadgeCheck size={20} />,
     href: "/ConfirmedInspection",
   },
  
@@ -54,8 +45,6 @@ const sidebarLinks = [
 ];
 
 const SupervisorSidebar = () => {
-  const [userCount, setUserCount] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,18 +55,7 @@ const SupervisorSidebar = () => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
 
-  // 1. Fetch live user count
-  useEffect(() => {
-    const usersRef = collection(db, "users");
-    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
-      setUserCount(snapshot.size);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // 2. Fetch logged-in user's Full Name
+  // Fetch logged-in user's Full Name
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -124,7 +102,10 @@ const SupervisorSidebar = () => {
         {sidebarLinks.map((link, index) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;
-          const isActive = location.pathname === link.href;
+          const isSubLinkActive = hasSubLinks
+            ? link.subLinks.some((sub) => location.pathname === sub.href)
+            : false;
+          const isActive = location.pathname === link.href || isSubLinkActive;
 
           return (
             <div key={index} className="w-full">
@@ -170,6 +151,7 @@ const SupervisorSidebar = () => {
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
                     >
+                      <span>{sub.icon}</span>
                       {sub.name}
                     </button>
                   ))}

@@ -45,9 +45,9 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="fixed p-2 top-0 left-0 w-full z-100 transition-all duration-300 bg-dark-900/70">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center">
+    <nav className="fixed top-0 left-0 w-full z-[100] px-3 sm:px-4 lg:px-6 pt-3">
+      <div className="max-w-7xl mx-auto rounded-2xl border border-slate-700/60 bg-slate-950/75 backdrop-blur-xl shadow-[0_20px_60px_-35px_rgba(0,0,0,0.9)]">
+        <div className="flex justify-between items-center px-4 sm:px-6 py-3">
           <div className="flex items-center">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-700 rounded-sm flex items-center justify-center transform rotate-45">
@@ -59,12 +59,12 @@ const Navbar = () => {
             </div>
           </div>
 
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-7">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
-                className="text-sm font-medium text-slate-300 hover:text-orange-500 transition-colors uppercase tracking-widest"
+                className="text-[11px] font-semibold text-slate-300 hover:text-orange-400 transition-colors uppercase tracking-[0.2em]"
               >
                 {link.name}
               </a>
@@ -78,7 +78,7 @@ const Navbar = () => {
 
             <button
               onClick={handleAccountAction}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase tracking-widest transition-all transform hover:scale-105"
+              className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-[0.2em] transition-all"
             >
               {user ? "Dashboard" : "Login"}
             </button>
@@ -112,13 +112,13 @@ const Navbar = () => {
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden glass-effect border-t border-slate-800">
-          <div className="px-4 pt-2 pb-6 space-y-2">
+        <div className="md:hidden mt-3 max-w-7xl mx-auto rounded-2xl border border-slate-700/60 bg-slate-950/90 backdrop-blur-xl">
+          <div className="px-4 pt-2 pb-5 space-y-1">
             {navLinks.map((link) => (
               <a
                 key={link.name}
                 href={link.href}
-                className="block px-3 py-4 text-base font-medium text-slate-300 hover:text-orange-500 border-b border-slate-800/50"
+                className="block px-3 py-3 text-sm font-semibold text-slate-300 hover:text-orange-400 border-b border-slate-800/50 uppercase tracking-[0.14em]"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {link.name}
@@ -136,7 +136,7 @@ const Navbar = () => {
                 setMobileMenuOpen(false);
                 handleAccountAction();
               }}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-sm text-sm font-bold uppercase tracking-widest transition-all transform hover:scale-105"
+              className="mt-2 w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-[0.2em] transition-all"
             >
               {user ? "Dashboard" : "Login"}
             </button>

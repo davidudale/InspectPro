@@ -4,9 +4,11 @@ import { db } from "../../../Auth/firebase";
 import {
   collection,
   addDoc,
+  doc,
   onSnapshot,
   query,
   orderBy,
+  setDoc,
   serverTimestamp,
   where,
 } from "firebase/firestore";
@@ -28,6 +30,15 @@ import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
+
+const buildUniqueReportNumber = (projectDocId) => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const suffix = (projectDocId || "").slice(0, 6).toUpperCase();
+  return `RPT-${y}${m}${d}-${suffix}`;
+};
 
 const ProjectSetup = () => {
   const { user } = useAuth();
@@ -148,8 +159,12 @@ const ProjectSetup = () => {
   const handleFinalConfirm = async () => {
     setIsSubmitting(true);
     try {
-      await addDoc(collection(db, "projects"), {
+      const projectRef = doc(collection(db, "projects"));
+      const reportNum = buildUniqueReportNumber(projectRef.id);
+
+      await setDoc(projectRef, {
         ...setupData,
+        reportNum,
         adminId: user?.uid,
         adminName: user?.displayName || user?.name || "System Admin",
         deploymentDate: serverTimestamp(),
@@ -205,7 +220,7 @@ const ProjectSetup = () => {
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
             <header className="mb-10 border-b border-slate-900 pb-8">
               <h1 className="text-3xl font-bold uppercase tracking-tighter flex items-center gap-3 text-white">
@@ -567,4 +582,5 @@ const PreviewItem = ({ label, value, icon }) => (
     <p className="text-sm font-bold text-white uppercase truncate">{value || "Not Assigned"}</p>
   </div>
 );
+
 

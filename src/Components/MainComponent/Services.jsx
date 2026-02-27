@@ -35,45 +35,52 @@ const services = [
 
 const Services = () => {
   return (
-    <section id="services" className="py-32 bg-slate-950">
+    <section id="services" className="py-20 sm:py-24 lg:py-28 bg-slate-950">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-          <div className="max-w-2xl">
-            <h2 className="text-orange-500 font-bold uppercase tracking-[0.3em] text-sm mb-4">Core Capabilities</h2>
-            <h3 className="text-4xl md:text-5xl font-syncopate font-bold text-white leading-tight">
-              SMART TOOLS FOR <br />
-              <span className="text-slate-500 italic">MODERN INSPECTIONS</span>
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-12 sm:mb-14">
+          <div className="max-w-3xl">
+            <h2 className="text-orange-500 font-bold uppercase tracking-[0.28em] text-xs sm:text-sm mb-3">
+              Core Capabilities
+            </h2>
+            <h3 className="text-3xl sm:text-4xl lg:text-5xl font-syncopate font-bold text-white leading-[1.05]">
+              SMART TOOLS FOR
+              <span className="block text-slate-300">MODERN INSPECTIONS</span>
             </h3>
           </div>
-          <button className="text-slate-400 hover:text-orange-500 flex items-center gap-3 group transition-colors uppercase tracking-widest text-sm font-bold">
-            All Features
-            <svg className="w-5 h-5 group-hover:translate-x-2 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button className="self-start lg:self-auto text-slate-300 hover:text-orange-400 flex items-center gap-2 group transition-colors uppercase tracking-[0.18em] text-[11px] font-bold">
+            Explore Features
+            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
           {services.map((service, idx) => (
-            <div key={idx} className="group relative h-[500px] overflow-hidden rounded-sm">
+            <article
+              key={idx}
+              className="group relative min-h-[360px] sm:min-h-[420px] overflow-hidden rounded-2xl border border-slate-800/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)]"
+            >
               <img
                 src={service.image}
                 alt={service.title}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-60"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/65 to-slate-950/5" />
 
-              <div className="absolute inset-x-0 bottom-0 p-8 transform transition-transform duration-300 group-hover:-translate-y-4">
-                <div className="w-16 h-16 bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-500 mb-6 backdrop-blur-sm rounded-sm">
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 bg-orange-600/20 border border-orange-500/40 rounded-xl flex items-center justify-center text-orange-400 mb-4 backdrop-blur-sm">
                   {service.icon}
                 </div>
-                <h4 className="text-2xl font-syncopate font-bold text-white mb-4">{service.title}</h4>
-                <p className="text-slate-300 text-sm leading-relaxed opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <h4 className="text-xl sm:text-2xl font-syncopate font-bold text-white mb-2">
+                  {service.title}
+                </h4>
+                <p className="text-slate-200/90 text-sm leading-relaxed">
                   {service.description}
                 </p>
-                <div className="mt-6 w-10 h-1 bg-orange-500 group-hover:w-24 transition-all duration-500"></div>
+                <div className="mt-4 w-10 h-1 bg-orange-500 group-hover:w-20 transition-all duration-500" />
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>

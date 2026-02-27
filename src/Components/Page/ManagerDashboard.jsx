@@ -255,7 +255,7 @@ const AdminDashboard = () => {
                     {log.timestamp?.toDate() 
                       ? formatDistanceToNow(log.timestamp.toDate(), { addSuffix: true }) 
                       : "just now"} 
-                    {" • "} 
+                    {" â€¢ "} 
                     BY: {log.userEmail?.split('@')[0] || "System"}
                   </p>
                 </div>

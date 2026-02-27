@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../Auth/firebase";
-import { 
+import {
   addDoc,
   collection,
   doc,
@@ -13,22 +13,20 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
-
-import {
-  Eye, ChevronLeft, Printer, Activity, ShieldCheck, Camera, CheckCircle, RotateCcw
-} from "lucide-react";
+import { ChevronLeft, Activity, ShieldCheck, CheckCircle, RotateCcw } from "lucide-react";
 import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
 import { toast } from "react-toastify";
 import { useAuth } from "../../Auth/AuthContext";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
+import ReportDownloadView from "../ManagerFile/ReportDownloadView";
 
 const ReviewForConfirmation = () => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { id } = useParams(); 
+  const { id } = useParams();
 
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,26 +35,30 @@ const ReviewForConfirmation = () => {
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnFeedback, setReturnFeedback] = useState("");
 
+  const targetProjectId =
+    id ||
+    location.state?.preFill?.id ||
+    location.state?.preFill?.projectId ||
+    reportData?.general?.projectId ||
+    "";
+
   useEffect(() => {
     const fetchFullReport = async () => {
       setLoading(true);
       try {
-        const targetId = id || location.state?.preFill?.id || location.state?.preFill?.projectId;
-        
-        if (!targetId) {
+        if (!targetProjectId) {
           toast.error("Manifest ID missing.");
           return;
         }
 
-        // Fetch technical findings from inspection_reports
         const q = query(
-          collection(db, "inspection_reports"), 
-          where("general.projectId", "==", targetId), 
-          limit(1)
+          collection(db, "inspection_reports"),
+          where("general.projectId", "==", targetProjectId),
+          limit(1),
         );
-        
+
         const querySnapshot = await getDocs(q);
-        
+
         if (!querySnapshot.empty) {
           setReportData(querySnapshot.docs[0].data());
         } else {
@@ -72,30 +74,26 @@ const ReviewForConfirmation = () => {
     };
 
     fetchFullReport();
-  }, [id, location.state]);
+  }, [targetProjectId, location.state]);
 
-  // --- CORE ADJUSTMENT: Update Project Only ---
   const handleConfirmProject = async () => {
-    const projectId = id || reportData?.general?.projectId || location.state?.preFill?.id;
-    
-    if (!projectId) {
+    if (!targetProjectId) {
       return toast.error("Technical Error: Project Reference Missing");
     }
 
     setIsSaving(true);
     try {
-      const projectRef = doc(db, "projects", projectId);
-      
-      // Update ONLY the project manifest status
+      const projectRef = doc(db, "projects", targetProjectId);
+
       await updateDoc(projectRef, {
         status: "Confirmed and Forwarded",
         confirmedBy: user?.displayName || user?.email || "Lead Inspector",
         confirmedAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       });
 
       toast.success("Project Confirmed and Forwarded successfully");
-      navigate("/ConfirmedInspection"); // Redirect back to list
+      navigate("/ConfirmedInspection");
     } catch (error) {
       console.error("Confirm Error:", error);
       toast.error(`Authorization Failure: ${error.message}`);
@@ -105,10 +103,9 @@ const ReviewForConfirmation = () => {
   };
 
   const handleReturnReport = async () => {
-    const projectId = id || reportData?.general?.projectId || location.state?.preFill?.id;
     const feedback = returnFeedback.trim();
 
-    if (!projectId) {
+    if (!targetProjectId) {
       return toast.error("Technical Error: Project Reference Missing");
     }
     if (!feedback) {
@@ -117,19 +114,20 @@ const ReviewForConfirmation = () => {
 
     setIsReturning(true);
     try {
-      const projectRef = doc(db, "projects", projectId);
+      const projectRef = doc(db, "projects", targetProjectId);
       const projectSnap = await getDoc(projectRef);
       const projectData = projectSnap.exists() ? projectSnap.data() : {};
       const inspectorUserId =
-        projectData?.inspectorId || reportData?.general?.inspectorId || location.state?.preFill?.inspectorId || "";
+        projectData?.inspectorId ||
+        reportData?.general?.inspectorId ||
+        location.state?.preFill?.inspectorId ||
+        "";
       let inspectorEmail = projectData?.inspectorEmail || "";
 
       if (!inspectorEmail && inspectorUserId) {
         const inspectorRef = doc(db, "users", inspectorUserId);
         const inspectorSnap = await getDoc(inspectorRef);
-        inspectorEmail = inspectorSnap.exists()
-          ? inspectorSnap.data()?.email || ""
-          : "";
+        inspectorEmail = inspectorSnap.exists() ? inspectorSnap.data()?.email || "" : "";
       }
 
       if (!inspectorEmail && !inspectorUserId) {
@@ -146,7 +144,7 @@ const ReviewForConfirmation = () => {
 
       await addDoc(collection(db, "activity_logs"), {
         message: `Lead Inspector returned report for corrections: ${feedback}`,
-        target: projectData?.projectId || projectId,
+        target: projectData?.projectId || targetProjectId,
         userEmail: inspectorEmail || "",
         userId: inspectorUserId || "",
         type: "alert",
@@ -165,22 +163,13 @@ const ReviewForConfirmation = () => {
     }
   };
 
-  const evidencePhotos = reportData?.observations?.filter((obs) => obs.photoRef) || [];
-  const techniqueRaw = (
-    reportData?.technique ||
-    reportData?.general?.selectedTechnique ||
-    location.state?.preFill?.selectedTechnique ||
-    ""
-  ).toLowerCase();
-  const isDetailed = techniqueRaw.includes("detailed");
-  const autMetrics = reportData?.autMetrics || [];
-  const mutNozzles = reportData?.mutNozzles || [];
-
-  if (loading) return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <Activity className="animate-spin text-orange-500" size={40} />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <Activity className="animate-spin text-orange-500" size={40} />
+      </div>
+    );
+  }
 
   if (!reportData) return null;
 
@@ -189,12 +178,14 @@ const ReviewForConfirmation = () => {
       {user?.role === "Admin" ? <AdminNavbar /> : <SupervisorNavbar />}
       <div className="flex flex-1">
         {user?.role === "Admin" ? <AdminSidebar /> : <SupervisorSidebar />}
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
-            
             <header className="flex justify-between items-center mb-10 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
               <div className="flex items-center gap-4">
-                <button onClick={() => navigate(-1)} className="p-2 bg-slate-950 border border-slate-800 rounded-lg text-orange-500 hover:bg-orange-600 transition-all shadow-inner">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2 bg-slate-950 border border-slate-800 rounded-lg text-orange-500 hover:bg-orange-600 transition-all shadow-inner"
+                >
                   <ChevronLeft size={20} />
                 </button>
                 <h1 className="text-2xl font-bold uppercase tracking-tighter flex items-center gap-2 text-white">
@@ -209,8 +200,8 @@ const ReviewForConfirmation = () => {
                 >
                   <RotateCcw size={16} /> {isReturning ? "Returning..." : "Return Report"}
                 </button>
-                <button 
-                  onClick={handleConfirmProject} 
+                <button
+                  onClick={handleConfirmProject}
                   disabled={isSaving || isReturning}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
@@ -219,145 +210,15 @@ const ReviewForConfirmation = () => {
               </div>
             </header>
 
-            {/* General Logistics - Read Only */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-              <StaticField label="Asset Tag" value={reportData.general?.tag} />
-              <StaticField label="Category" value={reportData.general?.assetType} />
-              <StaticField label="Report #" value={reportData.general?.reportNum} />
-              <StaticField label="Ambient Temp" value={`${reportData.environmental?.temp || 'N/A'} °C`} />
-            </div>
-
-            {/* Technical Findings Table - Read Only */}
-            <div className="space-y-4 mb-12">
-              <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 ml-2">Technical Observations</h2>
-              <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 overflow-hidden">
-                {reportData.observations?.map((item) => (
-                  <div key={item.sn} className="grid grid-cols-12 gap-4 p-5 border-b border-slate-800/50 items-center last:border-0 hover:bg-white/5 transition-colors">
-                    <div className="col-span-1 text-[10px] font-mono text-slate-500">{item.sn}</div>
-                    <div className="col-span-4 text-[11px] font-bold uppercase text-white leading-tight">{item.component}</div>
-                    <div className="col-span-2">
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${item.condition === 'Satisfactory' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'}`}>
-                        {item.condition}
-                      </span>
-                    </div>
-                    <div className="col-span-5 text-slate-400 text-xs italic font-medium">
-                      {item.notes || "No notes."}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {isDetailed && (
-              <>
-                <div className="space-y-4 mb-12">
-                  <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 ml-2">
-                    AUT Thickness Mapping
-                  </h2>
-                  <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-950/40 border-b border-slate-800">
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Axial X</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Axial Y</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nominal</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Minimum</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Location</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Remark</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/50 text-xs text-slate-300">
-                        {autMetrics.length > 0 ? (
-                          autMetrics.map((row, idx) => (
-                            <tr key={row.id || idx} className="hover:bg-white/5">
-                              <td className="p-4">{row.axialX || "-"}</td>
-                              <td className="p-4">{row.axialY || "-"}</td>
-                              <td className="p-4">{row.nominal || "-"}</td>
-                              <td className="p-4">{row.min || "-"}</td>
-                              <td className="p-4">{row.location || "-"}</td>
-                              <td className="p-4">{row.remark || "-"}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td className="p-5 text-slate-500 uppercase tracking-wider" colSpan={6}>
-                              No AUT data available
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="space-y-4 mb-12">
-                  <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-4 ml-2">
-                    MUT Nozzle Measurements
-                  </h2>
-                  <div className="bg-slate-900/40 rounded-[2.5rem] border border-slate-800 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-slate-950/40 border-b border-slate-800">
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nozzle Tag</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Diameter</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nominal</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Actual</th>
-                          <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Thk</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/50 text-xs text-slate-300">
-                        {mutNozzles.length > 0 ? (
-                          mutNozzles.map((row, idx) => (
-                            <tr key={row.id || idx} className="hover:bg-white/5">
-                              <td className="p-4">{row.nozzleTag || "-"}</td>
-                              <td className="p-4">{row.dia || "-"}</td>
-                              <td className="p-4">{row.nominal || "-"}</td>
-                              <td className="p-4">{row.actual || "-"}</td>
-                              <td className="p-4">{row.minThk || "-"}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td className="p-5 text-slate-500 uppercase tracking-wider" colSpan={5}>
-                              No MUT data available
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Evidence Gallery */}
-            <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800">
-              <h2 className="text-[10px] font-black text-orange-500 uppercase tracking-[0.3em] mb-8 flex items-center gap-2">
-                <Camera size={14} /> Technical Evidence Gallery
-              </h2>
-              {evidencePhotos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {evidencePhotos.map((obs, idx) => (
-                    <div key={idx} className="group bg-slate-950 border border-slate-800 p-2 rounded-2xl">
-                      <div className="aspect-video overflow-hidden rounded-xl bg-slate-900 mb-3 border border-slate-800">
-                        <img src={obs.photoRef} className="w-full h-full object-cover" alt="Evidence" />
-                      </div>
-                      <div className="px-2 pb-2">
-                        <span className="text-[9px] font-bold text-orange-500 uppercase">Ref {obs.sn}</span>
-                        <p className="text-[10px] text-slate-400 truncate mt-1">{obs.component.split("(")[0]}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="py-10 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-3xl">
-                   <p className="text-[10px] font-bold uppercase tracking-widest">No evidence attached</p>
-                </div>
-              )}
-            </div>
+            <ReportDownloadView
+              projectId={targetProjectId}
+              hideControls
+              embedded
+            />
           </div>
         </main>
       </div>
+
       {showReturnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
@@ -399,11 +260,5 @@ const ReviewForConfirmation = () => {
   );
 };
 
-const StaticField = ({ label, value }) => (
-  <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 shadow-inner">
-    <label className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] block mb-1">{label}</label>
-    <div className="text-sm font-bold text-white uppercase truncate">{value || "—"}</div>
-  </div>
-);
-
 export default ReviewForConfirmation;
+

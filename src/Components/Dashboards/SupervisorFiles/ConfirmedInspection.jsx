@@ -108,7 +108,7 @@ const ConfirmedInspections = () => {
       {user?.role === "Manager" ? <ManagerNavbar /> : <SupervisorNavbar />}
       <div className="flex flex-1">
         {user?.role === "Manager" ? <ManagerSidebar /> : <SupervisorSidebar />}
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-7xl mx-auto">
             <header className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
@@ -231,3 +231,4 @@ const ConfirmedInspections = () => {
 };
 
 export default ConfirmedInspections;
+

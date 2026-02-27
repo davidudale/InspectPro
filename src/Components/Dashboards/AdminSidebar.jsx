@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
-  FileText,
+  Building2,
+  ClipboardList,
+  ClipboardPlus,
+  FolderKanban,
+  FolderOpen,
   LayoutDashboard,
-  ClipboardCheck,
+  MapPin,
   Users,
   Settings,
   ChevronDown,
@@ -24,17 +28,17 @@ const sidebarLinks = [
 
   {
     name: "Project Management",
-    icon: <ClipboardCheck size={20} />,
+    icon: <FolderKanban size={20} />,
     // This item has a dropdown
     subLinks: [
       {
         name: "View Projects",
-        icon: <FileText size={16} />,
+        icon: <FolderOpen size={16} />,
         href: "/admin/projects",
       },
       {
         name: "Add Projects",
-        icon: <FileText size={16} />,
+        icon: <ClipboardPlus size={16} />,
         href: "/projects",
       },
     ],
@@ -46,12 +50,12 @@ const sidebarLinks = [
     subLinks: [
       {
         name: "Client Management",
-        icon: <Wrench size={16} />,
+        icon: <Building2 size={16} />,
         href: "/Client",
       },
       {
         name: "Location Management",
-        icon: <Wrench size={16} />,
+        icon: <MapPin size={16} />,
         href: "/location",
       },
       {
@@ -61,13 +65,13 @@ const sidebarLinks = [
       },
       {
         name: "Inspection Types",
-        icon: <Wrench size={16} />,
+        icon: <ClipboardList size={16} />,
         href: "/inspection_type",
       },
       
       {
         name: "Report Template",
-        icon: <FileText size={16} />,
+        icon: <FolderOpen size={16} />,
         href: "/admin/inspections",
       },
       {
@@ -189,6 +193,7 @@ const AdminSidebar = () => {
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
                     >
+                      <span>{sub.icon}</span>
                       {sub.name}
                     </button>
                   ))}

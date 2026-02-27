@@ -106,7 +106,7 @@ const EquipmentManager = () => {
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-8">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8">
           {/* ... Header and Table (remains the same) ... */}
 
           {isModalOpen && (

@@ -149,7 +149,7 @@ const LocationManager = () => {
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
               <div>
@@ -444,7 +444,7 @@ const LocationManager = () => {
                         coordinates: e.target.value,
                       })
                     }
-                    placeholder="4.8156° N, 7.0498° E"
+                    placeholder="4.8156Â° N, 7.0498Â° E"
                   />
                 </div>
               </div>
@@ -478,3 +478,4 @@ const LocationManager = () => {
 };
 
 export default LocationManager;
+

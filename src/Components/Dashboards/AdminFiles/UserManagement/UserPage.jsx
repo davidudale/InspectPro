@@ -240,7 +240,7 @@ const UserPage = () => {
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 pl-10 text-sm text-white focus:outline-none focus:border-orange-500 transition-all shadow-inner"
                     value={formData.password}
                     onChange={(e) => setFormData({...formData, password: e.target.value})}
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   />
                   <Lock size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
                 </div>

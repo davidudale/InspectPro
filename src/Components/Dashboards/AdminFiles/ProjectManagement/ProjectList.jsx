@@ -50,7 +50,7 @@ const ProjectList = () => {
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             
             {/* Header & Advanced Search */}
@@ -76,7 +76,7 @@ const ProjectList = () => {
                   />
                 </div>
                 <button 
-                  onClick={() => navigate("/admin/project-setup")}
+                  onClick={() => navigate("/projects")}
                   className="w-full md:w-auto bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 rounded-2xl shadow-lg shadow-orange-900/20 transition-all flex items-center justify-center gap-2 font-bold uppercase text-[10px] tracking-widest"
                 >
                   <Briefcase size={14} /> Add Project
