@@ -1,9 +1,7 @@
-import React from 'react'
+import IntegrityCheck from "./IntegrityCheck.jsx";
 
 const MutReport = () => {
-  return (
-    <div>MutReport</div>
-  )
-}
+  return <IntegrityCheck />;
+};
 
-export default MutReport
+export default MutReport;

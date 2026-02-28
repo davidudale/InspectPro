@@ -83,6 +83,7 @@ const InspectionTypeManager = () => {
     "MUT",
     "Pulsed Eddy Current",
     "Radiography",
+    "Integrity Check",
   ];
 
   useEffect(() => {

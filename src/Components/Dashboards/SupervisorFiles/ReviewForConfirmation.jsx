@@ -31,7 +31,9 @@ const ReviewForConfirmation = () => {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isReturning, setIsReturning] = useState(false);
+  const [isSavingReport, setIsSavingReport] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [resolvedProjectDocId, setResolvedProjectDocId] = useState("");
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnFeedback, setReturnFeedback] = useState("");
 
@@ -42,6 +44,97 @@ const ReviewForConfirmation = () => {
     reportData?.general?.projectId ||
     "";
 
+  const getTechniqueType = () => {
+    const raw = (
+      reportData?.general?.selectedTechnique ||
+      reportData?.technique ||
+      location.state?.preFill?.reportTemplate ||
+      location.state?.preFill?.selectedTechnique ||
+      ""
+    ).toLowerCase();
+
+    if (raw.includes("pressure vessel") || raw.includes("integrity")) return "integrity";
+    if (raw.includes("detailed")) return "detailed";
+    if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
+    if (raw.includes("mut") || raw.includes("manual ut")) return "mut";
+    if (raw.includes("visual") || raw.includes("vt") || raw.includes("visual testing")) return "visual";
+    if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray")) return "visual";
+    return "visual";
+  };
+
+  const resolveEditRoute = () => {
+    const techniqueType = getTechniqueType();
+    const isAdminPath = user?.role === "Admin" || user?.role === "Manager";
+    const base = isAdminPath ? "/admin/reports" : "/inspector";
+
+    if (techniqueType === "integrity") return isAdminPath ? `${base}/integrity` : `${base}/integrity-check`;
+    if (techniqueType === "detailed") return isAdminPath ? `${base}/detailed` : `${base}/Detailed-report`;
+    if (techniqueType === "aut") return `${base}/aut-report`;
+    if (techniqueType === "mut") return isAdminPath ? `${base}/mut` : `${base}/mut-report`;
+    return isAdminPath ? `${base}/visual` : `${base}/visual-report`;
+  };
+
+  const handleModifyReport = () => {
+    const editRoute = resolveEditRoute();
+    const preFill = {
+      ...(location.state?.preFill || {}),
+      id: resolvedProjectDocId || targetProjectId,
+      projectId:
+        location.state?.preFill?.projectId ||
+        reportData?.general?.projectId ||
+        targetProjectId,
+      reportId: reportData?.reportId || reportData?.general?.reportId || "",
+    };
+
+    navigate(editRoute, { state: { preFill } });
+  };
+
+  const handleSaveReport = async () => {
+    if (!targetProjectId) {
+      return toast.error("Technical Error: Project Reference Missing");
+    }
+    if (!reportData) {
+      return toast.error("No report data to save.");
+    }
+
+    setIsSavingReport(true);
+    try {
+      let projectDocId = resolvedProjectDocId || targetProjectId;
+      let projectRef = doc(db, "projects", projectDocId);
+      let projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists() && targetProjectId) {
+        const projectByBusinessIdQ = query(
+          collection(db, "projects"),
+          where("projectId", "==", targetProjectId),
+          limit(1),
+        );
+        const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
+        if (!projectByBusinessIdSnap.empty) {
+          projectDocId = projectByBusinessIdSnap.docs[0].id;
+          projectRef = doc(db, "projects", projectDocId);
+          projectSnap = await getDoc(projectRef);
+          setResolvedProjectDocId(projectDocId);
+        }
+      }
+
+      if (!projectSnap.exists()) {
+        throw new Error("Project record not found.");
+      }
+
+      await updateDoc(projectRef, {
+        report: reportData,
+        updatedAt: serverTimestamp(),
+      });
+
+      toast.success("Report saved.");
+    } catch (error) {
+      toast.error(`Save failed: ${error.message}`);
+    } finally {
+      setIsSavingReport(false);
+    }
+  };
+
   useEffect(() => {
     const fetchFullReport = async () => {
       setLoading(true);
@@ -51,16 +144,33 @@ const ReviewForConfirmation = () => {
           return;
         }
 
-        const q = query(
-          collection(db, "inspection_reports"),
-          where("general.projectId", "==", targetProjectId),
-          limit(1),
-        );
+        let resolvedDocId = "";
+        let projectData = null;
 
-        const querySnapshot = await getDocs(q);
+        const directSnap = await getDoc(doc(db, "projects", targetProjectId));
+        if (directSnap.exists()) {
+          projectData = directSnap.data();
+          resolvedDocId = directSnap.id;
+        }
 
-        if (!querySnapshot.empty) {
-          setReportData(querySnapshot.docs[0].data());
+        if (!projectData && targetProjectId) {
+          const projectByBusinessIdQ = query(
+            collection(db, "projects"),
+            where("projectId", "==", targetProjectId),
+            limit(1),
+          );
+          const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
+          if (!projectByBusinessIdSnap.empty) {
+            const pDoc = projectByBusinessIdSnap.docs[0];
+            projectData = pDoc.data();
+            resolvedDocId = pDoc.id;
+          }
+        }
+
+        if (resolvedDocId) setResolvedProjectDocId(resolvedDocId);
+
+        if (projectData?.report) {
+          setReportData(projectData.report);
         } else {
           toast.warn("No inspection data found.");
           if (location.state?.preFill) setReportData(location.state.preFill);
@@ -83,7 +193,28 @@ const ReviewForConfirmation = () => {
 
     setIsSaving(true);
     try {
-      const projectRef = doc(db, "projects", targetProjectId);
+      let projectDocId = resolvedProjectDocId || targetProjectId;
+      let projectRef = doc(db, "projects", projectDocId);
+      let projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists() && targetProjectId) {
+        const projectByBusinessIdQ = query(
+          collection(db, "projects"),
+          where("projectId", "==", targetProjectId),
+          limit(1),
+        );
+        const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
+        if (!projectByBusinessIdSnap.empty) {
+          projectDocId = projectByBusinessIdSnap.docs[0].id;
+          projectRef = doc(db, "projects", projectDocId);
+          projectSnap = await getDoc(projectRef);
+          setResolvedProjectDocId(projectDocId);
+        }
+      }
+
+      if (!projectSnap.exists()) {
+        throw new Error("Project record not found.");
+      }
 
       await updateDoc(projectRef, {
         status: "Confirmed and Forwarded",
@@ -114,8 +245,28 @@ const ReviewForConfirmation = () => {
 
     setIsReturning(true);
     try {
-      const projectRef = doc(db, "projects", targetProjectId);
-      const projectSnap = await getDoc(projectRef);
+      let projectDocId = resolvedProjectDocId || targetProjectId;
+      let projectRef = doc(db, "projects", projectDocId);
+      let projectSnap = await getDoc(projectRef);
+
+      if (!projectSnap.exists() && targetProjectId) {
+        const projectByBusinessIdQ = query(
+          collection(db, "projects"),
+          where("projectId", "==", targetProjectId),
+          limit(1),
+        );
+        const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
+        if (!projectByBusinessIdSnap.empty) {
+          projectDocId = projectByBusinessIdSnap.docs[0].id;
+          projectRef = doc(db, "projects", projectDocId);
+          projectSnap = await getDoc(projectRef);
+          setResolvedProjectDocId(projectDocId);
+        }
+      }
+
+      if (!projectSnap.exists()) {
+        throw new Error("Project record not found.");
+      }
       const projectData = projectSnap.exists() ? projectSnap.data() : {};
       const inspectorUserId =
         projectData?.inspectorId ||
@@ -195,14 +346,32 @@ const ReviewForConfirmation = () => {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowReturnModal(true)}
-                  disabled={isSaving || isReturning}
+                  disabled={isSaving || isReturning || isSavingReport}
                   className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   <RotateCcw size={16} /> {isReturning ? "Returning..." : "Return Report"}
                 </button>
+                {(user?.role === "Supervisor" ||
+                  user?.role === "Lead Inspector" ||
+                  user?.role === "Manager") && (
+                  <button
+                    onClick={handleSaveReport}
+                    disabled={isSaving || isReturning || isSavingReport}
+                    className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isSavingReport ? "Saving..." : "Save"}
+                  </button>
+                )}
+                <button
+                  onClick={handleModifyReport}
+                  disabled={isSaving || isReturning || isSavingReport}
+                  className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                >
+                  Modify
+                </button>
                 <button
                   onClick={handleConfirmProject}
-                  disabled={isSaving || isReturning}
+                  disabled={isSaving || isReturning || isSavingReport}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   <CheckCircle size={16} /> {isSaving ? "Syncing..." : "Confirm & Forward"}

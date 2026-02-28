@@ -31,13 +31,10 @@ import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
 
-const buildUniqueReportNumber = (projectDocId) => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const suffix = (projectDocId || "").slice(0, 6).toUpperCase();
-  return `RPT-${y}${m}${d}-${suffix}`;
+const buildUniqueCode = (prefix) => {
+  const year = String(new Date().getFullYear()).slice(-2);
+  const sequence = String(Math.floor(1 + Math.random() * 999)).padStart(3, "0");
+  return `${prefix}/${year}/${sequence}`;
 };
 
 const ProjectSetup = () => {
@@ -65,10 +62,15 @@ const ProjectSetup = () => {
     locationName: "",
     inspectionTypeId: "",
     inspectionTypeCode: "",
+    inspectionTypeName: "",
     selectedTechnique: "",
+    reportTemplate: "",
     equipmentId: "",
     equipmentTag: "",
     equipmentCategory: "",
+    reportNum: buildUniqueCode("PEL-WPQ"),
+    contractNumber: buildUniqueCode("PEL-WPQ"),
+    pidNumber: "",
     inspectorId: "",
     inspectorName: "",
     supervisorId: "",
@@ -133,6 +135,7 @@ const ProjectSetup = () => {
     (t) => t.id === setupData.inspectionTypeId,
   );
   const authorizedTechniques = selectedProtocol?.requiredTechniques || [];
+  const isTechniqueRequired = authorizedTechniques.length > 0;
 
   // --- 3. Submission & Forwarding Logic ---
   // 1. Validation Logic (Triggers the Modal)
@@ -160,11 +163,14 @@ const ProjectSetup = () => {
     setIsSubmitting(true);
     try {
       const projectRef = doc(collection(db, "projects"));
-      const reportNum = buildUniqueReportNumber(projectRef.id);
+      const reportNum = setupData.reportNum || buildUniqueCode("PEL-WPQ");
+      const contractNumber =
+        setupData.contractNumber || buildUniqueCode("PEL-WPQ");
 
       await setDoc(projectRef, {
         ...setupData,
         reportNum,
+        contractNumber,
         adminId: user?.uid,
         adminName: user?.displayName || user?.name || "System Admin",
         deploymentDate: serverTimestamp(),
@@ -330,6 +336,90 @@ const ProjectSetup = () => {
                         ))}
                       </select>
                     </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Report Number
+                      </label>
+                      <input
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none"
+                        placeholder="e.g. PEL-WPQ/25/002"
+                        value={setupData.reportNum}
+                        onChange={(e) =>
+                          setSetupData({
+                            ...setupData,
+                            reportNum: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Contract Number
+                      </label>
+                      <input
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none"
+                        placeholder="e.g. WPO-PR-SOR-00002"
+                        value={setupData.contractNumber}
+                        onChange={(e) =>
+                          setSetupData({
+                            ...setupData,
+                            contractNumber: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        P & ID Number / DWG No.
+                      </label>
+                      <input
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none"
+                        placeholder="e.g. BNO-MABU-300-CS-4018-10043-001"
+                        value={setupData.pidNumber}
+                        onChange={(e) =>
+                          setSetupData({
+                            ...setupData,
+                            pidNumber: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                      Client Logo (Optional)
+                    </label>
+                    <div className="mt-3 flex items-center gap-3">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                        Upload
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setSetupData({
+                                ...setupData,
+                                clientLogo: reader.result,
+                              });
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                      {setupData.clientLogo && (
+                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                          Logo attached
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -439,22 +529,30 @@ const ProjectSetup = () => {
                     <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
                       Inspection Code
                     </label>
-                    <select
-                      required
-                      className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
-                      value={setupData.inspectionTypeId}
-                      onChange={(e) => {
-                        const selected = inspectionTypes.find(
-                          (t) => t.id === e.target.value,
-                        );
-                        setSetupData({
-                          ...setupData,
-                          inspectionTypeId: e.target.value,
-                          inspectionTypeCode: selected?.title || "",
-                          selectedTechnique: "",
-                        });
-                      }}
-                    >
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.inspectionTypeId}
+                        onChange={(e) => {
+                          const selected = inspectionTypes.find(
+                            (t) => t.id === e.target.value,
+                          );
+                          const templateName =
+                            selected?.fullName || selected?.title || "";
+                          const hasTechniques =
+                            (selected?.requiredTechniques || []).length > 0;
+                          setSetupData({
+                            ...setupData,
+                            inspectionTypeId: e.target.value,
+                            inspectionTypeCode: selected?.title || "",
+                            inspectionTypeName: selected?.fullName || "",
+                            selectedTechnique: hasTechniques
+                              ? ""
+                              : templateName || selected?.title || "",
+                            reportTemplate: templateName || selected?.title || "",
+                          });
+                        }}
+                      >
                       <option value="">Select Code...</option>
                       {inspectionTypes.map((t) => (
                         <option key={t.id} value={t.id}>
@@ -469,9 +567,9 @@ const ProjectSetup = () => {
                       Specific Technique
                     </label>
                     <select
-                      required
-                      disabled={!setupData.inspectionTypeId}
-                      className={`w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white ${!setupData.inspectionTypeId && "opacity-30"}`}
+                      required={isTechniqueRequired}
+                      disabled={!setupData.inspectionTypeId || !isTechniqueRequired}
+                      className={`w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white ${(!setupData.inspectionTypeId || !isTechniqueRequired) && "opacity-30"}`}
                       value={setupData.selectedTechnique}
                       onChange={(e) =>
                         setSetupData({
@@ -546,6 +644,9 @@ const ProjectSetup = () => {
               <PreviewItem label="Technique" value={setupData.selectedTechnique} icon={<Zap size={14}/>} />
               <PreviewItem label="Assigned Inspector" value={setupData.inspectorName} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Schedule Start" value={setupData.startDate} icon={<Calendar size={14}/>} />
+              <PreviewItem label="Report Number" value={setupData.reportNum} icon={<FileText size={14}/>} />
+              <PreviewItem label="Contract Number" value={setupData.contractNumber} icon={<Briefcase size={14}/>} />
+              <PreviewItem label="P & ID / DWG No." value={setupData.pidNumber} icon={<FileText size={14}/>} />
             </div>
 
             <div className="flex gap-4">

@@ -6,6 +6,7 @@ import {
   Settings,
   ChevronDown,
   Sliders,
+  FileText,
 } from "lucide-react"; // Example icons
 import { useState, useEffect } from "react";
 
@@ -35,10 +36,56 @@ const sidebarLinks = [
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
-          {
+      {
         name: "System Config",
         icon: <Sliders size={16} />,
         href: "/admin/config",
+      },
+    ],
+  },
+  {
+    name: "Report Manager",
+    icon: <FileText size={20} />,
+    subLinks: [
+      {
+        name: "Daily Inspection Summary",
+        icon: <FileText size={16} />,
+        href: "/reports/daily-inspection-summary",
+      },
+      {
+        name: "Inspection Progress Report",
+        icon: <FileText size={16} />,
+        href: "/reports/inspection-progress",
+      },
+      {
+        name: "Non-Conformance Report",
+        icon: <FileText size={16} />,
+        href: "/reports/non-conformance",
+      },
+      {
+        name: "Corrective Action Report",
+        icon: <FileText size={16} />,
+        href: "/reports/corrective-action",
+      },
+      {
+        name: "Equipment Status Report",
+        icon: <FileText size={16} />,
+        href: "/reports/equipment-status",
+      },
+      {
+        name: "Personnel Activity Report",
+        icon: <FileText size={16} />,
+        href: "/reports/personnel-activity",
+      },
+      {
+        name: "Safety Report",
+        icon: <FileText size={16} />,
+        href: "/reports/safety",
+      },
+      {
+        name: "Next Day Plan",
+        icon: <FileText size={16} />,
+        href: "/reports/next-day-plan",
       },
     ],
   },

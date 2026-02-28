@@ -3,15 +3,14 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import {
   collection,
-  addDoc,
   serverTimestamp,
   doc,
-  updateDoc,
   getDoc,
   getDocs,
   query,
   where,
   limit,
+  setDoc,
 } from "firebase/firestore";
 
 import {
@@ -32,6 +31,10 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
+import ManagerNavbar from "../../ManagerFile/ManagerNavbar";
+import ManagerSidebar from "../../ManagerFile/ManagerSidebar";
+import SupervisorNavbar from "../../SupervisorFiles/SupervisorNavbar";
+import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
 
 // --- TECHNICAL SCHEMAS (Internal mapping updated with photoRef) ---
 const INSPECTION_SCHEMAS = {
@@ -804,10 +807,12 @@ const VisualReport = () => {
   const [reportMode, setReportMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("logistics");
-  const [existingReportId, setExistingReportId] = useState(null);
   const isViewOnly = user?.role === "Admin";
   const canSubmitInspection =
-    user?.role === "Inspector" || user?.role === "Lead Inspector";
+    user?.role === "Inspector" ||
+    user?.role === "Lead Inspector" ||
+    user?.role === "Supervisor" ||
+    user?.role === "Manager";
 
   const [reportData, setReportData] = useState({
     general: {
@@ -818,6 +823,7 @@ const VisualReport = () => {
       date: new Date().toISOString().split("T")[0],
       client: "",
       clientLogo: "",
+      diagramImage: "",
       testCode: "API 510",
       contractNum: "N/A",
       location: " ",
@@ -834,6 +840,24 @@ const VisualReport = () => {
     observations: [],
     images: [],
   });
+  const isSupervisorRole =
+    user?.role === "Supervisor" || user?.role === "Lead Inspector";
+  const Navbar =
+    user?.role === "Admin"
+      ? AdminNavbar
+      : user?.role === "Manager"
+        ? ManagerNavbar
+        : isSupervisorRole
+          ? SupervisorNavbar
+          : InspectorNavbar;
+  const Sidebar =
+    user?.role === "Admin"
+      ? AdminSidebar
+      : user?.role === "Manager"
+        ? ManagerSidebar
+        : isSupervisorRole
+          ? SupervisorSidebar
+          : InspectorSidebar;
 
   useEffect(() => {
     const initializeManifest = async () => {
@@ -851,13 +875,6 @@ const VisualReport = () => {
         const assetCategory = p.equipmentCategory || p.assetType;
         const projectBusinessId = p.projectId || "";
         const projectDocId = p.id || p.projectDocId || "";
-        const projectReportNum = p.reportNum || "";
-        const projectTag = p.equipmentTag || p.tag || "";
-        const linkedVisualReportId = p.visualReportId || "";
-        const reportKeyCandidates = [
-          `visual:${projectDocId || ""}`,
-          `visual:${projectBusinessId || ""}`,
-        ].filter((k) => k !== "visual:");
         const schema =
           INSPECTION_SCHEMAS[assetCategory] || INSPECTION_SCHEMAS["Default"];
 
@@ -879,122 +896,39 @@ const VisualReport = () => {
           observations: schema.map((item) => ({ ...item, photoRef: "" })),
         }));
 
-        let existingDoc = null;
-        for (const reportKey of reportKeyCandidates) {
-          if (existingDoc) break;
-          const qByReportKey = query(
-            collection(db, "inspection_reports"),
-            where("reportKey", "==", reportKey),
+        let resolvedProjectDocId = projectDocId;
+        let resolvedProjectData = null;
+        let existingReport = null;
+
+        if (projectDocId) {
+          const projectSnap = await getDoc(doc(db, "projects", projectDocId));
+          if (projectSnap.exists()) {
+            resolvedProjectData = projectSnap.data();
+            resolvedProjectDocId = projectSnap.id;
+          }
+        }
+
+        if (!resolvedProjectData && projectBusinessId) {
+          const projectByBusinessIdQ = query(
+            collection(db, "projects"),
+            where("projectId", "==", projectBusinessId),
             limit(1),
           );
-          const snapshotByReportKey = await getDocs(qByReportKey);
-          if (!snapshotByReportKey.empty) {
-            existingDoc = snapshotByReportKey.docs[0];
+          const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
+          if (!projectByBusinessIdSnap.empty) {
+            const pDoc = projectByBusinessIdSnap.docs[0];
+            resolvedProjectData = pDoc.data();
+            resolvedProjectDocId = pDoc.id;
           }
         }
 
-        if (linkedVisualReportId) {
-          const reportById = await getDoc(
-            doc(db, "inspection_reports", linkedVisualReportId),
-          );
-          if (reportById.exists()) {
-            existingDoc = reportById;
-          }
+        if (resolvedProjectData?.report) {
+          existingReport = resolvedProjectData.report;
         }
 
-        if (!existingDoc && projectBusinessId) {
-          const qByProjectId = query(
-            collection(db, "inspection_reports"),
-            where("general.projectId", "==", projectBusinessId),
-          );
-          const snapshotByProjectId = await getDocs(qByProjectId);
-          if (!snapshotByProjectId.empty) {
-            const matchingVisual =
-              snapshotByProjectId.docs.find(
-                (d) => (d.data()?.technique || "") === "Visual (VT)",
-              ) || snapshotByProjectId.docs[0];
-            existingDoc = matchingVisual;
-          }
-        }
-
-        // Backward compatibility for older records keyed by project doc id.
-        if (!existingDoc && projectDocId) {
-          const qByDocId = query(
-            collection(db, "inspection_reports"),
-            where("general.projectId", "==", projectDocId),
-          );
-          const snapshotByDocId = await getDocs(qByDocId);
-          if (!snapshotByDocId.empty) {
-            const matchingVisual =
-              snapshotByDocId.docs.find(
-                (d) => (d.data()?.technique || "") === "Visual (VT)",
-              ) || snapshotByDocId.docs[0];
-            existingDoc = matchingVisual;
-          }
-        }
-
-        // Additional fallback: legacy records keyed with general.projectDocId.
-        if (!existingDoc && projectDocId) {
-          const qByProjectDocId = query(
-            collection(db, "inspection_reports"),
-            where("general.projectDocId", "==", projectDocId),
-          );
-          const snapshotByProjectDocId = await getDocs(qByProjectDocId);
-          if (!snapshotByProjectDocId.empty) {
-            const matchingVisual =
-              snapshotByProjectDocId.docs.find(
-                (d) => (d.data()?.technique || "") === "Visual (VT)",
-              ) || snapshotByProjectDocId.docs[0];
-            existingDoc = matchingVisual;
-          }
-        }
-
-        // Fallback using unique report number (from project setup).
-        if (!existingDoc && projectReportNum) {
-          const qByReportNum = query(
-            collection(db, "inspection_reports"),
-            where("general.reportNum", "==", projectReportNum),
-            limit(5),
-          );
-          const snapshotByReportNum = await getDocs(qByReportNum);
-          if (!snapshotByReportNum.empty) {
-            const matchingVisual =
-              snapshotByReportNum.docs.find(
-                (d) => (d.data()?.technique || "") === "Visual (VT)",
-              ) || snapshotByReportNum.docs[0];
-            existingDoc = matchingVisual;
-          }
-        }
-
-        // Fallback using asset tag if key-based lookups miss legacy documents.
-        if (!existingDoc && projectTag) {
-          const qByTag = query(
-            collection(db, "inspection_reports"),
-            where("general.tag", "==", projectTag),
-            limit(10),
-          );
-          const snapshotByTag = await getDocs(qByTag);
-          if (!snapshotByTag.empty) {
-            const matchingVisual = snapshotByTag.docs.find((d) => {
-              const data = d.data() || {};
-              const g = data.general || {};
-              const isVisual = (data.technique || "") === "Visual (VT)";
-              const keyMatch =
-                g.projectId === projectBusinessId ||
-                g.projectId === projectDocId ||
-                g.projectDocId === projectDocId ||
-                (!!projectReportNum && g.reportNum === projectReportNum);
-              return isVisual && keyMatch;
-            });
-
-            existingDoc = matchingVisual || snapshotByTag.docs[0];
-          }
-        }
-
-        if (existingDoc) {
-          const existingData = existingDoc.data();
-          const fetchedObservations = Array.isArray(existingData?.observations)
-            ? existingData.observations
+        if (existingReport) {
+          const fetchedObservations = Array.isArray(existingReport?.observations)
+            ? existingReport.observations
             : [];
           const mergedObservations =
             fetchedObservations.length > 0
@@ -1004,30 +938,49 @@ const VisualReport = () => {
                 }))
               : schema.map((item) => ({ ...item, photoRef: "" }));
 
-          setExistingReportId(existingDoc.id);
           setReportData({
-            ...existingData,
+            ...existingReport,
             observations: mergedObservations,
             general: {
-              ...existingData.general,
+              ...existingReport.general,
+              ...p,
+              client: p.clientName || p.client || existingReport?.general?.client || "",
+              platform: p.locationName || p.location || existingReport?.general?.platform || "",
+              tag: p.equipmentTag || p.tag || existingReport?.general?.tag || "",
               projectId:
                 projectBusinessId ||
-                existingData?.general?.projectId ||
-                projectDocId ||
+                existingReport?.general?.projectId ||
+                resolvedProjectDocId ||
                 "",
               projectDocId:
-                projectDocId || existingData?.general?.projectDocId || "",
+                resolvedProjectDocId || existingReport?.general?.projectDocId || "",
               inspect_by:
                 assignedInspectorName ||
-                existingData?.general?.inspect_by ||
+                existingReport?.general?.inspect_by ||
                 "",
               vesselOperatingProcedure:
                 selectedOperatingProcedure ||
-                existingData?.general?.vesselOperatingProcedure ||
+                existingReport?.general?.vesselOperatingProcedure ||
                 "",
             },
           });
           toast.info("Previous inspection details loaded for correction.");
+        } else {
+          setReportData((prev) => ({
+            ...prev,
+            observations: schema.map((item) => ({ ...item, photoRef: "" })),
+            general: {
+              ...prev.general,
+              ...p,
+              client: p.clientName || p.client || "",
+              platform: p.locationName || p.location || "",
+              tag: p.equipmentTag || p.tag || "",
+              inspect_by: assignedInspectorName,
+              vesselOperatingProcedure: selectedOperatingProcedure,
+              projectId: projectBusinessId || resolvedProjectDocId || "",
+              projectDocId: resolvedProjectDocId || "",
+            },
+          }));
         }
       }
     };
@@ -1109,73 +1062,55 @@ const VisualReport = () => {
       user?.displayName || user?.name || user?.email || "Technical User";
 
     try {
-      let savedReportId = existingReportId;
-      const reportKey = `visual:${
-        reportData.general.projectDocId ||
-        location.state?.preFill?.id ||
-        reportData.general.projectId ||
-        ""
-      }`;
-      if (existingReportId) {
-        // --- RESUBMISSION/UPDATE ---
-        const reportRef = doc(db, "inspection_reports", existingReportId);
-        await updateDoc(reportRef, {
-          ...reportData,
-          reportKey,
-          status: workflowStatus,
-          lastModifiedBy: currentUserIdentifier,
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        // --- FIRST TIME SAVE ---
-        const newDoc = await addDoc(collection(db, "inspection_reports"), {
-          ...reportData,
-          technique: "Visual (VT)",
-          inspector: currentUserIdentifier,
-          inspectorUid: user.uid,
-          reportKey,
-          status: workflowStatus,
-          roleAtSubmission: user?.role || "Inspector",
-          timestamp: serverTimestamp(),
-        });
-        setExistingReportId(newDoc.id);
-        savedReportId = newDoc.id;
-      }
-
-      // 2. SYNC PROJECT MANIFEST
       const targetProjectDocId =
         reportData.general.projectDocId || location.state?.preFill?.id || "";
+      let projectRef = null;
 
-      if (targetProjectDocId || reportData.general.projectId) {
-        let projectRef = null;
-        if (targetProjectDocId) {
-          projectRef = doc(db, "projects", targetProjectDocId);
-        } else if (reportData.general.projectId) {
-          const projectLookup = query(
-            collection(db, "projects"),
-            where("projectId", "==", reportData.general.projectId),
-            limit(1),
-          );
-          const projectSnapshot = await getDocs(projectLookup);
-          if (!projectSnapshot.empty) {
-            projectRef = doc(db, "projects", projectSnapshot.docs[0].id);
-          }
-        }
-
-        // Final mapping for the Project collection
-        let projectFinalStatus = workflowStatus;
-        if (workflowStatus === "Authorized") {
-          projectFinalStatus = "Completed";
-        }
-        if (projectRef) {
-          await updateDoc(projectRef, {
-            status: projectFinalStatus,
-            visualReportId: savedReportId || null,
-            lastModifiedBy: currentUserIdentifier,
-            updatedAt: serverTimestamp(),
-          });
+      if (targetProjectDocId) {
+        projectRef = doc(db, "projects", targetProjectDocId);
+      } else if (reportData.general.projectId) {
+        const projectLookup = query(
+          collection(db, "projects"),
+          where("projectId", "==", reportData.general.projectId),
+          limit(1),
+        );
+        const projectSnapshot = await getDocs(projectLookup);
+        if (!projectSnapshot.empty) {
+          projectRef = doc(db, "projects", projectSnapshot.docs[0].id);
         }
       }
+
+      if (!projectRef) {
+        toast.error("Project reference not found. Please reload and try again.");
+        return;
+      }
+
+      const reportPayload = {
+        ...reportData,
+        technique: "Visual (VT)",
+        inspector: currentUserIdentifier,
+        inspectorUid: user.uid,
+        status: workflowStatus,
+        roleAtSubmission: user?.role || "Inspector",
+        updatedAt: serverTimestamp(),
+      };
+
+      // Final mapping for the Project collection
+      let projectFinalStatus = workflowStatus;
+      if (workflowStatus === "Authorized") {
+        projectFinalStatus = "Completed";
+      }
+
+      await setDoc(
+        projectRef,
+        {
+          report: reportPayload,
+          status: projectFinalStatus,
+          lastModifiedBy: currentUserIdentifier,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
 
       toast.success(
         isFinalizing
@@ -1620,13 +1555,370 @@ const VisualReport = () => {
       </div>
     );
   };
-  if (reportMode) return <WebView />;
+  const IntegrityStyleWebView = () => {
+    const observations = reportData.observations || [];
+    const photoItems = observations.filter((obs) => obs.photoRef);
+    const photosPerPage = 6;
+    const photoPages = Math.max(1, Math.ceil(photoItems.length / photosPerPage));
+    const totalPages = 4 + photoPages;
+    const photoChunks = Array.from({ length: photoPages }, (_, idx) =>
+      photoItems.slice(idx * photosPerPage, (idx + 1) * photosPerPage),
+    );
+
+    const Header = () => (
+      <div className="relative flex items-center justify-between px-12 py-6 border-b border-slate-200/80 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/30" />
+          <div className="text-blue-900 font-black text-xl tracking-wide">
+            INSPECTPRO
+          </div>
+        </div>
+        {reportData.general.clientLogo ? (
+          <img
+            src={reportData.general.clientLogo}
+            alt="Client"
+            className="h-12 w-auto object-contain"
+          />
+        ) : (
+          <div className="h-10 w-24 rounded-lg bg-slate-200/70" />
+        )}
+      </div>
+    );
+
+    const Footer = ({ page }) => (
+      <div className="relative mt-auto px-12 pb-8">
+        <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+          <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+            Original Document
+          </p>
+        </div>
+        <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+          Page {page} of {totalPages}
+        </div>
+      </div>
+    );
+
+    const PageShell = ({ children }) => (
+      <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute -top-24 -left-20 h-64 w-64 rounded-full bg-blue-100/70 blur-2xl" />
+          <div className="absolute top-24 -right-20 h-72 w-72 rounded-full bg-cyan-100/70 blur-2xl" />
+          <div className="absolute bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-100/60 blur-2xl" />
+        </div>
+        {children}
+      </div>
+    );
+
+    return (
+      <div className="min-h-screen bg-slate-900 p-4 md:p-8 pb-20 print:p-0 print:bg-white">
+        <style>{`
+          @media print {
+            .report-page {
+              break-after: page;
+              page-break-after: always;
+            }
+            .report-page:last-child {
+              break-after: auto;
+              page-break-after: auto;
+            }
+          }
+        `}</style>
+        <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
+          <button
+            onClick={() => setReportMode(false)}
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+          >
+            <ChevronLeft size={18} /> Back
+          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={() => window.print()}
+              className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 border border-slate-700"
+            >
+              <Printer size={18} /> Print
+            </button>
+            <button
+              onClick={() => setReportMode(false)}
+              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-900/20"
+            >
+              <XCircle size={18} /> Close Preview
+            </button>
+          </div>
+        </div>
+
+        <div className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
+          <PageShell>
+            <Header />
+            <div className="relative flex-1 flex flex-col items-center justify-center text-center px-10">
+              <div className="mb-6 text-[11px] font-black uppercase tracking-[0.4em] text-slate-500">
+                Technical Inspection Report
+              </div>
+              <h1 className="text-5xl md:text-6xl font-extrabold text-blue-700 tracking-tight drop-shadow-sm">
+                Visual Inspection
+              </h1>
+              <h2 className="mt-3 text-4xl md:text-5xl font-extrabold text-blue-600 tracking-tight">
+                Report
+              </h2>
+              <div className="mt-8 h-1 w-40 rounded-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500" />
+              <div className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
+                {reportData?.general?.platform || "Facility Name"}
+              </div>
+            </div>
+            <div className="relative px-12 pb-10 flex items-end justify-between text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <div>{reportData?.general?.client || "Client"}</div>
+              <div>{reportData?.general?.reportNum || "Report No."}</div>
+            </div>
+          </PageShell>
+
+          <PageShell>
+            <Header />
+            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+              <h3 className="text-sm font-black uppercase tracking-[0.3em] text-slate-500">
+                Section 00
+              </h3>
+              <div className="flex items-center gap-3">
+                <ShieldCheck size={18} className="text-orange-600" />
+                <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">
+                  Overview
+                </h2>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
+                <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
+                  <div className="border-r border-slate-200 p-3">
+                    <div className="font-bold uppercase text-slate-500">Client</div>
+                    <div className="font-bold text-slate-800">{reportData?.general?.client || "N/A"}</div>
+                  </div>
+                  <div className="p-3 space-y-1">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="font-bold uppercase text-slate-500">Report Number</div>
+                      <div className="font-bold">{reportData?.general?.reportNum || "N/A"}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="font-bold uppercase text-slate-500">Contract Number</div>
+                      <div className="font-bold">{reportData?.general?.contractNum || "N/A"}</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="font-bold uppercase text-slate-500">Date of Inspection</div>
+                      <div className="font-bold">{reportData?.general?.date || "N/A"}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
+                  <div className="border-r border-slate-200 p-3">
+                    <div className="font-bold uppercase text-slate-500">Location</div>
+                    <div className="font-bold text-slate-800">{reportData?.general?.platform || "N/A"}</div>
+                  </div>
+                  <div className="p-3">
+                    <div className="font-bold uppercase text-slate-500">Inspected By</div>
+                    <div className="font-bold">{reportData?.general?.inspect_by || "N/A"}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
+                  <div className="border-r border-slate-200 p-3">
+                    <div className="font-bold uppercase text-slate-500">Asset Tag</div>
+                    <div className="font-bold">{reportData?.general?.tag || "N/A"}</div>
+                  </div>
+                  <div className="p-3">
+                    <div className="font-bold uppercase text-slate-500">Asset Type</div>
+                    <div className="font-bold">{reportData?.general?.assetType || reportData?.general?.equipment || "N/A"}</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 text-[10px]">
+                  <div className="border-r border-slate-200 p-3">
+                    <div className="font-bold uppercase text-slate-500">Test Code</div>
+                    <div className="text-red-600 font-black">{reportData?.general?.testCode || "N/A"}</div>
+                  </div>
+                  <div className="p-3">
+                    <div className="font-bold uppercase text-slate-500">Ambient Temp</div>
+                    <div className="font-bold">{reportData?.environmental?.temp || "N/A"} C</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
+                <div className="px-5 py-3 border-b border-slate-200">
+                  <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 text-center">
+                    Table of Contents
+                  </p>
+                </div>
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="border-r border-slate-200 p-2 w-12">S/N</th>
+                      <th className="border-r border-slate-200 p-2">Description</th>
+                      <th className="p-2 w-20">Page No.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-800">
+                    {[
+                      { sn: "1.0", desc: "Overview", page: "2" },
+                      { sn: "2.0", desc: "Schematic Diagram for Item Identification", page: "3" },
+                      { sn: "3.0", desc: "Summary of Inspection Findings", page: "4" },
+                      { sn: "4.0", desc: "Photographic Details", page: "5+" },
+                    ].map((row, idx) => (
+                      <tr
+                        key={row.sn}
+                        className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
+                      >
+                        <td className="border-r border-slate-200 p-2 text-center font-bold">
+                          {row.sn}
+                        </td>
+                        <td className="border-r border-slate-200 p-2 font-bold uppercase text-center">
+                          {row.desc}
+                        </td>
+                        <td className="p-2 text-center font-bold">{row.page}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <Footer page={2} />
+          </PageShell>
+
+          <PageShell>
+            <Header />
+            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+              <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                2.0 Diagram
+              </div>
+              <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-3xl shadow-xl shadow-blue-200/40 overflow-hidden p-6">
+                {reportData?.general?.diagramImage ? (
+                  <img
+                    src={reportData.general.diagramImage}
+                    alt="Schematic Diagram for Item Identification"
+                    className="w-full object-contain max-h-[520px] mx-auto"
+                  />
+                ) : (
+                  <div className="h-[420px] border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-slate-400 text-xs font-bold uppercase tracking-[0.3em] text-center px-6">
+                    Upload SCHEMATIC DIAGRAM FOR ITEM IDENTIFICATION
+                  </div>
+                )}
+              </div>
+            </div>
+            <Footer page={3} />
+          </PageShell>
+
+          <PageShell>
+            <Header />
+            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+              <div className="text-center space-y-2">
+                <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                  3.0 Summary of Inspection Findings
+                </div>
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
+                  Visual Observations
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
+                {observations.length ? (
+                  <ol className="space-y-5 text-[11px] leading-relaxed text-slate-700">
+                    {observations.map((item, idx) => (
+                      <li
+                        key={item.sn || item.id || idx}
+                        className="rounded-2xl border border-slate-200 bg-white/70 p-4"
+                      >
+                        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4 items-start">
+                          <div className="flex items-start gap-3 min-w-0">
+                            <span className="text-red-600 font-black">
+                              {idx + 1}.
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-bold text-red-600 uppercase">
+                                {item.component || item.title || "Observation"}
+                              </div>
+                              <p className="mt-1 text-slate-700 break-words">
+                                {item.notes ||
+                                  item.description ||
+                                  "No adverse condition observed."}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-3 flex items-center justify-center min-h-[180px]">
+                            {item.photoRef ? (
+                              <img
+                                src={item.photoRef}
+                                alt={item.component || "Observation"}
+                                className="max-h-[200px] w-auto object-contain"
+                              />
+                            ) : (
+                              <div className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] text-center">
+                                No Image
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.3em] text-center">
+                    No observations added
+                  </div>
+                )}
+              </div>
+            </div>
+            <Footer page={4} />
+          </PageShell>
+
+          {photoChunks.map((chunk, pageIdx) => {
+            const pageNumber = 5 + pageIdx;
+            return (
+              <PageShell key={`photo-page-${pageIdx}`}>
+                <Header />
+                <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+                  <div className="text-center space-y-2">
+                    <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                      4.0 Photographic Details
+                    </div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
+                      Evidence Gallery
+                    </p>
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
+                    {chunk.length ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {chunk.map((o, idx) => (
+                          <div key={o.sn || o.id || idx} className="space-y-2">
+                            <div className="border border-slate-200 rounded-2xl bg-white p-2 flex items-center justify-center">
+                              <img
+                                src={o.photoRef}
+                                alt={o.component || `Evidence ${idx + 1}`}
+                                className="h-[180px] w-auto object-contain"
+                              />
+                            </div>
+                            <div className="text-[10px] text-slate-700 text-center font-semibold">
+                              {o.component?.split("(")[0] || `Evidence ${idx + 1}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="h-[360px] border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-slate-400 text-xs font-bold uppercase tracking-[0.3em] text-center px-6">
+                        No photographic evidence uploaded
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <Footer page={pageNumber} />
+              </PageShell>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  if (reportMode) return <IntegrityStyleWebView />;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      {user?.role === "Admin" ? <AdminNavbar /> : <InspectorNavbar />}
+      <Navbar />
       <div className="flex">
-        {user?.role === "Admin" ? <AdminSidebar /> : <InspectorSidebar />}
+        <Sidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
             <header className="flex justify-between items-center mb-8 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
@@ -1654,7 +1946,11 @@ const VisualReport = () => {
                     disabled={isSaving}
                     className="bg-orange-600 px-6 py-2 rounded-xl text-xs font-bold uppercase shadow-lg shadow-orange-900/20 active:scale-95 transition-all"
                   >
-                    {isSaving ? "Syncing..." : "Send for confirmation"}
+                    {isSaving
+                      ? "Syncing..."
+                      : user?.role === "Inspector"
+                        ? "Send for confirmation"
+                        : "ADD CHANGES"}
                   </button>
                 )}
               </div>
@@ -1742,6 +2038,43 @@ const VisualReport = () => {
                   onChange={(v) => setEnvironmentalField("temp", v)}
                   readOnly={isViewOnly}
                 />
+              </div>
+
+              <div className="mt-6 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Upload SCHEMATIC DIAGRAM FOR ITEM IDENTIFICATION
+                </label>
+                <div className="mt-3 flex items-center gap-3">
+                  <label
+                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 transition-colors ${
+                      isViewOnly
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:text-white hover:border-orange-500 cursor-pointer"
+                    }`}
+                  >
+                    <Camera size={14} /> Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={isViewOnly}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setGeneralField("diagramImage", reader.result);
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </label>
+                  {reportData.general.diagramImage && (
+                    <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                      Diagram attached
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500 mt-4">

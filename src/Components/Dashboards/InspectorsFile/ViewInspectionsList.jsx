@@ -199,6 +199,11 @@ const ViewInspectionsList = () => {
       technique === "Detailed Inspection Report"
     ) {
       route = "/inspector/Detailed-report";
+    }else if (
+      technique === "Integrity Check" ||
+      technique === "Integrity Check Report"
+    ) {
+      route = "/inspector/integrity-check";
     } else if (technique === "Manual UT" || technique === "MUT") {
       route = "/inspector/manual-ut-report";
     } else if (

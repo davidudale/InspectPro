@@ -4,6 +4,7 @@ import { db } from "../../Auth/firebase";
 import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { Printer, ChevronLeft, Activity, Shield, FileDown, XCircle } from "lucide-react";
 import html2pdf from "html2pdf.js"; // Import the library
+import { IntegrityWebView } from "../AdminFiles/ReportManagement/IntegrityCheck";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -22,24 +23,31 @@ const ReportDownloadView = ({
 
   const getTechniqueType = () => {
     const raw = (
-      project?.selectedTechnique ||
-      report?.technique ||
       report?.general?.selectedTechnique ||
+      report?.technique ||
+      project?.reportTemplate ||
+      project?.selectedTechnique ||
       ""
     ).toLowerCase();
 
+    // Normalize common inspection labels to techniques/templates.
+    if (raw.includes("pressure vessel") || raw.includes("integrity")) return "integrity";
     if (raw.includes("detailed")) return "detailed";
     if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
     if (raw.includes("mut") || raw.includes("manual ut")) return "mut";
+    if (raw.includes("visual") || raw.includes("vt") || raw.includes("visual testing")) return "visual";
+    if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray")) return "visual";
     return "visual";
   };
 
   const techniqueType = getTechniqueType();
+  const isIntegrity = techniqueType === "integrity";
   const isVisualFamily = techniqueType === "visual" || techniqueType === "detailed";
-  const evidencePhotos = report?.observations?.filter((o) => o.photoRef) || [];
+  const evidencePhotos =
+    report?.observations?.filter((o) => o.photoRef || o.photo) || [];
   const hasPhotoAppendix =
-    (techniqueType === "visual" || techniqueType === "detailed") &&
-    report?.observations?.some((o) => o.photoRef);
+    (isVisualFamily || isIntegrity) &&
+    report?.observations?.some((o) => o.photoRef || o.photo);
   const satisfactoryCount = (report?.observations || []).filter(
     (obs) => (obs.condition || "").toLowerCase() === "satisfactory"
   ).length;
@@ -54,13 +62,15 @@ const ReportDownloadView = ({
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 900'><defs><linearGradient id='bg' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#cbd5e1'/><stop offset='100%' stop-color='#e2e8f0'/></linearGradient><linearGradient id='ground' x1='0' y1='0' x2='0' y2='1'><stop offset='0%' stop-color='#64748b'/><stop offset='100%' stop-color='#334155'/></linearGradient></defs><rect width='1600' height='900' fill='url(#bg)'/><rect y='680' width='1600' height='220' fill='url(#ground)'/><rect x='150' y='380' width='140' height='300' fill='#475569'/><rect x='170' y='320' width='100' height='70' fill='#64748b'/><rect x='400' y='270' width='120' height='410' fill='#334155'/><rect x='430' y='210' width='60' height='60' fill='#64748b'/><rect x='620' y='430' width='220' height='250' fill='#475569'/><rect x='900' y='340' width='100' height='340' fill='#334155'/><rect x='1030' y='410' width='170' height='270' fill='#475569'/><rect x='1240' y='300' width='80' height='380' fill='#334155'/><rect x='1340' y='450' width='120' height='230' fill='#475569'/><rect x='280' y='520' width='1100' height='18' fill='#94a3b8'/><circle cx='220' cy='300' r='22' fill='#f59e0b' opacity='0.9'/><text x='800' y='120' text-anchor='middle' font-family='Arial' font-size='54' fill='#1e293b' font-weight='700'>REFINERY EQUIPMENT</text></svg>"
   )}`;
   const techniqueTitle =
-    techniqueType === "detailed"
-      ? "Detailed Inspection Report"
-      : techniqueType === "aut"
-      ? "AUT Technical Report"
-      : techniqueType === "mut"
-        ? "MUT Technical Report"
-        : "Visual Testing (VT) Technical Report";
+    techniqueType === "integrity"
+      ? "Integrity Check Report"
+      : techniqueType === "detailed"
+        ? "Detailed Inspection Report"
+        : techniqueType === "aut"
+          ? "AUT Technical Report"
+          : techniqueType === "mut"
+            ? "MUT Technical Report"
+            : "Visual Testing (VT) Technical Report";
 
   useEffect(() => {
     const fetchFullData = async () => {
@@ -93,40 +103,11 @@ const ReportDownloadView = ({
 
         if (resolvedProjectData) setProject(resolvedProjectData);
 
-        // 2) Find inspection report with robust fallbacks.
-        let foundReportDoc = null;
-        const candidateIds = [
-          resolvedProjectBusinessId,
-          resolvedProjectDocId,
-          id,
-        ].filter(Boolean);
-
-        for (const pid of candidateIds) {
-          const byProjectIdQ = query(
-            collection(db, "inspection_reports"),
-            where("general.projectId", "==", pid),
-            limit(1),
-          );
-          const byProjectIdSnap = await getDocs(byProjectIdQ);
-          if (!byProjectIdSnap.empty) {
-            foundReportDoc = byProjectIdSnap.docs[0];
-            break;
-          }
+        if (resolvedProjectData?.report) {
+          setReport(resolvedProjectData.report);
+        } else {
+          setReport(null);
         }
-
-        if (!foundReportDoc && resolvedProjectDocId) {
-          const byProjectDocIdQ = query(
-            collection(db, "inspection_reports"),
-            where("general.projectDocId", "==", resolvedProjectDocId),
-            limit(1),
-          );
-          const byProjectDocIdSnap = await getDocs(byProjectDocIdQ);
-          if (!byProjectDocIdSnap.empty) {
-            foundReportDoc = byProjectDocIdSnap.docs[0];
-          }
-        }
-
-        if (foundReportDoc) setReport(foundReportDoc.data());
       } catch (error) {
         console.error("PDF Fetch Error:", error);
       } finally {
@@ -156,6 +137,38 @@ const ReportDownloadView = ({
       <Activity className="animate-spin text-orange-500" />
     </div>
   );
+
+  const totalPages = 2 + (hasPhotoAppendix ? 1 : 0);
+
+  if (isIntegrity) {
+    const integrityReportData =
+      report ||
+      ({
+        type: "Integrity Check",
+        general: {
+          client: project?.clientName || "",
+          platform: project?.locationName || "",
+          tag: project?.equipmentTag || "",
+          reportNum: project?.reportNum || "",
+          date: project?.startDate || "",
+          equipment: project?.equipmentCategory || "",
+          clientLogo: project?.clientLogo || "",
+          projectId: project?.projectId || "",
+        },
+        observations: [],
+        inspection: {},
+        signoff: {},
+        utm: [],
+      });
+
+      return (
+        <IntegrityWebView
+          reportData={integrityReportData}
+          onBack={() => navigate(-1)}
+          hideControls={hideControls}
+        />
+      );
+  }
 
   return (
     <div className={`${embedded ? "bg-transparent p-0" : "min-h-screen bg-slate-900 p-4 md:p-8 pb-20"} print:p-0 print:bg-white`}>
@@ -197,67 +210,36 @@ const ReportDownloadView = ({
       )}
 
       {/* TARGET CONTAINER FOR PDF GENERATION */}
-      <div ref={reportRef} className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
-        
-        {/* --- PAGE 1: COVER PAGE --- */}
-        <div className="report-page bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
-          <div className="flex justify-between items-start border-b-2 border-slate-950 pb-6 mb-12">
-             <div className="text-blue-800 font-black text-xl">INSPECTPRO</div>
-             {project?.clientLogo && <img src={project.clientLogo} alt="Client" className="h-16 w-auto object-contain" />}
-          </div>
+        <div ref={reportRef} className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
+         
+          {/* --- PAGE 1: COVER PAGE --- */}
+          <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+            <ReportBackground />
+            <ReportHeader clientLogo={project?.clientLogo} />
 
-          <div className="flex-1">
-            <div className="text-center mb-10">
-              <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight text-slate-900">
-                {isVisualFamily ? "Visual Inspection Report" : techniqueTitle}
+            <div className="relative flex-1 flex flex-col items-center justify-center text-center px-12">
+              <div className="mb-6 text-[11px] font-black uppercase tracking-[0.4em] text-slate-500">
+                Technical Inspection Report
+              </div>
+              <h1 className="text-5xl md:text-6xl font-extrabold text-blue-700 tracking-tight drop-shadow-sm">
+                {isVisualFamily ? "Visual Inspection" : techniqueTitle}
               </h1>
-              <p className="mt-3 text-[11px] md:text-sm text-slate-600 uppercase tracking-[0.24em] font-bold">
-                {isVisualFamily ? "Visual Testing (VT) | Condition and Integrity Screening" : (project?.locationName || "Inspection Report")}
-              </p>
-              <div className="mt-4 mx-auto h-1 w-28 rounded-full bg-gradient-to-r from-blue-700 via-slate-500 to-orange-500" />
+              <h2 className="mt-3 text-4xl md:text-5xl font-extrabold text-blue-600 tracking-tight">
+                Report
+              </h2>
+              <div className="mt-8 h-1 w-40 rounded-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500" />
+              <div className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
+                {project?.locationName || report?.general?.platform || "Facility Name"}
+              </div>
             </div>
 
-            {isVisualFamily ? (
-              <div className="mb-8 rounded-2xl border border-slate-300 overflow-hidden bg-slate-50">
-                <div className="bg-slate-100 px-5 py-2 border-b border-slate-300" />
-                <img
-                  src={refineryHeroSvg}
-                  alt="Visual inspection"
-                  className="w-full h-[340px] object-cover"
-                />
-              </div>
-            ) : (
-              <div className="space-y-6 text-left inline-block mx-auto min-w-0 bg-slate-50 p-8 rounded-2xl border border-slate-100">
-                <ReportRow label="Report ID" value={project?.projectId} />
-                <ReportRow label="Asset Reference" value={project?.equipmentTag} />
-                <ReportRow label="Inspection Date" value={project?.startDate} />
-                <ReportRow label="Technique" value={project?.selectedTechnique || report?.technique} />
-              </div>
-            )}
+            <div className="relative px-12 pb-10 flex items-end justify-between text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              <div>{report?.general?.client || project?.clientName || "Client"}</div>
+              <div>{report?.general?.reportNum || project?.reportNum || "Report No."}</div>
+            </div>
+
+            <ReportFooter pageNumber={1} totalPages={totalPages} />
           </div>
-
-          {isVisualFamily && (
-            <div className="mt-auto rounded-2xl border border-slate-300 overflow-hidden">
-              <div className="bg-slate-100 px-5 py-2 border-b border-slate-300">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-600 text-center">
-                  Findings Statistics
-                </h4>
-              </div>
-              <table className="w-full border-collapse">
-                <tbody>
-                  <tr>
-                    <td className="py-3 px-4 text-[11px] font-black uppercase text-slate-500 border-r border-slate-200">Total Findings</td>
-                    <td className="py-3 px-4 text-xl font-black text-slate-900 border-r border-slate-200">{(report?.observations || []).length}</td>
-                    <td className="py-3 px-4 text-[11px] font-black uppercase text-emerald-700 border-r border-slate-200">Acceptable</td>
-                    <td className="py-3 px-4 text-xl font-black text-emerald-700 border-r border-slate-200">{satisfactoryCount}</td>
-                    <td className="py-3 px-4 text-[11px] font-black uppercase text-red-700 border-r border-slate-200">Action Required</td>
-                    <td className="py-3 px-4 text-xl font-black text-red-700">{actionRequiredCount}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
 
        {/* {isVisualFamily && (
           <div className="report-page bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
@@ -273,10 +255,18 @@ const ReportDownloadView = ({
         )} */}
 
         {/* --- PAGE 2: TECHNICAL FINDINGS --- */}
-        <div className="report-page bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
-          <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8 flex items-center gap-2">
-            <Shield size={16} className="text-orange-600" /> {isVisualFamily ? "Section 01: Findings Register" : "Section 01: Technical Observations"}
-          </h3>
+        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+          <ReportBackground />
+          <ReportHeader clientLogo={project?.clientLogo} />
+          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+            <div className="text-center space-y-2">
+              <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                {isVisualFamily ? "Section 01: Findings Register" : "Section 01: Technical Observations"}
+              </div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
+                Inspection Summary
+              </p>
+            </div>
 
           {isVisualFamily && (
             <>
@@ -499,53 +489,62 @@ const ReportDownloadView = ({
             </table>
           )}
 
-          {!hasPhotoAppendix && (
-            <div className="mt-auto grid grid-cols-2 gap-10">
-              <SignatureBlock label="Field Inspector" name={report?.inspector} />
-              <SignatureBlock label="Authorized By" name={project?.authorizedBy || "System Admin"} />
-            </div>
-          )}
-
-          {(!isVisualFamily || !hasPhotoAppendix) && (
-            <div className="mt-auto pt-10 border-t-4 border-slate-900 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                CONTROLLED ENGINEERING DOCUMENT - CONFIDENTIAL
-              </p>
-            </div>
-          )}
+            {!hasPhotoAppendix && (
+              <div className="mt-auto grid grid-cols-2 gap-10">
+                <SignatureBlock label="Field Inspector" name={report?.inspector} />
+                <SignatureBlock label="Authorized By" name={project?.authorizedBy || "System Admin"} />
+              </div>
+            )}
+          </div>
+          <ReportFooter pageNumber={2} totalPages={totalPages} />
         </div>
 
         {/* --- PAGE 3: PHOTOGRAPHIC APPENDIX --- */}
         {hasPhotoAppendix && (
-          <div className="report-page bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] page-break flex flex-col">
-            <h3 className="text-sm font-black uppercase border-b-2 border-slate-900 pb-2 mb-8">
-              Section 02: Photographic Appendix
-            </h3>
-            <div className="grid grid-cols-2 gap-8">
-              {report?.observations?.filter((o) => o.photoRef).map((img, idx) => (
-                <div key={idx} className="space-y-2 break-inside-avoid">
-                  <div className="border-2 border-slate-100 p-1 rounded-lg">
-                    <img src={img.photoRef} crossOrigin="anonymous" className="w-full aspect-[4/3] object-cover rounded" alt="Evidence" />
-                  </div>
-                  <div className="flex justify-between items-center px-1">
-                    <span className="text-[10px] font-black uppercase">Ref {img.sn}</span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase truncate">{img.component}</span>
-                  </div>
+          <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+            <ReportBackground />
+            <ReportHeader clientLogo={project?.clientLogo} />
+            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+              <div className="text-center space-y-2">
+                <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                  Section 02: Photographic Appendix
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-auto">
-              <div className="grid grid-cols-2 gap-10 pt-10">
-                <SignatureBlock label="Field Inspector" name={report?.inspector} />
-                <SignatureBlock label="Authorized By" name={project?.authorizedBy || "System Admin"} />
-              </div>
-              <div className="pt-10 border-t-4 border-slate-900 text-center">
-                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                  CONTROLLED ENGINEERING DOCUMENT - CONFIDENTIAL
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
+                  Evidence Gallery
                 </p>
               </div>
+              <div className="grid grid-cols-2 gap-8">
+                {evidencePhotos.map((img, idx) => (
+                  <div key={idx} className="space-y-2 break-inside-avoid">
+                    <div className="border-2 border-slate-100 p-1 rounded-lg">
+                      <img
+                        src={img.photoRef || img.photo}
+                        crossOrigin="anonymous"
+                        className="w-full aspect-[4/3] object-cover rounded"
+                        alt="Evidence"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center px-1">
+                      <span className="text-[10px] font-black uppercase">
+                        Ref {img.sn}
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase truncate">
+                        {img.component}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-auto grid grid-cols-2 gap-10 pt-10">
+                <SignatureBlock label="Field Inspector" name={report?.inspector} />
+                <SignatureBlock
+                  label="Authorized By"
+                  name={project?.authorizedBy || "System Admin"}
+                />
+              </div>
             </div>
+            <ReportFooter pageNumber={3} totalPages={totalPages} />
           </div>
         )}
       </div>
@@ -567,6 +566,41 @@ const SignatureBlock = ({ label, name }) => (
       {name || "____________________"}
     </div>
     <p className="text-[8px] text-slate-500 uppercase">Electronic Verification Signature</p>
+  </div>
+);
+
+const ReportHeader = ({ clientLogo }) => (
+  <div className="relative flex items-center justify-between px-12 py-6 border-b border-slate-200/80 backdrop-blur-md">
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/30" />
+      <div className="text-blue-900 font-black text-xl tracking-wide">INSPECTPRO</div>
+    </div>
+    {clientLogo ? (
+      <img src={clientLogo} alt="Client" className="h-12 w-auto object-contain" />
+    ) : (
+      <div className="h-10 w-24 rounded-lg bg-slate-200/70" />
+    )}
+  </div>
+);
+
+const ReportFooter = ({ pageNumber, totalPages }) => (
+  <div className="relative mt-auto px-12 pb-8">
+    <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+      <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+        Original Document
+      </p>
+    </div>
+    <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+      Page {pageNumber} of {totalPages}
+    </div>
+  </div>
+);
+
+const ReportBackground = () => (
+  <div className="absolute inset-0">
+    <div className="absolute -top-24 -left-20 h-64 w-64 rounded-full bg-blue-100/70 blur-2xl" />
+    <div className="absolute top-24 -right-20 h-72 w-72 rounded-full bg-cyan-100/70 blur-2xl" />
+    <div className="absolute bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-100/60 blur-2xl" />
   </div>
 );
 

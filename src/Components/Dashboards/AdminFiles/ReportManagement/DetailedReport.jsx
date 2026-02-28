@@ -3,14 +3,14 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import {
   collection,
-  addDoc,
   serverTimestamp,
   doc,
-  updateDoc,
+  getDoc,
   getDocs,
   query,
   where,
   limit,
+  setDoc,
 } from "firebase/firestore";
 
 import {
@@ -27,6 +27,10 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
+import ManagerNavbar from "../../ManagerFile/ManagerNavbar";
+import ManagerSidebar from "../../ManagerFile/ManagerSidebar";
+import SupervisorNavbar from "../../SupervisorFiles/SupervisorNavbar";
+import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
 
 // --- TECHNICAL SCHEMAS (Internal mapping updated with photoRef) ---
 const INSPECTION_SCHEMAS = {
@@ -162,7 +166,6 @@ const DetailedReport = () => {
   const [reportMode, setReportMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("logistics");
-  const [existingReportId, setExistingReportId] = useState(null);
 
   const [reportData, setReportData] = useState({
     general: {
@@ -210,6 +213,24 @@ const DetailedReport = () => {
     ],
     images: [],
   });
+  const isSupervisorRole =
+    user?.role === "Supervisor" || user?.role === "Lead Inspector";
+  const Navbar =
+    user?.role === "Admin"
+      ? AdminNavbar
+      : user?.role === "Manager"
+        ? ManagerNavbar
+        : isSupervisorRole
+          ? SupervisorNavbar
+          : InspectorNavbar;
+  const Sidebar =
+    user?.role === "Admin"
+      ? AdminSidebar
+      : user?.role === "Manager"
+        ? ManagerSidebar
+        : isSupervisorRole
+          ? SupervisorSidebar
+          : InspectorSidebar;
 
   useEffect(() => {
     const initializeManifest = async () => {
@@ -237,49 +258,69 @@ const DetailedReport = () => {
           observations: schema.map((item) => ({ ...item, photoRef: "" })),
         }));
 
-        let existingDoc = null;
-        if (projectBusinessId) {
-          const qByProjectId = query(
-            collection(db, "inspection_reports"),
-            where("general.projectId", "==", projectBusinessId),
-            limit(1),
-          );
-          const snapshotByProjectId = await getDocs(qByProjectId);
-          if (!snapshotByProjectId.empty) {
-            existingDoc = snapshotByProjectId.docs[0];
+        let resolvedProjectDocId = projectDocId;
+        let resolvedProjectData = null;
+        let existingReport = null;
+
+        if (projectDocId) {
+          const projectSnap = await getDoc(doc(db, "projects", projectDocId));
+          if (projectSnap.exists()) {
+            resolvedProjectData = projectSnap.data();
+            resolvedProjectDocId = projectSnap.id;
           }
         }
 
-        // Backward compatibility for older records keyed by project doc id.
-        if (!existingDoc && projectDocId) {
-          const qByDocId = query(
-            collection(db, "inspection_reports"),
-            where("general.projectId", "==", projectDocId),
+        if (!resolvedProjectData && projectBusinessId) {
+          const projectByBusinessIdQ = query(
+            collection(db, "projects"),
+            where("projectId", "==", projectBusinessId),
             limit(1),
           );
-          const snapshotByDocId = await getDocs(qByDocId);
-          if (!snapshotByDocId.empty) {
-            existingDoc = snapshotByDocId.docs[0];
+          const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
+          if (!projectByBusinessIdSnap.empty) {
+            const pDoc = projectByBusinessIdSnap.docs[0];
+            resolvedProjectData = pDoc.data();
+            resolvedProjectDocId = pDoc.id;
           }
         }
 
-        if (existingDoc) {
-          const existingData = existingDoc.data();
-          setExistingReportId(existingDoc.id);
+        if (resolvedProjectData?.report) {
+          existingReport = resolvedProjectData.report;
+        }
+
+        if (existingReport) {
           setReportData({
-            ...existingData,
+            ...existingReport,
             general: {
-              ...existingData.general,
+              ...existingReport.general,
+              ...p,
+              client: p.clientName || p.client || existingReport?.general?.client || "",
+              platform: p.locationName || p.location || existingReport?.general?.platform || "",
+              tag: p.equipmentTag || p.tag || existingReport?.general?.tag || "",
               projectId:
                 projectBusinessId ||
-                existingData?.general?.projectId ||
-                projectDocId ||
+                existingReport?.general?.projectId ||
+                resolvedProjectDocId ||
                 "",
               projectDocId:
-                projectDocId || existingData?.general?.projectDocId || "",
+                resolvedProjectDocId || existingReport?.general?.projectDocId || "",
             },
           });
           toast.info("Previous inspection details loaded for correction.");
+        } else {
+          setReportData((prev) => ({
+            ...prev,
+            general: {
+              ...prev.general,
+              ...p,
+              client: p.clientName || p.client || "",
+              platform: p.locationName || p.location || "",
+              tag: p.equipmentTag || p.tag || "",
+              projectId: projectBusinessId || resolvedProjectDocId || "",
+              projectDocId: resolvedProjectDocId || "",
+            },
+            observations: schema.map((item) => ({ ...item, photoRef: "" })),
+          }));
         }
       }
     };
@@ -372,62 +413,55 @@ const DetailedReport = () => {
       user?.displayName || user?.name || user?.email || "Technical User";
 
     try {
-      if (existingReportId) {
-        // --- RESUBMISSION/UPDATE ---
-        const reportRef = doc(db, "inspection_reports", existingReportId);
-        await updateDoc(reportRef, {
-          ...reportData,
-          status: workflowStatus,
-          lastModifiedBy: currentUserIdentifier,
-          updatedAt: serverTimestamp(),
-        });
-      } else {
-        // --- FIRST TIME SAVE ---
-        const newDoc = await addDoc(collection(db, "inspection_reports"), {
-          ...reportData,
-          technique: "Detailed Report",
-          inspector: currentUserIdentifier,
-          inspectorUid: user.uid,
-          status: workflowStatus,
-          roleAtSubmission: user?.role || "Inspector",
-          timestamp: serverTimestamp(),
-        });
-        setExistingReportId(newDoc.id);
-      }
-
-      // 2. SYNC PROJECT MANIFEST
       const targetProjectDocId =
         reportData.general.projectDocId || location.state?.preFill?.id || "";
+      let projectRef = null;
 
-      if (targetProjectDocId || reportData.general.projectId) {
-        let projectRef = null;
-        if (targetProjectDocId) {
-          projectRef = doc(db, "projects", targetProjectDocId);
-        } else if (reportData.general.projectId) {
-          const projectLookup = query(
-            collection(db, "projects"),
-            where("projectId", "==", reportData.general.projectId),
-            limit(1),
-          );
-          const projectSnapshot = await getDocs(projectLookup);
-          if (!projectSnapshot.empty) {
-            projectRef = doc(db, "projects", projectSnapshot.docs[0].id);
-          }
-        }
-
-        // Final mapping for the Project collection
-        let projectFinalStatus = workflowStatus;
-        if (workflowStatus === "Authorized") {
-          projectFinalStatus = "Completed";
-        }
-        if (projectRef) {
-          await updateDoc(projectRef, {
-            status: projectFinalStatus,
-            lastModifiedBy: currentUserIdentifier,
-            updatedAt: serverTimestamp(),
-          });
+      if (targetProjectDocId) {
+        projectRef = doc(db, "projects", targetProjectDocId);
+      } else if (reportData.general.projectId) {
+        const projectLookup = query(
+          collection(db, "projects"),
+          where("projectId", "==", reportData.general.projectId),
+          limit(1),
+        );
+        const projectSnapshot = await getDocs(projectLookup);
+        if (!projectSnapshot.empty) {
+          projectRef = doc(db, "projects", projectSnapshot.docs[0].id);
         }
       }
+
+      if (!projectRef) {
+        toast.error("Project reference not found. Please reload and try again.");
+        return;
+      }
+
+      const reportPayload = {
+        ...reportData,
+        technique: "Detailed Report",
+        inspector: currentUserIdentifier,
+        inspectorUid: user.uid,
+        status: workflowStatus,
+        roleAtSubmission: user?.role || "Inspector",
+        updatedAt: serverTimestamp(),
+      };
+
+      // Final mapping for the Project collection
+      let projectFinalStatus = workflowStatus;
+      if (workflowStatus === "Authorized") {
+        projectFinalStatus = "Completed";
+      }
+
+      await setDoc(
+        projectRef,
+        {
+          report: reportPayload,
+          status: projectFinalStatus,
+          lastModifiedBy: currentUserIdentifier,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
 
       toast.success(
         isFinalizing
@@ -796,9 +830,9 @@ const DetailedReport = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      {user?.role === "Admin" ? <AdminNavbar /> : <InspectorNavbar />}
+      <Navbar />
       <div className="flex">
-        {user?.role === "Admin" ? <AdminSidebar /> : <InspectorSidebar />}
+        <Sidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
             <header className="flex justify-between items-center mb-8 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
@@ -829,7 +863,11 @@ const DetailedReport = () => {
                   disabled={isSaving}
                   className="bg-orange-600 px-6 py-2 rounded-xl text-xs font-bold uppercase shadow-lg shadow-orange-900/20 active:scale-95 transition-all"
                 >
-                  {isSaving ? "Syncing..." : "Send for confirmation"}
+                  {isSaving
+                    ? "Syncing..."
+                    : user?.role === "Inspector"
+                      ? "Send for confirmation"
+                      : "ADD CHANGES"}
                 </button>
               </div>
             </header>

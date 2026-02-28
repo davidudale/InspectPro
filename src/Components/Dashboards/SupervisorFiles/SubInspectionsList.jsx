@@ -40,12 +40,14 @@ const SubInspectionsList = () => {
   
     let q;
   
+    const statusFilter = ["Pending Confirmation", "Returned for correction", "Reviewing"];
+
     // 1. DYNAMIC QUERY SELECTION BASED ON ROLE
     // Managers and Admins see EVERYTHING with this status
     if (user?.role === "Manager" || user?.role === "Admin") {
       q = query(
         collection(db, "projects"),
-        where("status", "==", "Pending Confirmation"),
+        where("status", "in", statusFilter),
         orderBy("startDate", "desc")
       );
     } 
@@ -54,7 +56,7 @@ const SubInspectionsList = () => {
       q = query(
         collection(db, "projects"),
         where("supervisorId", "==", user.uid),
-        where("status", "==", "Pending Confirmation"),
+        where("status", "in", statusFilter),
         orderBy("startDate", "desc")
       );
     }
@@ -74,7 +76,7 @@ const SubInspectionsList = () => {
         // Simplified fallback to avoid index issues during role transition
         const fallbackQ = query(
           collection(db, "projects"),
-          where("status", "==", "Pending Confirmation")
+          where("status", "in", statusFilter)
         );
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -106,6 +108,22 @@ const SubInspectionsList = () => {
       } catch (error) {
         toast.error("Status update failed: " + error.message);
       }
+    }
+  };
+
+  const handleReview = async (project) => {
+    try {
+      const projectRef = doc(db, "projects", project.id);
+      await updateDoc(projectRef, {
+        status: "Reviewing",
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      toast.error(`Failed to set status: ${error.message}`);
+    } finally {
+      navigate("/pendinginspections", {
+        state: { preFill: { ...project, assetType: project.equipmentCategory || project.assetType } },
+      });
     }
   };
 
@@ -191,22 +209,20 @@ const SubInspectionsList = () => {
 
                           <td className="p-6 text-right space-x-2 item-center flex">
                             {/* NEW: Reject/Return Button */}
-                            <button
+                            {/*<button
                               onClick={() => handleReturnToInspector(project.id, project.projectName)}
                               className="bg-red-900/20 hover:bg-red-900/40 text-red-500 p-2 rounded-xl border border-red-500/20 transition-all group/btn"
                               title="Return to Inspector"
                             >
                               <RotateCcw size={16} className="group-active/btn:rotate-[-90deg] transition-transform" />
-                            </button>
+                            </button>*/}
 
                             {/* View Report / Final Approval Button */}
                             <button
-                              onClick={() => navigate("/pendinginspections", { 
-                                state: { preFill: { ...project, assetType: project.equipmentCategory || project.assetType } } 
-                              })}
+                              onClick={() => handleReview(project)}
                               className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
                             >
-                             Review
+                              Review
                             </button>
                           </td>
                         </tr>

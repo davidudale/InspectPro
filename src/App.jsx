@@ -23,12 +23,14 @@ import ProjectSetup from "./Components/Dashboards/AdminFiles/ProjectManagement/P
 import ProjectList from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectList.jsx";
 import ClientManager from "./Components/Dashboards/AdminFiles/SetupManagement/ClientManager.jsx";
 import LocationManager from "./Components/Dashboards/AdminFiles/SetupManagement/LocationManager.jsx";
+import CompanyProfile from "./Components/Dashboards/AdminFiles/SetupManagement/CompanyProfile.jsx";
 import InspectionTypeManager from "./Components/Dashboards/AdminFiles/ProjectManagement/InspectionTypeManager.jsx";
 import EquipmentManager from "./Components/Dashboards/AdminFiles/ProjectManagement/EquipmentManager.jsx";
 import ProjectEdit from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectEdit.jsx";
 import VisualReport from "./Components/Dashboards/AdminFiles/ReportManagement/VisualReport.jsx";
 import MutReport from "./Components/Dashboards/AdminFiles/ReportManagement/MutReport.jsx";
 import DetailedReport from "./Components/Dashboards/AdminFiles/ReportManagement/DetailedReport.jsx";
+import IntegrityCheck from "./Components/Dashboards/AdminFiles/ReportManagement/IntegrityCheck.jsx";
 import ViewInspectionsList from "./Components/Dashboards/InspectorsFile/ViewInspectionsList.jsx";
 import UserPreferences from "./Components/Dashboards/InspectorsFile/UserPreferences.jsx";
 import SupervisorDashboard from "./Components/Page/SupervisorDashboard.jsx";
@@ -42,6 +44,7 @@ import PendingApprovals from "./Components/Dashboards/ManagerFile/PendingApprova
 import ApprovedProjects from "./Components/Dashboards/ManagerFile/ApprovedProjects.jsx";
 import ReportDownloadView from "./Components/Dashboards/ManagerFile/ReportDownloadView.jsx";
 import ProjectPreview from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectPreview.jsx";
+import ReportPlaceholder from "./Components/Dashboards/ReportManager/ReportPlaceholder.jsx";
 function App() {
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
@@ -64,7 +67,7 @@ function App() {
           path="/inspectionDashboard"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <InspectionDashboard />
             </ProtectedRoute>
@@ -74,7 +77,7 @@ function App() {
           path="/Inspection_view"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <ViewInspectionsList />
             </ProtectedRoute>
@@ -84,9 +87,19 @@ function App() {
           path="/inspector/visual-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <VisualReport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspector/integrity-check"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+            >
+              <IntegrityCheck />
             </ProtectedRoute>
           }
         />
@@ -177,7 +190,7 @@ function App() {
         <Route
           path="/ManagerDashboard"
           element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}>
               <ManagerDashboard />
             </ProtectedRoute>
           }
@@ -185,7 +198,7 @@ function App() {
         <Route
           path="/Pending_approval"
           element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}>
               <PendingApproval />
             </ProtectedRoute>
           }
@@ -193,7 +206,7 @@ function App() {
         <Route
           path="/ReviewForApproval"
           element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}>
               <ReviewForApproval />
             </ProtectedRoute>
           }
@@ -286,6 +299,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/admin/reports/integrity"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <IntegrityCheck />
+            </ProtectedRoute>
+          }
+        />
         
        
         
@@ -366,6 +387,14 @@ function App() {
           }
         />
         <Route
+          path="/admin/company-profile"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <CompanyProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/inspection_type"
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
@@ -378,6 +407,134 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
               <EquipmentManager />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/daily-inspection-summary"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Daily Inspection Summary" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/inspection-progress"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Inspection Progress Report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/non-conformance"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Non-Conformance Report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/corrective-action"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Corrective Action Report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/equipment-status"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Equipment Status Report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/personnel-activity"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Personnel Activity Report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/safety"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Safety Report" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports/next-day-plan"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "Supervisor",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ReportPlaceholder title="Next Day Plan" />
             </ProtectedRoute>
           }
         />

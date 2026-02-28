@@ -7,6 +7,7 @@ import {
   FolderOpen,
   LayoutDashboard,
   MapPin,
+  FileText,
   Users,
   Settings,
   ChevronDown,
@@ -43,11 +44,62 @@ const sidebarLinks = [
       },
     ],
   },
+  {
+    name: "Report Manager",
+    icon: <FileText size={20} />,
+    subLinks: [
+      {
+        name: "Daily Inspection Summary",
+        icon: <FileText size={16} />,
+        href: "/reports/daily-inspection-summary",
+      },
+      {
+        name: "Inspection Progress",
+        icon: <FileText size={16} />,
+        href: "/reports/inspection-progress",
+      },
+      {
+        name: "Non-Conformance Report",
+        icon: <FileText size={16} />,
+        href: "/reports/non-conformance",
+      },
+      {
+        name: "Corrective Action Report",
+        icon: <FileText size={16} />,
+        href: "/reports/corrective-action",
+      },
+      {
+        name: "Equipment Status Report",
+        icon: <FileText size={16} />,
+        href: "/reports/equipment-status",
+      },
+      {
+        name: "Personnel Activity Report",
+        icon: <FileText size={16} />,
+        href: "/reports/personnel-activity",
+      },
+      {
+        name: "Safety Report",
+        icon: <FileText size={16} />,
+        href: "/reports/safety",
+      },
+      {
+        name: "Next Day Plan",
+        icon: <FileText size={16} />,
+        href: "/reports/next-day-plan",
+      },
+    ],
+  },
 
   {
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
+      {
+        name: "Company Profile",
+        icon: <Building2 size={16} />,
+        href: "/admin/company-profile",
+      },
       {
         name: "Client Management",
         icon: <Building2 size={16} />,
@@ -86,6 +138,7 @@ const sidebarLinks = [
       },
     ],
   },
+  
 ];
 
 const AdminSidebar = () => {
