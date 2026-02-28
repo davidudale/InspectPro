@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Menu, X, FileText, LogOut, User } from "lucide-react"; // Example icons
 
 const sidebarLinks = [
@@ -8,8 +8,17 @@ const sidebarLinks = [
 ];
 
 const DashboardSidebar = () => {
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const toggleMobileMenu = () => {
+    setIsMobileExpanded((prev) => !prev);
+  };
+
   return (
-    <aside className="w-16 lg:w-64 border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
+    <aside
+      className={`border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col ${
+        isMobileExpanded ? "w-64" : "w-16"
+      } lg:w-64`}
+    >
       <div className="p-4 lg:p-6 border-b border-slate-800/50">
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
@@ -20,11 +29,19 @@ const DashboardSidebar = () => {
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
           </div>
-          <div className="hidden lg:block overflow-hidden">
+          <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block overflow-hidden`}>
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
               Alex InspectPro
             </p>
           </div>
+          <button
+            type="button"
+            onClick={toggleMobileMenu}
+            className="ml-auto lg:hidden p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            {isMobileExpanded ? <X size={16} /> : <Menu size={16} />}
+          </button>
         </div>
       </div>
       {/* Example Sidebar Icons for Mobile */}
@@ -36,7 +53,7 @@ const DashboardSidebar = () => {
         >
           <div className="lg:flex items-center gap-3 text-slate-400 hover:text-orange-500 cursor-pointer transition-colors">
             {link.icon}
-            <span className="hidden lg:block text-sm font-medium">
+            <span className={`${isMobileExpanded ? "block" : "hidden"} lg:block text-sm font-medium`}>
               {link.label}
             </span>
           </div>

@@ -13,6 +13,8 @@ import {
   Users,
   Settings,
   ChevronDown,
+  Menu,
+  X,
   Wrench,
   Sliders,
 } from "lucide-react"; // Example icons
@@ -168,9 +170,13 @@ const ManagerSidebar = () => {
   const location = useLocation();
   // State to track which dropdown is open (by name)
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
   const toggleDropdown = (name) => {
     setOpenDropdown(openDropdown === name ? null : name);
+  };
+  const toggleMobileMenu = () => {
+    setIsMobileExpanded((prev) => !prev);
   };
 
   // Fetch logged-in user's Full Name
@@ -197,7 +203,11 @@ const ManagerSidebar = () => {
   }, []);
 
   return (
-    <aside className="w-16 h-screen lg:w-64 fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col">
+    <aside
+      className={`h-screen fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col ${
+        isMobileExpanded ? "w-64" : "w-16"
+      } lg:w-64`}
+    >
       <div className="p-4 lg:p-6 border-b border-slate-800/50">
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
@@ -208,11 +218,19 @@ const ManagerSidebar = () => {
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
           </div>
-          <div className="hidden lg:block overflow-hidden">
+          <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block overflow-hidden`}>
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
               {fullName || "Admin"}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={toggleMobileMenu}
+            className="ml-auto lg:hidden p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            {isMobileExpanded ? <X size={16} /> : <Menu size={16} />}
+          </button>
         </div>
       </div>
       {/* Example Sidebar Icons for Mobile */}
@@ -241,7 +259,9 @@ const ManagerSidebar = () => {
                   >
                     {link.icon}
                   </div>
-                  <span className="hidden lg:block text-sm font-semibold tracking-wide">
+                  <span
+                    className={`${isMobileExpanded ? "block" : "hidden"} lg:block text-sm font-semibold tracking-wide`}
+                  >
                     {link.name}
                   </span>
                 </div>
@@ -250,14 +270,14 @@ const ManagerSidebar = () => {
                 {hasSubLinks && (
                   <ChevronDown
                     size={16}
-                    className={`hidden lg:block transition-transform duration-300 ${isOpen ? "rotate-180 text-orange-500" : ""}`}
+                    className={`${isMobileExpanded ? "block" : "hidden"} lg:block transition-transform duration-300 ${isOpen ? "rotate-180 text-orange-500" : ""}`}
                   />
                 )}
               </div>
 
               {/* Dropdown Content */}
               {hasSubLinks && isOpen && (
-                <div className="hidden lg:block ml-9 mt-1 space-y-1 border-l border-slate-800">
+                <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block ml-9 mt-1 space-y-1 border-l border-slate-800`}>
                   {link.subLinks.map((sub, subIdx) => (
                     <button
                       key={subIdx}
