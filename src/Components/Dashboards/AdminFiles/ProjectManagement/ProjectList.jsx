@@ -10,11 +10,13 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const ProjectList = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     const q = query(collection(db, "projects"));
@@ -29,13 +31,19 @@ const ProjectList = () => {
   }, []);
 
   const handleDelete = async (projectId, name) => {
-    if (window.confirm(`CRITICAL: Permanently Delete project "${name}" and all linked Reports?`)) {
-      try {
-        await deleteDoc(doc(db, "projects", projectId));
-        toast.error(`${name} Deleted from database`);
-      } catch (error) {
-        toast.error("Deletion failed: Admin permissions required");
-      }
+    const confirmed = await openConfirm({
+      title: "Delete Project",
+      message: `CRITICAL: Permanently Delete project "${name}" and all linked Reports?`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "projects", projectId));
+      toast.error(`${name} Deleted from database`);
+    } catch (error) {
+      toast.error("Deletion failed: Admin permissions required");
     }
   };
 
@@ -48,6 +56,7 @@ const ProjectList = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1">
         <AdminSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

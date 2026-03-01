@@ -30,8 +30,36 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 // Expanded list including major Oil & Gas equipment categories
+
+const baseAssetTypes = [
+  // Static Equipment
+  { label: "Pressure Vessel (V)", prefix: "V-", category: "Static" },
+  { label: "Heat Exchanger (E)", prefix: "E-", category: "Static" },
+  { label: "Storage Tank (T)", prefix: "T-", category: "Static" },
+  { label: "Distillation Column (C)", prefix: "C-", category: "Static" },
+  { label: "Fired Heater / Furnace (F)", prefix: "F-", category: "Static" },
+  { label: "Reactors (R)", prefix: "R-", category: "Static" },
+  { label: "Separator (S)", prefix: "S-", category: "Static" },
+  { label: "Boiler (B)", prefix: "B-", category: "Static" },
+  // Rotating Equipment
+  { label: "Centrifugal Pump (P)", prefix: "P-", category: "Rotating" },
+  { label: "Reciprocating Pump (RP)", prefix: "RP-", category: "Rotating" },
+  { label: "Centrifugal Compressor (K)", prefix: "K-", category: "Rotating" },
+  { label: "Reciprocating Compressor (RK)", prefix: "RK-", category: "Rotating" },
+  { label: "Gas Turbine (GT)", prefix: "GT-", category: "Rotating" },
+  { label: "Steam Turbine (ST)", prefix: "ST-", category: "Rotating" },
+  // Piping & Others
+  { label: "Piping Circuit (PI)", prefix: "PI-", category: "Piping" },
+  { label: "Flare Stack (FS)", prefix: "FS-", category: "Infrastructure" },
+  { label: "Pig Launcher/Receiver (PL)", prefix: "PL-", category: "Piping" },
+  { label: "Christmas Tree (XT)", prefix: "XT-", category: "Subsea/Wellhead" },
+];
+
+const baseStatuses = ["In-Service", "Out-of-Service", "Mothballed", "Decommissioned"];
+const baseServices = ["Hydrocarbon", "Steam", "Cooling Water", "Flare Gas", "Lube Oil"];
 
 const EquipmentManager = () => {
   const [equipment, setEquipment] = useState([]);
@@ -39,51 +67,11 @@ const EquipmentManager = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [editingId, setEditingId] = useState(null);
-  const [assetTypes, setAssetTypes] = useState([
-    // Static Equipment
-    { label: "Pressure Vessel (V)", prefix: "V-", category: "Static" },
-    { label: "Heat Exchanger (E)", prefix: "E-", category: "Static" },
-    { label: "Storage Tank (T)", prefix: "T-", category: "Static" },
-    { label: "Distillation Column (C)", prefix: "C-", category: "Static" },
-    { label: "Fired Heater / Furnace (F)", prefix: "F-", category: "Static" },
-    { label: "Reactors (R)", prefix: "R-", category: "Static" },
-    { label: "Separator (S)", prefix: "S-", category: "Static" },
-    { label: "Boiler (B)", prefix: "B-", category: "Static" },
-    // Rotating Equipment
-    { label: "Centrifugal Pump (P)", prefix: "P-", category: "Rotating" },
-    { label: "Reciprocating Pump (RP)", prefix: "RP-", category: "Rotating" },
-    { label: "Centrifugal Compressor (K)", prefix: "K-", category: "Rotating" },
-    {
-      label: "Reciprocating Compressor (RK)",
-      prefix: "RK-",
-      category: "Rotating",
-    },
-    { label: "Gas Turbine (GT)", prefix: "GT-", category: "Rotating" },
-    { label: "Steam Turbine (ST)", prefix: "ST-", category: "Rotating" },
-    // Piping & Others
-    { label: "Piping Circuit (PI)", prefix: "PI-", category: "Piping" },
-    { label: "Flare Stack (FS)", prefix: "FS-", category: "Infrastructure" },
-    { label: "Pig Launcher/Receiver (PL)", prefix: "PL-", category: "Piping" },
-    {
-      label: "Christmas Tree (XT)",
-      prefix: "XT-",
-      category: "Subsea/Wellhead",
-    },
-  ]);
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const [assetTypes, setAssetTypes] = useState(baseAssetTypes);
 
-  const [statuses, setStatuses] = useState([
-    "In-Service",
-    "Out-of-Service",
-    "Mothballed",
-    "Decommissioned",
-  ]);
-  const [services, setServices] = useState([
-    "Hydrocarbon",
-    "Steam",
-    "Cooling Water",
-    "Flare Gas",
-    "Lube Oil",
-  ]);
+  const [statuses, setStatuses] = useState(baseStatuses);
+  const [services, setServices] = useState(baseServices);
 
   // --- NEW: TOGGLE STATES ---
   const [addingField, setAddingField] = useState(null); // 'type', 'service', or 'status'
@@ -104,7 +92,49 @@ const EquipmentManager = () => {
       orderBy("tagNumber", "asc"),
     );
     const unsubAssets = onSnapshot(qAssets, (snapshot) => {
-      setEquipment(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const nextEquipment = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setEquipment(nextEquipment);
+
+      const typeSet = new Set(
+        nextEquipment
+          .map((asset) => (asset.assetType || "").trim())
+          .filter(Boolean),
+      );
+      setAssetTypes(() => {
+        const map = new Map(
+          baseAssetTypes.map((t) => [t.label.toLowerCase(), t]),
+        );
+        typeSet.forEach((label) => {
+          const key = label.toLowerCase();
+          if (!map.has(key)) {
+            map.set(key, { label, prefix: "C-", category: "Custom" });
+          }
+        });
+        return Array.from(map.values());
+      });
+
+      const serviceSet = new Set(
+        nextEquipment
+          .map((asset) => (asset.service || "").trim())
+          .filter(Boolean),
+      );
+      setServices(() => {
+        const merged = [...baseServices, ...Array.from(serviceSet)];
+        return Array.from(new Set(merged));
+      });
+
+      const statusSet = new Set(
+        nextEquipment
+          .map((asset) => (asset.status || "").trim())
+          .filter(Boolean),
+      );
+      setStatuses(() => {
+        const merged = [...baseStatuses, ...Array.from(statusSet)];
+        return Array.from(new Set(merged));
+      });
     });
     return () => unsubAssets();
   }, []);
@@ -134,13 +164,19 @@ const EquipmentManager = () => {
   };
 
   const handleDelete = async (id, tag) => {
-    if (window.confirm(`CRITICAL: Remove Equipment ${tag} from master registry?`)) {
-      try {
-        await deleteDoc(doc(db, "equipment", id));
-        toast.error(`${tag} Removed successfully`);
-      } catch (err) {
-        toast.error("Deletion failed");
-      }
+    const confirmed = await openConfirm({
+      title: "Remove Equipment",
+      message: `CRITICAL: Remove Equipment ${tag} from master registry?`,
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "equipment", id));
+      toast.error(`${tag} Removed successfully`);
+    } catch (err) {
+      toast.error("Deletion failed");
     }
   };
 
@@ -148,6 +184,43 @@ const EquipmentManager = () => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      if (addingField && tempValue.trim()) {
+        const normalized = tempValue.trim();
+        if (addingField === "type") {
+          const exists = assetTypes.some(
+            (t) => t.label.toLowerCase() === normalized.toLowerCase(),
+          );
+          if (!exists) {
+            setAssetTypes((prev) => [
+              ...prev,
+              { label: normalized, prefix: "C-", category: "Custom" },
+            ]);
+          }
+          setNewAsset((prev) => ({
+            ...prev,
+            assetType: normalized,
+            description: normalized,
+          }));
+        } else if (addingField === "service") {
+          const exists = services.some(
+            (s) => s.toLowerCase() === normalized.toLowerCase(),
+          );
+          if (!exists) {
+            setServices((prev) => [...prev, normalized]);
+          }
+          setNewAsset((prev) => ({ ...prev, service: normalized }));
+        } else if (addingField === "status") {
+          const exists = statuses.some(
+            (s) => s.toLowerCase() === normalized.toLowerCase(),
+          );
+          if (!exists) {
+            setStatuses((prev) => [...prev, normalized]);
+          }
+          setNewAsset((prev) => ({ ...prev, status: normalized }));
+        }
+        setTempValue("");
+        setAddingField(null);
+      }
       if (editingId) {
         await updateDoc(doc(db, "equipment", editingId), {
           ...newAsset,
@@ -228,6 +301,7 @@ const EquipmentManager = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1">
         <AdminSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

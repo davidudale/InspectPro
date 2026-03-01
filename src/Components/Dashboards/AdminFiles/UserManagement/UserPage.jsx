@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth"; // NEW: Auth function
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const UserPage = () => {
   const [users, setUsers] = useState([]);
@@ -18,6 +19,7 @@ const UserPage = () => {
   const [editingUser, setEditingUser] = useState(null); 
   const [formData, setFormData] = useState({ name: "", email: "", password: "", role: "Inspector" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
@@ -103,19 +105,26 @@ const UserPage = () => {
 
   // ... rest of the component (Delete handler and Return UI) remain same as previous version
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Permanently remove ${name} from the directory?`)) {
-      try {
-        await deleteDoc(doc(db, "users", id));
-        toast.success("User credentials purged");
-      } catch (error) {
-        toast.error("Access denied: Deletion failed");
-      }
+    const confirmed = await openConfirm({
+      title: "Remove User",
+      message: `Permanently remove ${name} from the directory?`,
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "users", id));
+      toast.success("User credentials purged");
+    } catch (error) {
+      toast.error("Access denied: Deletion failed");
     }
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1 relative">
         <AdminSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

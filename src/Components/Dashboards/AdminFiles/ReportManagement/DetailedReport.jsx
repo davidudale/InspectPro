@@ -248,6 +248,7 @@ const DetailedReport = () => {
             ...prev.general,
             ...p,
             client: p.clientName || p.client || "",
+            clientLogo: p.clientLogo || p.logo || prev.general.clientLogo || "",
             platform: p.locationName || p.location || "",
             tag: p.equipmentTag || p.tag || "",
             // Use projectId as the canonical correction key.
@@ -295,6 +296,13 @@ const DetailedReport = () => {
               ...existingReport.general,
               ...p,
               client: p.clientName || p.client || existingReport?.general?.client || "",
+              clientLogo:
+                existingReport?.general?.clientLogo ||
+                p.clientLogo ||
+                p.logo ||
+                resolvedProjectData?.clientLogo ||
+                resolvedProjectData?.client?.logo ||
+                "",
               platform: p.locationName || p.location || existingReport?.general?.platform || "",
               tag: p.equipmentTag || p.tag || existingReport?.general?.tag || "",
               projectId:
@@ -314,6 +322,12 @@ const DetailedReport = () => {
               ...prev.general,
               ...p,
               client: p.clientName || p.client || "",
+              clientLogo:
+                p.clientLogo ||
+                p.logo ||
+                resolvedProjectData?.clientLogo ||
+                resolvedProjectData?.client?.logo ||
+                "",
               platform: p.locationName || p.location || "",
               tag: p.equipmentTag || p.tag || "",
               projectId: projectBusinessId || resolvedProjectDocId || "",

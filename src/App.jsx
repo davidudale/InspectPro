@@ -539,7 +539,19 @@ function App() {
           }
         />
       </Routes>
-      <ToastContainer />
+      <ToastContainer
+        position="top-right"
+        autoClose={3500}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        draggable
+        theme="dark"
+        toastClassName="inspectpro-toast"
+        bodyClassName="inspectpro-toast-body"
+        progressClassName="inspectpro-toast-progress"
+      />
     </>
   );
 }

@@ -32,3 +32,39 @@ html[data-theme-mode="system"] {
   background: var(--inspectpro-accent);
   color: white;
 }
+
+.inspectpro-toast {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid rgba(249, 115, 22, 0.35);
+  box-shadow: 0 20px 50px -30px rgba(249, 115, 22, 0.45);
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-height: auto;
+  font-size: clamp(11px, 1.2vw, 13px);
+}
+
+.inspectpro-toast-body {
+  margin: 0;
+  padding: 0;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inspectpro-toast-progress {
+  background: linear-gradient(90deg, var(--inspectpro-accent), #f59e0b);
+}
+
+.Toastify__toast-icon svg {
+  fill: var(--inspectpro-accent);
+}
+
+.Toastify__close-button {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.Toastify__close-button:hover {
+  color: var(--inspectpro-accent);
+}

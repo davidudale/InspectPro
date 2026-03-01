@@ -62,6 +62,14 @@ const Aut = () => {
     observations: [
       { id: Date.now(), title: "", description: "", photo: "" },
     ],
+    signoff: {
+      inspector: "",
+      reviewer: "",
+      manager: "",
+      inspectorSignature: "",
+      reviewerSignature: "",
+      managerSignature: "",
+    },
   });
   const isSupervisorRole =
     user?.role === "Supervisor" || user?.role === "Lead Inspector";
@@ -98,6 +106,7 @@ const Aut = () => {
           equipment: p.equipmentCategory || p.assetType || p.equipment || "",
           platform: p.locationName || p.location || "",
           client: p.clientName || p.client || "",
+          clientLogo: p.clientLogo || p.logo || prev.general.clientLogo || "",
           reportNum: p.reportNum || p.reportNo || "",
           date: new Date().toISOString().split("T")[0],
           projectId: projectKey,
@@ -118,7 +127,17 @@ const Aut = () => {
         setProjectDocId(projectDoc.id);
         const projectData = projectDoc.data();
         if (projectData?.report) {
-          setReportData(projectData.report);
+          setReportData({
+            ...projectData.report,
+            general: {
+              ...projectData.report?.general,
+              clientLogo:
+                projectData.report?.general?.clientLogo ||
+                projectData?.clientLogo ||
+                projectData?.client?.logo ||
+                "",
+            },
+          });
           toast.info("Previous inspection details loaded for correction.");
         }
       } else if (projectKey) {
@@ -141,6 +160,13 @@ const Aut = () => {
       observations: prev.observations.map((obs) =>
         obs.id === id ? { ...obs, [field]: value } : obs,
       ),
+    }));
+  };
+
+  const setSignoffField = (field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      signoff: { ...prev.signoff, [field]: value },
     }));
   };
 
@@ -338,6 +364,169 @@ const Aut = () => {
                   </div>
                 </div>
               )}
+
+              <section className="space-y-4 mt-8">
+                <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+                  Sign-Off
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <InputField
+                    label="Inspector"
+                    value={reportData.signoff.inspector}
+                    onChange={(v) => setSignoffField("inspector", v)}
+                    required
+                  />
+                  <InputField
+                    label="Reviewer"
+                    value={reportData.signoff.reviewer}
+                    onChange={(v) => setSignoffField("reviewer", v)}
+                    required
+                  />
+                  <InputField
+                    label="Manager"
+                    value={reportData.signoff.manager}
+                    onChange={(v) => setSignoffField("manager", v)}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {(user?.role === "Inspector" || user?.role === "Admin") && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Inspector Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                          <Camera size={14} /> Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSignoffField(
+                                  "inspectorSignature",
+                                  reader.result,
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {reportData.signoff.inspectorSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSignoffField("inspectorSignature", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(user?.role === "Supervisor" || user?.role === "Admin") && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Reviewer Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                          <Camera size={14} /> Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSignoffField(
+                                  "reviewerSignature",
+                                  reader.result,
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {reportData.signoff.reviewerSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSignoffField("reviewerSignature", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(user?.role === "Manager" || user?.role === "Admin") && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Manager Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                          <Camera size={14} /> Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSignoffField(
+                                  "managerSignature",
+                                  reader.result,
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {reportData.signoff.managerSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSignoffField("managerSignature", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
               {/* Add other tab content here as we progress... */}
             </div>
           </div>
@@ -425,6 +614,72 @@ const WebView = ({ reportData, setReportMode, user, getStatus }) => {
         <div className="border-t border-slate-900 pt-2 flex justify-between text-[9px] font-bold uppercase">
           <div>Report Number: {reportData.general.reportNum} [cite: 41]</div>
           <div>Page 3 of 16 [cite: 42]</div>
+        </div>
+      </div>
+
+      <div className="max-w-4xl mx-auto min-h-[1056px] border-2 border-slate-900 p-12 relative mb-12 flex flex-col">
+        <PageHeader />
+        <div className="flex-1">
+          <h3 className="font-bold text-sm underline uppercase mb-6">
+            Sign-Off
+          </h3>
+          <div className="grid grid-cols-3 gap-10 mt-10">
+            <div className="space-y-3">
+              <p className="text-[9px] font-black uppercase text-slate-400">
+                Inspector
+              </p>
+              {reportData.signoff?.inspectorSignature ? (
+                <img
+                  src={reportData.signoff.inspectorSignature}
+                  alt="Inspector signature"
+                  className="h-12 w-auto object-contain"
+                />
+              ) : (
+                <div className="border-b-2 border-slate-900 h-12" />
+              )}
+              <div className="text-xs font-bold uppercase">
+                {reportData.signoff?.inspector || " "}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <p className="text-[9px] font-black uppercase text-slate-400">
+                Reviewer
+              </p>
+              {reportData.signoff?.reviewerSignature ? (
+                <img
+                  src={reportData.signoff.reviewerSignature}
+                  alt="Reviewer signature"
+                  className="h-12 w-auto object-contain"
+                />
+              ) : (
+                <div className="border-b-2 border-slate-900 h-12" />
+              )}
+              <div className="text-xs font-bold uppercase">
+                {reportData.signoff?.reviewer || " "}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <p className="text-[9px] font-black uppercase text-slate-400">
+                Manager
+              </p>
+              {reportData.signoff?.managerSignature ? (
+                <img
+                  src={reportData.signoff.managerSignature}
+                  alt="Manager signature"
+                  className="h-12 w-auto object-contain"
+                />
+              ) : (
+                <div className="border-b-2 border-slate-900 h-12" />
+              )}
+              <div className="text-xs font-bold uppercase">
+                {reportData.signoff?.manager || " "}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-slate-900 pt-2 flex justify-between text-[9px] font-bold uppercase">
+          <div>Report Number: {reportData.general.reportNum}</div>
+          <div>Page 16 of 16</div>
         </div>
       </div>
 

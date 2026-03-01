@@ -5,7 +5,8 @@ import { ArrowBigLeftIcon } from "lucide-react";
 import { auth, db } from "../Auth/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
+import { useConfirmDialog } from "../Common/ConfirmDialog";
 
 const Register = () => {
   const [fname, setFname] = useState("");
@@ -13,6 +14,7 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Inspector"); // Default role
   const navigate = useNavigate();
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -34,8 +36,14 @@ const Register = () => {
       }
       // Create a user document in Firestore with the role
 
-      alert("Registration Successful!");
       toast.success("Registration Successful! Please log in.");
+      await openConfirm({
+        title: "Registration Successful",
+        message: "Registration Successful! Please log in.",
+        confirmLabel: "OK",
+        showCancel: false,
+        tone: "success",
+      });
       navigate("/admin-dashboard");
     } catch (error) {
       console.error(error.message);
@@ -45,6 +53,7 @@ const Register = () => {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden bg-slate-950 text-slate-100 selection:bg-orange-500 selection:text-white">
+      {ConfirmDialog}
       {/* Background Image / Overlay */}
       <div className="absolute inset-0 z-0">
         <img

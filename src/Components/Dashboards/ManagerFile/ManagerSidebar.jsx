@@ -126,7 +126,7 @@ const sidebarLinks = [
         href: "/reports/daily-inspection-summary",
       },
       {
-        name: "Inspection Progress Report",
+        name: "Inspection Progress",
         icon: <FileText size={16} />,
         href: "/reports/inspection-progress",
       },

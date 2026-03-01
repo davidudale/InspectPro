@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
 import { useAuth } from "../../Auth/AuthContext";
@@ -34,6 +35,7 @@ const SubInspectionsList = () => {
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
    useEffect(() => {
     if (!user?.uid) return;
@@ -96,18 +98,24 @@ const SubInspectionsList = () => {
 
   // --- NEW: Function to return manifest to Inspector ---
   const handleReturnToInspector = async (projectId, name) => {
-    if (window.confirm(`Return "${name}" to Inspector for corrections?`)) {
-      try {
-        const projectRef = doc(db, "projects", projectId);
-        await updateDoc(projectRef, {
-          status: "Returned for correction", // Reverting status
-          lastUpdated: serverTimestamp(),
-          returnNote: "Lead Inspector requested review/corrections",
-        });
-        toast.warning(`Project ${name} reverted to field status`);
-      } catch (error) {
-        toast.error("Status update failed: " + error.message);
-      }
+    const confirmed = await openConfirm({
+      title: "Return to Inspector",
+      message: `Return "${name}" to Inspector for corrections?`,
+      confirmLabel: "Return",
+      cancelLabel: "Cancel",
+      tone: "warning",
+    });
+    if (!confirmed) return;
+    try {
+      const projectRef = doc(db, "projects", projectId);
+      await updateDoc(projectRef, {
+        status: "Returned for correction",
+        lastUpdated: serverTimestamp(),
+        returnNote: "Lead Inspector requested review/corrections",
+      });
+      toast.warning(`Project ${name} reverted to field status`);
+    } catch (error) {
+      toast.error("Status update failed: " + error.message);
     }
   };
 
@@ -137,6 +145,7 @@ const SubInspectionsList = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       {user?.role === "Manager" ? <ManagerNavbar /> : <SupervisorNavbar />}
+      {ConfirmDialog}
       <div className="flex flex-1">
         {user?.role === "Manager" ? <ManagerSidebar /> : <SupervisorSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

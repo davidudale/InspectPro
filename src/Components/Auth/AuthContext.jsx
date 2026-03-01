@@ -14,6 +14,11 @@ export const AuthProvider = ({ children }) => {
   const resetTimerRef = useRef(null);
 
   useEffect(() => {
+    // Force sign-out on app start (aggressive: clears any persisted session)
+    auth.signOut().catch((error) => {
+      console.error("Error forcing sign-out:", error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {

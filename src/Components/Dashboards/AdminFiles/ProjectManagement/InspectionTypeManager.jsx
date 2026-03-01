@@ -22,6 +22,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const InspectionTypeManager = () => {
   const [types, setTypes] = useState([]);
@@ -29,7 +30,8 @@ const InspectionTypeManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [standardOptions, setStandardOptions] = useState([
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const baseStandardOptions = [
     { title: "API 510", fullName: "Pressure Vessel Inspection Code" },
     { title: "API 570", fullName: "Piping Inspection Code" },
     { title: "API 653", fullName: "Tank Inspection & Repair Code" },
@@ -39,7 +41,8 @@ const InspectionTypeManager = () => {
       title: "ASME Section VIII",
       fullName: "Rules for Construction of Pressure Vessels",
     },
-  ]);
+  ];
+  const [standardOptions, setStandardOptions] = useState(baseStandardOptions);
   
 
   // 2. Track Custom Input State
@@ -49,19 +52,21 @@ const InspectionTypeManager = () => {
     fullName: "",
   });
   // NEW: Dynamic Options State
-  const [categories, setCategories] = useState([
+  const baseCategories = [
     "Static Equipment",
     "Piping Systems",
     "Rotating Equipment",
     "Engineering Evaluation",
-  ]);
-  const [designCodes, setDesignCodes] = useState([
+  ];
+  const [categories, setCategories] = useState(baseCategories);
+  const baseDesignCodes = [
     "ASME Section VIII",
     "ASME B31.3",
     "API 650",
     "ASME B31.8",
     "ASME FFS-1",
-  ]);
+  ];
+  const [designCodes, setDesignCodes] = useState(baseDesignCodes);
 
   // NEW: UI Toggle States
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -92,7 +97,50 @@ const InspectionTypeManager = () => {
       orderBy("title", "asc"),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTypes(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const docs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setTypes(docs);
+
+      const standardMap = new Map();
+      baseStandardOptions.forEach((opt) => {
+        if (opt?.title) {
+          standardMap.set(opt.title.toLowerCase(), opt);
+        }
+      });
+      docs.forEach((item) => {
+        if (!item?.title) return;
+        const titleKey = item.title.toLowerCase();
+        const fullName = item.fullName || "Custom Reference";
+        if (!standardMap.has(titleKey)) {
+          standardMap.set(titleKey, { title: item.title, fullName });
+        }
+      });
+      setStandardOptions(Array.from(standardMap.values()));
+
+      const categorySet = new Set(
+        baseCategories.map((c) => c.toLowerCase()),
+      );
+      const mergedCategories = [...baseCategories];
+      docs.forEach((item) => {
+        if (!item?.category) return;
+        const key = item.category.toLowerCase();
+        if (!categorySet.has(key)) {
+          categorySet.add(key);
+          mergedCategories.push(item.category);
+        }
+      });
+      setCategories(mergedCategories);
+
+      const codeSet = new Set(baseDesignCodes.map((c) => c.toLowerCase()));
+      const mergedCodes = [...baseDesignCodes];
+      docs.forEach((item) => {
+        if (!item?.defaultStandard) return;
+        const key = item.defaultStandard.toLowerCase();
+        if (!codeSet.has(key)) {
+          codeSet.add(key);
+          mergedCodes.push(item.defaultStandard);
+        }
+      });
+      setDesignCodes(mergedCodes);
     });
     return () => unsubscribe();
   }, []);
@@ -169,22 +217,84 @@ const InspectionTypeManager = () => {
   };
 
   const handleDelete = async (typeId, name) => {
-    if (window.confirm(`CRITICAL: Delete ${name} from inspection standards?`)) {
-      try {
-        await deleteDoc(doc(db, "inspection_types", typeId));
-        toast.success("Standard deleted");
-      } catch (err) {
-        toast.error("Delete operation failed");
+    const confirmed = await openConfirm({
+      title: "Delete Inspection Standard",
+      message: `CRITICAL: Delete ${name} from inspection standards?`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "inspection_types", typeId));
+      toast.success("Standard deleted");
+    } catch (err) {
+      toast.error("Delete operation failed");
+    }
+  };
+
+  const commitPendingAdditions = () => {
+    let updatedType = { ...newType };
+
+    if (isAddingStandard) {
+      const title = customStandard.title.trim().toUpperCase();
+      const fullName = customStandard.fullName.trim() || "Custom Reference";
+      if (title) {
+        const exists = standardOptions.some(
+          (opt) => opt.title.toLowerCase() === title.toLowerCase(),
+        );
+        const newEntry = { title, fullName };
+        if (!exists) {
+          setStandardOptions((prev) => [...prev, newEntry]);
+        }
+        updatedType = {
+          ...updatedType,
+          title: newEntry.title,
+          fullName: newEntry.fullName,
+        };
+      }
+      setCustomStandard({ title: "", fullName: "" });
+      setIsAddingStandard(false);
+    }
+
+    const pendingValue = tempInput.trim();
+    if (pendingValue) {
+      if (isAddingCategory) {
+        const exists = categories.some(
+          (opt) => opt.toLowerCase() === pendingValue.toLowerCase(),
+        );
+        if (!exists) {
+          setCategories((prev) => [...prev, pendingValue]);
+        }
+        updatedType = { ...updatedType, category: pendingValue };
+      } else if (isAddingDesignCode) {
+        const exists = designCodes.some(
+          (opt) => opt.toLowerCase() === pendingValue.toLowerCase(),
+        );
+        if (!exists) {
+          setDesignCodes((prev) => [...prev, pendingValue]);
+        }
+        updatedType = { ...updatedType, defaultStandard: pendingValue };
       }
     }
+
+    if (isAddingCategory || isAddingDesignCode) {
+      setIsAddingCategory(false);
+      setIsAddingDesignCode(false);
+      setTempInput("");
+    }
+
+    setNewType(updatedType);
+    return updatedType;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const resolvedType = commitPendingAdditions();
     setIsSubmitting(true);
     try {
       if (editingId) {
-        const { id, createdAt, updatedAt, ...typePayload } = newType;
+        const { id, createdAt, updatedAt, ...typePayload } = resolvedType;
         await updateDoc(doc(db, "inspection_types", editingId), {
           ...typePayload,
           updatedAt: serverTimestamp(),
@@ -192,7 +302,7 @@ const InspectionTypeManager = () => {
         toast.success("Standard updated successfully");
       } else {
         await addDoc(collection(db, "inspection_types"), {
-          ...newType,
+          ...resolvedType,
           createdAt: serverTimestamp(),
         });
         toast.success("New standard registered");
@@ -308,6 +418,7 @@ const InspectionTypeManager = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1">
         <AdminSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

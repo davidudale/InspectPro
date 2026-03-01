@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../Common/ConfirmDialog";
 
 import { useAuth } from "../../Auth/AuthContext";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
@@ -33,6 +34,7 @@ const PendingApprovals = () => {
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
    useEffect(() => {
     if (!user?.uid) return;
@@ -93,18 +95,24 @@ const PendingApprovals = () => {
 
   // --- NEW: Function to return manifest to Inspector ---
   const handleReturnToInspector = async (projectId, name) => {
-    if (window.confirm(`Return "${name}" to Lead Inspector for corrections?`)) {
-      try {
-        const projectRef = doc(db, "projects", projectId);
-        await updateDoc(projectRef, {
-          status: "Pending Confirmation", // Reverting status
-          lastUpdated: serverTimestamp(),
-          returnNote: "Manager requested review/corrections",
-        });
-        toast.warning(`Project ${name} reverted to field status`);
-      } catch (error) {
-        toast.error("Status update failed: " + error.message);
-      }
+    const confirmed = await openConfirm({
+      title: "Return to Lead Inspector",
+      message: `Return "${name}" to Lead Inspector for corrections?`,
+      confirmLabel: "Return",
+      cancelLabel: "Cancel",
+      tone: "warning",
+    });
+    if (!confirmed) return;
+    try {
+      const projectRef = doc(db, "projects", projectId);
+      await updateDoc(projectRef, {
+        status: "Pending Confirmation",
+        lastUpdated: serverTimestamp(),
+        returnNote: "Manager requested review/corrections",
+      });
+      toast.warning(`Project ${name} reverted to field status`);
+    } catch (error) {
+      toast.error("Status update failed: " + error.message);
     }
   };
 
@@ -118,6 +126,7 @@ const PendingApprovals = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <ManagerNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1">
         <ManagerSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

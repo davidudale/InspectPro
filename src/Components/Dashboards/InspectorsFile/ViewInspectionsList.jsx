@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import InspectorNavbar from "./InspectorNavbar";
 import InspectorSidebar from "./InspectorSidebar";
 import { useAuth } from "../../Auth/AuthContext"; // Ensure useAuth is imported
@@ -41,6 +42,7 @@ const ViewInspectionsList = () => {
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
   if (!user?.uid) {
@@ -112,13 +114,19 @@ const ViewInspectionsList = () => {
 
   // Restrict Delete: Usually inspectors shouldn't delete projects, but keeping it if needed
   const handleDelete = async (projectId, name) => {
-    if (window.confirm(`Purge this assignment?`)) {
-      try {
-        await deleteDoc(doc(db, "projects", projectId));
-        toast.error(`Assignment purged`);
-      } catch (error) {
-        toast.error("Administrative permissions required for deletion.");
-      }
+    const confirmed = await openConfirm({
+      title: "Purge Assignment",
+      message: "Purge this assignment?",
+      confirmLabel: "Purge",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "projects", projectId));
+      toast.error(`Assignment purged`);
+    } catch (error) {
+      toast.error("Administrative permissions required for deletion.");
     }
   };
 
@@ -228,6 +236,7 @@ const ViewInspectionsList = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
        {user?.role === "Manager" ? <ManagerNavbar /> : <InspectorNavbar />}
+      {ConfirmDialog}
       <div className="flex">
         {user?.role === "Manager" ? <ManagerSidebar /> : <InspectorSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

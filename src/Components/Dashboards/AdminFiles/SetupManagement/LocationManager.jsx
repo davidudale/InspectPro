@@ -24,6 +24,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const LocationManager = () => {
   const [locations, setLocations] = useState([]);
@@ -50,12 +51,32 @@ const LocationManager = () => {
     clientId: "", // Foreign Key to Clients collection
     clientName: "", // Cached for display performance
   });
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     // 1. Sync Facility Data
     const qLocs = query(collection(db, "locations"), orderBy("name", "asc"));
     const unsubLocs = onSnapshot(qLocs, (snapshot) => {
-      setLocations(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const nextLocations = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setLocations(nextLocations);
+      const typeSet = new Set(
+        nextLocations
+          .map((loc) => (loc.type || "").trim())
+          .filter(Boolean),
+      );
+      setOptions((prev) => {
+        const base = [
+          "Offshore Platform",
+          "Refinery",
+          "Tank Farm",
+          "Pipeline Section",
+        ];
+        const merged = [...base, ...Array.from(typeSet)];
+        return Array.from(new Set(merged));
+      });
     });
 
     // 2. Sync Client Location for Linking
@@ -81,13 +102,19 @@ const LocationManager = () => {
   };
 
   const handleDelete = async (locationId, name) => {
-    if (window.confirm(`CRITICAL: Delete ${name} from Facility Location?`)) {
-      try {
-        await deleteDoc(doc(db, "locations", locationId));
-        toast.success("Facility record deleted");
-      } catch (err) {
-        toast.error("Delete operation failed");
-      }
+    const confirmed = await openConfirm({
+      title: "Delete Facility",
+      message: `CRITICAL: Delete ${name} from Facility Location?`,
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, "locations", locationId));
+      toast.success("Facility record deleted");
+    } catch (err) {
+      toast.error("Delete operation failed");
     }
   };
 
@@ -98,6 +125,20 @@ const LocationManager = () => {
 
     setIsSubmitting(true);
     try {
+      if (isCustom) {
+        const normalizedValue = customValue.trim();
+        if (normalizedValue) {
+          const exists = options.some(
+            (opt) => opt.toLowerCase() === normalizedValue.toLowerCase(),
+          );
+          if (!exists) {
+            setOptions((prev) => [...prev, normalizedValue]);
+          }
+          setNewLocation((prev) => ({ ...prev, type: normalizedValue }));
+          setCustomValue("");
+          setIsCustom(false);
+        }
+      }
       if (editingId) {
         const { id, createdAt, updatedAt, ...locationPayload } = newLocation;
         await updateDoc(doc(db, "locations", editingId), {
@@ -147,6 +188,7 @@ const LocationManager = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1">
         <AdminSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">

@@ -837,6 +837,14 @@ const VisualReport = () => {
       access: "Ground Level",
       temp: "Ambient",
     },
+    signoff: {
+      inspector: "",
+      reviewer: "",
+      manager: "",
+      inspectorSignature: "",
+      reviewerSignature: "",
+      managerSignature: "",
+    },
     observations: [],
     images: [],
   });
@@ -884,6 +892,7 @@ const VisualReport = () => {
             ...prev.general,
             ...p,
             client: p.clientName || p.client || "",
+            clientLogo: p.clientLogo || p.logo || prev.general.clientLogo || "",
             platform: p.locationName || p.location || "",
             tag: p.equipmentTag || p.tag || "",
             inspect_by: assignedInspectorName,
@@ -945,6 +954,13 @@ const VisualReport = () => {
               ...existingReport.general,
               ...p,
               client: p.clientName || p.client || existingReport?.general?.client || "",
+              clientLogo:
+                existingReport?.general?.clientLogo ||
+                p.clientLogo ||
+                p.logo ||
+                resolvedProjectData?.clientLogo ||
+                resolvedProjectData?.client?.logo ||
+                "",
               platform: p.locationName || p.location || existingReport?.general?.platform || "",
               tag: p.equipmentTag || p.tag || existingReport?.general?.tag || "",
               projectId:
@@ -973,6 +989,12 @@ const VisualReport = () => {
               ...prev.general,
               ...p,
               client: p.clientName || p.client || "",
+              clientLogo:
+                p.clientLogo ||
+                p.logo ||
+                resolvedProjectData?.clientLogo ||
+                resolvedProjectData?.client?.logo ||
+                "",
               platform: p.locationName || p.location || "",
               tag: p.equipmentTag || p.tag || "",
               inspect_by: assignedInspectorName,
@@ -1028,6 +1050,13 @@ const VisualReport = () => {
     setReportData((prev) => ({
       ...prev,
       environmental: { ...prev.environmental, [field]: value },
+    }));
+  };
+
+  const setSignoffField = (field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      signoff: { ...prev.signoff, [field]: value },
     }));
   };
 
@@ -1163,14 +1192,22 @@ const VisualReport = () => {
       return "text-red-700";
     };
 
-    const SignatureBlock = ({ label, name }) => (
+    const SignatureBlock = ({ label, name, signature }) => (
       <div className="space-y-4 ">
         <p className="text-[9px] font-black uppercase text-slate-400">
           {label}
         </p>
-        <div className="border-b-2 border-slate-950 pb-1 font-serif italic text-lg text-slate-900">
-          {name || "____________________"}
-        </div>
+        {signature ? (
+          <img
+            src={signature}
+            alt={`${label} signature`}
+            className="h-12 w-auto object-contain"
+          />
+        ) : (
+          <div className="border-b-2 border-slate-950 pb-1 font-serif italic text-lg text-slate-900">
+            {name || "____________________"}
+          </div>
+        )}
         <p className="text-[8px] text-slate-500 uppercase">
           Electronic Verification Signature
         </p>
@@ -1217,7 +1254,7 @@ const VisualReport = () => {
         <div className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
           <div className="report-page bg-white text-slate-950 p-4 sm:p-8 print:p-[20mm] min-h-[297mm] flex flex-col page-break">
             <div className="flex justify-between items-start border-b-2 border-slate-950 pb-6 mb-12">
-              <div className="text-blue-800 font-black text-xl">INSPECTPRO</div>
+              <div className="text-blue-800 font-black text-xl">{reportData.general.clientLogo}</div>
               {reportData.general.clientLogo ? (
                 <img
                   src={reportData.general.clientLogo}
@@ -1475,22 +1512,25 @@ const VisualReport = () => {
               </ul>
             </div>
 
-            {evidencePhotos.length === 0 && (
-              <div className="mt-auto grid grid-cols-3 gap-10">
-                <SignatureBlock
-                  label="Field Inspector"
-                  name={reportData.inspector}
-                />
-                <SignatureBlock
-                  label="Lead Inspector"
-                  name={reportData.LeadInspector}
-                />
-                <SignatureBlock
-                  label="Authorized By"
-                  name={user?.displayName || user?.name || user?.email}
-                />
-              </div>
-            )}
+              {evidencePhotos.length === 0 && (
+                <div className="mt-auto grid grid-cols-3 gap-10">
+                  <SignatureBlock
+                    label="Inspector"
+                    name={reportData.signoff?.inspector}
+                    signature={reportData.signoff?.inspectorSignature}
+                  />
+                  <SignatureBlock
+                    label="Reviewer"
+                    name={reportData.signoff?.reviewer}
+                    signature={reportData.signoff?.reviewerSignature}
+                  />
+                  <SignatureBlock
+                    label="Manager"
+                    name={reportData.signoff?.manager}
+                    signature={reportData.signoff?.managerSignature}
+                  />
+                </div>
+              )}
 
             {evidencePhotos.length === 0 && (
               <div className="mt-auto pt-10 border-t-4 border-slate-900 text-center">
@@ -1531,16 +1571,19 @@ const VisualReport = () => {
               <div className="mt-auto">
                 <div className="grid grid-cols-3 gap-10 pt-10">
                   <SignatureBlock
-                    label="Field Inspector"
-                    name={reportData.inspector}
+                    label="Inspector"
+                    name={reportData.signoff?.inspector}
+                    signature={reportData.signoff?.inspectorSignature}
                   />
                   <SignatureBlock
-                    label="Lead Inspector"
-                    name={reportData.LeadInspector}
+                    label="Reviewer"
+                    name={reportData.signoff?.reviewer}
+                    signature={reportData.signoff?.reviewerSignature}
                   />
                   <SignatureBlock
-                    label="Authorized By"
-                    name={user?.displayName || user?.name || user?.email}
+                    label="Manager"
+                    name={reportData.signoff?.manager}
+                    signature={reportData.signoff?.managerSignature}
                   />
                 </div>
                 <div className="pt-10 border-t-4 border-slate-900 text-center">
@@ -2161,6 +2204,193 @@ const VisualReport = () => {
                   </div>
                 ))}
               </div>
+
+              <section className="space-y-4 mt-10">
+                <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
+                  Sign-Off
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <InputField
+                    label="Inspector"
+                    value={reportData.signoff.inspector}
+                    onChange={(v) => setSignoffField("inspector", v)}
+                    readOnly={isViewOnly}
+                  />
+                  <InputField
+                    label="Reviewer"
+                    value={reportData.signoff.reviewer}
+                    onChange={(v) => setSignoffField("reviewer", v)}
+                    readOnly={isViewOnly}
+                  />
+                  <InputField
+                    label="Manager"
+                    value={reportData.signoff.manager}
+                    onChange={(v) => setSignoffField("manager", v)}
+                    readOnly={isViewOnly}
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {(user?.role === "Inspector" || user?.role === "Admin") && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Inspector Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 transition-colors ${
+                            isViewOnly
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:text-white hover:border-orange-500 cursor-pointer"
+                          }`}
+                        >
+                          <Camera size={14} /> Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isViewOnly}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSignoffField(
+                                  "inspectorSignature",
+                                  reader.result,
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {reportData.signoff.inspectorSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSignoffField("inspectorSignature", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              disabled={isViewOnly}
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(user?.role === "Supervisor" || user?.role === "Admin") && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Reviewer Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 transition-colors ${
+                            isViewOnly
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:text-white hover:border-orange-500 cursor-pointer"
+                          }`}
+                        >
+                          <Camera size={14} /> Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isViewOnly}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSignoffField(
+                                  "reviewerSignature",
+                                  reader.result,
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {reportData.signoff.reviewerSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSignoffField("reviewerSignature", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              disabled={isViewOnly}
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(user?.role === "Manager" || user?.role === "Admin") && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        Manager Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <label
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 transition-colors ${
+                            isViewOnly
+                              ? "opacity-50 cursor-not-allowed"
+                              : "hover:text-white hover:border-orange-500 cursor-pointer"
+                          }`}
+                        >
+                          <Camera size={14} /> Upload
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isViewOnly}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                setSignoffField(
+                                  "managerSignature",
+                                  reader.result,
+                                );
+                              };
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        {reportData.signoff.managerSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSignoffField("managerSignature", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              disabled={isViewOnly}
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
 
               {user?.role === "Inspector" && (
                 <div className="mt-8 flex justify-end">

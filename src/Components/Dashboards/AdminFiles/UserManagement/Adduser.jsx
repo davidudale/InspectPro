@@ -11,7 +11,8 @@ import AdminSidebar from "../../AdminSidebar";
 import { auth, db } from "../../../Auth/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
+import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 
 const Adduser = () => {
@@ -20,6 +21,7 @@ const Adduser = () => {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Inspector"); // Default role
   const navigate = useNavigate();
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -41,8 +43,14 @@ const Adduser = () => {
       }
       // Create a user document in Firestore with the role
 
-      alert("Registration Successful!");
       toast.success("Registration Successful! Please log in.");
+      await openConfirm({
+        title: "Registration Successful",
+        message: "Registration Successful! Please log in.",
+        confirmLabel: "OK",
+        showCancel: false,
+        tone: "success",
+      });
       navigate("/admin/users");
     } catch (error) {
       console.error(error.message);
@@ -53,6 +61,7 @@ const Adduser = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
+      {ConfirmDialog}
       <div className="flex flex-1 relative">
         <AdminSidebar />
 
