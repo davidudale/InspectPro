@@ -192,6 +192,14 @@ const AdminSidebar = () => {
       <div className="p-4 lg:p-6 border-b border-slate-800/50">
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
+            <button
+            type="button"
+            onClick={toggleMobileMenu}
+            className="ml-auto mb-4 relative lg:hidden p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            {isMobileExpanded ? <X size={16} /> : <Menu size={16} />}
+          </button>
             <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 p-0.5 shadow-orange-500/20">
               <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-white font-bold text-xs lg:text-base">
                 AV
@@ -199,23 +207,16 @@ const AdminSidebar = () => {
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
           </div>
-          <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block overflow-hidden`}>
+          <div className={`${isMobileExpanded ? "block " : "hidden"} lg:block overflow-hidden`}>
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
               {fullName || "Admin"}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={toggleMobileMenu}
-            className="ml-auto lg:hidden p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            {isMobileExpanded ? <X size={16} /> : <Menu size={16} />}
-          </button>
+          
         </div>
       </div>
       {/* Example Sidebar Icons for Mobile */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <nav className="flex-1 bg-slate-900 overflow-y-auto py-4 px-3 space-y-1">
         {sidebarLinks.map((link) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;

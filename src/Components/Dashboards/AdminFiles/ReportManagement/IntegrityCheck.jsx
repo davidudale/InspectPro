@@ -60,6 +60,7 @@ const IntegrityCheck = () => {
       diagramImage: "",
       utCalibrationCert: "",
       projectId: "",
+      inspectionType: ""
     },
     inspection: {
       scope: "",
@@ -1375,6 +1376,15 @@ export const IntegrityWebView = ({
 
           <div className="relative flex items-center justify-between px-12 py-6 border-b border-slate-200/80 backdrop-blur-md">
             {companyMark}
+            {reportData.general.clientLogo ? (
+              <img
+                src={reportData.general.clientLogo}
+                alt="Client"
+                className="h-12 w-auto object-contain"
+              />
+            ) : (
+              <div className="h-10 w-24 rounded-lg bg-slate-200/70" />
+            )}
           </div>
 
           <div className="relative flex-1 flex flex-col items-center justify-center text-center px-10">
@@ -1389,7 +1399,7 @@ export const IntegrityWebView = ({
             </h2>
             <div className="mt-8 h-1 w-40 rounded-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500" />
             <div className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
-              {reportData?.general?.platform || "Facility Name"}
+              {reportData?.general?.equipment || "Equipment Name"}
             </div>
           </div>
 
@@ -1444,8 +1454,8 @@ export const IntegrityWebView = ({
               </div>
               <div className="text-base font-extrabold uppercase tracking-[0.18em] leading-loose">
                 {reportData?.general?.projectName ||
-                  reportData?.general?.project ||
-                  "Project Name"}
+                  reportData?.general?.inspectionTypeName ||
+                  "inspectionTypeName"}
               </div>
             </div>
 
@@ -1727,8 +1737,9 @@ export const IntegrityWebView = ({
               , the inspection team carried out General Visual Inspection (GVI)
               and Ultrasonic Thickness Measurements (UTM) on the &nbsp;
               <span className="text-xs text-red-800">
-                {reportData?.general?.equipment || "asset"} at{" "}
-                {reportData?.general?.platform || "the facility"}.{" "}
+                {reportData?.general?.projectName ||
+                  reportData?.general?.inspectionTypeName ||
+                  "inspectionTypeName"}
               </span>
             </p>
 
@@ -1782,7 +1793,7 @@ export const IntegrityWebView = ({
 
             <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
               {reportData?.observations?.length ? (
-                <ol className="space-y-5 text-[11px] leading-relaxed text-slate-700">
+                <ol className="space-y-12 text-[14px] leading-relaxed text-slate-700">
                   {reportData.observations.map((item, idx) => (
                     <li
                       key={item.id}

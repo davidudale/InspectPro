@@ -3,14 +3,16 @@ import { useEffect, useState } from "react";
 import { auth, db } from "./firebase";
 import { doc, getDoc } from "firebase/firestore";
 
-export const ProtectedRoute = ({ children, allowedRoles }) => {
+export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasUser, setHasUser] = useState(false);
 
   useEffect(() => {
     const checkRole = async () => {
       const user = auth.currentUser;
       if (user) {
+        setHasUser(true);
         const docSnap = await getDoc(doc(db, "users", user.uid));
         setRole(docSnap.data()?.role);
       }
@@ -26,14 +28,15 @@ export const ProtectedRoute = ({ children, allowedRoles }) => {
       </div>
     );
 
-  return allowedRoles.includes(role) ? children : <Navigate to="/login" />;
-
-  const hasAccess = allowedRoles.includes(role);
-
-  if (!hasAccess) {
-    // Keep them logged in, but deny entry to this specific route
-    return <Navigate to="/unauthorized" replace />;
+  if (!hasUser) {
+    return <Navigate to="/login" replace />;
   }
+
+  if (allowedRoles.length === 0 || allowedRoles.includes(role)) {
+    return children;
+  }
+
+  return <Navigate to="/unauthorized" replace />;
 };
 
 export default ProtectedRoute;
