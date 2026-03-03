@@ -1,142 +1,567 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { 
-  Briefcase, Save, ArrowLeft, Shield, 
-  MapPin, Users, Activity, Clock 
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import {
+  Shield,
+  Building2,
+  MapPin,
+  Zap,
+  Cog,
+  Calendar,
+  Briefcase,
+  Package,
+  FileText,
+  UserCheck,
+  ArrowLeft,
+  Save,
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { useAuth } from "../../../Auth/AuthContext";
 
 const ProjectEdit = () => {
-  const { projectId } = useParams(); // URL param if accessing via direct link
+  const { user } = useAuth();
+  const { projectId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [projectDocId, setProjectDocId] = useState("");
 
-  // Initialize state with empty manifest structure
-  const [projectData, setProjectData] = useState({
+  const [clients, setClients] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [inspectionTypes, setInspectionTypes] = useState([]);
+  const [masterEquipment, setMasterEquipment] = useState([]);
+  const [inspectors, setInspectors] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+
+  const [setupData, setSetupData] = useState({
+    projectId: "",
     projectName: "",
-    client: "",
-    location: "",
-    status: "Planned",
+    clientId: "",
+    clientName: "",
+    clientLogo: "",
+    locationId: "",
+    locationName: "",
+    inspectionTypeId: "",
+    inspectionTypeCode: "",
+    inspectionTypeName: "",
+    selectedTechnique: "",
+    reportTemplate: "",
+    equipmentId: "",
+    equipmentTag: "",
+    equipmentCategory: "",
+    reportNum: "",
+    contractNumber: "",
+    pidNumber: "",
+    inspectorId: "",
+    inspectorName: "",
+    supervisorId: "",
+    supervisorName: "",
     startDate: "",
-    projectId: ""
+    status: "Forwarded to Inspector",
   });
 
   useEffect(() => {
-    const fetchProjectDetails = async () => {
-      // Priority 1: Check if data was passed via route state (from ProjectList)
+    const unsubClients = onSnapshot(
+      query(collection(db, "clients"), orderBy("name", "asc")),
+      (snap) => setClients(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const unsubLocs = onSnapshot(
+      query(collection(db, "locations"), orderBy("name", "asc")),
+      (snap) => setLocations(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const unsubTypes = onSnapshot(
+      query(collection(db, "inspection_types"), orderBy("title", "asc")),
+      (snap) =>
+        setInspectionTypes(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const unsubEquip = onSnapshot(
+      query(collection(db, "equipment"), orderBy("tagNumber", "asc")),
+      (snap) =>
+        setMasterEquipment(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const unsubInspectors = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "Inspector")),
+      (snap) =>
+        setInspectors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const unsubSupervisors = onSnapshot(
+      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "Supervisor"])),
+      (snap) =>
+        setSupervisors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+
+    return () => {
+      unsubClients();
+      unsubLocs();
+      unsubTypes();
+      unsubEquip();
+      unsubInspectors();
+      unsubSupervisors();
+    };
+  }, []);
+
+  useEffect(() => {
+    const bootstrap = async () => {
       if (location.state?.project) {
-        setProjectData(location.state.project);
+        setSetupData((prev) => ({ ...prev, ...location.state.project }));
+        setProjectDocId(location.state.project.id || "");
         setLoading(false);
         return;
       }
 
-      // Priority 2: Fetch from Firestore using URL ID
+      if (!projectId) {
+        setLoading(false);
+        return;
+      }
+
       try {
-        const docRef = doc(db, "projects", projectId);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setProjectData({ id: docSnap.id, ...docSnap.data() });
-        } else {
-          toast.error("Manifest not found in database");
-          navigate("/viewprojects");
+        let resolvedDoc = null;
+        const projectQuery = query(
+          collection(db, "projects"),
+          where("projectId", "==", projectId),
+          limit(1),
+        );
+        const snapshot = await getDocs(projectQuery);
+        if (!snapshot.empty) {
+          resolvedDoc = snapshot.docs[0];
         }
+
+        if (!resolvedDoc) {
+          const docSnap = await getDoc(doc(db, "projects", projectId));
+          if (docSnap.exists()) {
+            resolvedDoc = docSnap;
+          }
+        }
+
+        if (!resolvedDoc) {
+          toast.error("Project not found.");
+          navigate("/admin/projects");
+          return;
+        }
+
+        setProjectDocId(resolvedDoc.id);
+        setSetupData((prev) => ({ ...prev, ...resolvedDoc.data() }));
       } catch (error) {
-        toast.error("Failed to sync project data");
+        toast.error("Failed to load project.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProjectDetails();
-  }, [projectId, location.state, navigate]);
+    bootstrap();
+  }, [location.state, projectId, navigate]);
+
+  const availableLocations = useMemo(
+    () => locations.filter((loc) => loc.clientId === setupData.clientId),
+    [locations, setupData.clientId],
+  );
+  const selectedProtocol = useMemo(
+    () => inspectionTypes.find((t) => t.id === setupData.inspectionTypeId),
+    [inspectionTypes, setupData.inspectionTypeId],
+  );
+  const authorizedTechniques = selectedProtocol?.requiredTechniques || [];
+  const isTechniqueRequired = authorizedTechniques.length > 0;
 
   const handleUpdate = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
-
     try {
-      const docRef = doc(db, "projects", projectData.id);
-      await updateDoc(docRef, {
-        ...projectData,
-        lastUpdated: serverTimestamp()
+      let resolvedDocId = projectDocId;
+      if (!resolvedDocId && setupData.projectId) {
+        const projectQuery = query(
+          collection(db, "projects"),
+          where("projectId", "==", setupData.projectId),
+          limit(1),
+        );
+        const snapshot = await getDocs(projectQuery);
+        if (!snapshot.empty) {
+          resolvedDocId = snapshot.docs[0].id;
+        }
+      }
+      if (!resolvedDocId) {
+        throw new Error("Project reference missing.");
+      }
+
+      await updateDoc(doc(db, "projects", resolvedDocId), {
+        ...setupData,
+        lastUpdated: serverTimestamp(),
+        adminId: user?.uid || "",
+        adminName: user?.displayName || user?.name || "System Admin",
       });
-      
-      toast.success("Operational Manifest Updated");
-      navigate("/viewprojects");
+      toast.success("Project updated successfully.");
+      navigate("/admin/projects");
     } catch (error) {
-      toast.error("Update failed: Check permissions");
+      toast.error("Update failed: " + error.message);
     } finally {
       setIsUpdating(false);
     }
   };
 
-  if (loading) return (
-    <div className="flex justify-center items-center min-h-screen bg-slate-950 text-orange-500">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500"></div>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-slate-950 text-orange-500">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-orange-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
-          <div className="max-w-4xl mx-auto">
-            
-            {/* Header Navigation */}
-            <div className="flex items-center justify-between mb-10 border-b border-slate-900 pb-8">
-              <div>
-                <button 
-                  onClick={() => navigate("/admin/projects")}
-                  className="flex items-center gap-2 text-slate-500 hover:text-orange-500 transition-colors text-[10px] font-bold uppercase tracking-widest mb-4"
-                >
-                  <ArrowLeft size={14} /> Back to Directory
-                </button>
-                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white flex items-center gap-3">
-                  <Shield className="text-orange-500" /> Modify Manifest
-                </h1>
+        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
+          <div className="max-w-6xl mx-auto">
+            <header className="mb-10 border-b border-slate-900 pb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <button
+                    onClick={() => navigate("/admin/projects")}
+                    className="flex items-center gap-2 text-slate-500 hover:text-orange-500 transition-colors text-[10px] font-bold uppercase tracking-widest mb-4"
+                  >
+                    <ArrowLeft size={14} /> Back to Directory
+                  </button>
+                  <h1 className="text-3xl font-bold uppercase tracking-tighter flex items-center gap-3 text-white">
+                    <Shield className="text-orange-500" /> Project Update
+                  </h1>
+                </div>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em]">
+                  Project ID: {setupData.projectId || "N/A"}
+                </p>
               </div>
-              <div className="text-right">
-                <p className="text-slate-600 text-[9px] font-bold uppercase tracking-[0.3em]">Revision Control</p>
-                <p className="text-white font-mono text-xs">{projectData.projectId}</p>
-              </div>
-            </div>
+            </header>
 
-            <form onSubmit={handleUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              
-              {/* Primary Context Section */}
-              <div className="md:col-span-2 bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md shadow-xl">
-                <h2 className="text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                  <Briefcase size={14}/> 1. Core Project Identity
-                </h2>
-                
-                <div className="space-y-6">
-                  <EditInput 
-                    label="Manifest Name" 
-                    value={projectData.projectName} 
-                    onChange={(val) => setProjectData({...projectData, projectName: val})} 
-                  />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <EditInput 
-                      label="Corporate Client" 
-                      value={projectData.client} 
-                      onChange={(val) => setProjectData({...projectData, client: val})} 
+            <form
+              onSubmit={handleUpdate}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+            >
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <Building2 size={14} /> 1. Client & Facility Assignment
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Select Client
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.clientId}
+                        onChange={(e) => {
+                          const selected = clients.find(
+                            (c) => c.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            clientId: selected?.id || "",
+                            clientName: selected?.name || "",
+                            clientLogo: selected?.logo || "",
+                            locationId: "",
+                            locationName: "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select client</option>
+                        {clients.map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Select Location
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.locationId}
+                        onChange={(e) => {
+                          const selected = availableLocations.find(
+                            (l) => l.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            locationId: selected?.id || "",
+                            locationName: selected?.name || "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select location</option>
+                        {availableLocations.map((loc) => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <Zap size={14} /> 2. Inspection Protocol & Technique
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Inspection Type
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.inspectionTypeId}
+                        onChange={(e) => {
+                          const selected = inspectionTypes.find(
+                            (t) => t.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            inspectionTypeId: selected?.id || "",
+                            inspectionTypeCode: selected?.title || "",
+                            inspectionTypeName: selected?.fullName || "",
+                            selectedTechnique: "",
+                            reportTemplate: "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select inspection type</option>
+                        {inspectionTypes.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.title} - {type.fullName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Technique
+                      </label>
+                      <select
+                        required={isTechniqueRequired}
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.selectedTechnique}
+                        onChange={(e) =>
+                          setSetupData((prev) => ({
+                            ...prev,
+                            selectedTechnique: e.target.value,
+                            reportTemplate: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">Select technique</option>
+                        {(authorizedTechniques.length
+                          ? authorizedTechniques
+                          : ["Visual", "Detailed", "Integrity Check", "AUT", "MUT"]
+                        ).map((tech) => (
+                          <option key={tech} value={tech}>
+                            {tech}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <Package size={14} /> 3. Asset Identification
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Select Equipment
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.equipmentId}
+                        onChange={(e) => {
+                          const selected = masterEquipment.find(
+                            (eq) => eq.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            equipmentId: selected?.id || "",
+                            equipmentTag: selected?.tagNumber || "",
+                            equipmentCategory: selected?.category || "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select equipment</option>
+                        {masterEquipment.map((eq) => (
+                          <option key={eq.id} value={eq.id}>
+                            {eq.tagNumber} - {eq.category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Equipment Tag
+                      </label>
+                      <input
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.equipmentTag}
+                        readOnly
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <UserCheck size={14} /> 4. Team Assignment
+                  </h2>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Assign Inspector
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.inspectorId}
+                        onChange={(e) => {
+                          const selected = inspectors.find(
+                            (ins) => ins.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            inspectorId: selected?.id || "",
+                            inspectorName:
+                              selected?.displayName || selected?.name || "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select inspector</option>
+                        {inspectors.map((ins) => (
+                          <option key={ins.id} value={ins.id}>
+                            {ins.displayName || ins.name || ins.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Assign Supervisor
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.supervisorId}
+                        onChange={(e) => {
+                          const selected = supervisors.find(
+                            (sup) => sup.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            supervisorId: selected?.id || "",
+                            supervisorName:
+                              selected?.displayName || selected?.name || "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select supervisor</option>
+                        {supervisors.map((sup) => (
+                          <option key={sup.id} value={sup.id}>
+                            {sup.displayName || sup.name || sup.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <FileText size={14} /> 5. Documentation
+                  </h2>
+                  <div className="space-y-4">
+                    <EditInput
+                      label="Project Name"
+                      value={setupData.projectName}
+                      onChange={(val) =>
+                        setSetupData((prev) => ({ ...prev, projectName: val }))
+                      }
+                    />
+                    <EditInput
+                      label="Report Number"
+                      value={setupData.reportNum}
+                      onChange={(val) =>
+                        setSetupData((prev) => ({ ...prev, reportNum: val }))
+                      }
+                    />
+                    <EditInput
+                      label="Contract Number"
+                      value={setupData.contractNumber}
+                      onChange={(val) =>
+                        setSetupData((prev) => ({
+                          ...prev,
+                          contractNumber: val,
+                        }))
+                      }
+                    />
+                    <EditInput
+                      label="P&ID Number"
+                      value={setupData.pidNumber}
+                      onChange={(val) =>
+                        setSetupData((prev) => ({ ...prev, pidNumber: val }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <Calendar size={14} /> 6. Scheduling & Status
+                  </h2>
+                  <div className="space-y-4">
+                    <EditInput
+                      label="Deployment Date"
+                      type="date"
+                      value={setupData.startDate}
+                      onChange={(val) =>
+                        setSetupData((prev) => ({ ...prev, startDate: val }))
+                      }
                     />
                     <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">Operational Status</label>
-                      <select 
-                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all"
-                        value={projectData.status}
-                        onChange={(e) => setProjectData({...projectData, status: e.target.value})}
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Operational Status
+                      </label>
+                      <select
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.status}
+                        onChange={(e) =>
+                          setSetupData((prev) => ({
+                            ...prev,
+                            status: e.target.value,
+                          }))
+                        }
                       >
+                        <option value="Forwarded to Inspector">Forwarded to Inspector</option>
                         <option value="Planned">Planned</option>
                         <option value="In-Progress">In-Progress</option>
                         <option value="On-Hold">On-Hold</option>
@@ -147,43 +572,16 @@ const ProjectEdit = () => {
                 </div>
               </div>
 
-              {/* Logistics Section */}
-              <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
-                <h2 className="text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                  <MapPin size={14}/> 2. Field Logistics
-                </h2>
-                <EditInput 
-                  label="Facility Location" 
-                  value={projectData.location} 
-                  onChange={(val) => setProjectData({...projectData, location: val})} 
-                />
-              </div>
-
-              {/* Scheduling Section */}
-              <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
-                <h2 className="text-xs font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                  <Clock size={14}/> 3. Timeline
-                </h2>
-                <EditInput 
-                  label="Deployment Date" 
-                  type="date"
-                  value={projectData.startDate} 
-                  onChange={(val) => setProjectData({...projectData, startDate: val})} 
-                />
-              </div>
-
-              {/* Submit Section */}
-              <div className="md:col-span-2 pt-4">
-                <button 
+              <div className="lg:col-span-3">
+                <button
                   disabled={isUpdating}
                   type="submit"
                   className="w-full bg-orange-600 hover:bg-orange-700 text-white py-6 rounded-[2rem] font-bold uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all shadow-2xl shadow-orange-900/20 active:scale-95"
                 >
-                  {isUpdating ? "Synchronizing..." : "Update Manifest Changes"}
+                  {isUpdating ? "Updating..." : "Update Project"}
                   <Save size={18} />
                 </button>
               </div>
-
             </form>
           </div>
         </main>
@@ -192,11 +590,12 @@ const ProjectEdit = () => {
   );
 };
 
-// Reusable Sub-component for form fields
 const EditInput = ({ label, value, onChange, type = "text" }) => (
   <div className="space-y-2">
-    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">{label}</label>
-    <input 
+    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+      {label}
+    </label>
+    <input
       type={type}
       className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all shadow-inner"
       value={value}

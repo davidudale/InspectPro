@@ -11,7 +11,11 @@ import {
   limit,
 } from "firebase/firestore";
 import { Activity } from "lucide-react";
-import { IntegrityWebView } from "../AdminFiles/ReportManagement/IntegrityCheck";
+import IntegrityCheck, { IntegrityWebView } from "../AdminFiles/ReportManagement/IntegrityCheck";
+import VisualReport from "../AdminFiles/ReportManagement/VisualReport";
+import Aut from "../AdminFiles/ReportManagement/Aut";
+import DetailedReport from "../AdminFiles/ReportManagement/DetailedReport";
+import MutReport from "../AdminFiles/ReportManagement/MutReport";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -39,12 +43,12 @@ const ReportDownloadView = ({
       ""
     ).toLowerCase();
 
-    if (raw.includes("pressure vessel") || raw.includes("integrity"))
+    if (raw.includes("integrity"))
       return "integrity";
     if (raw.includes("detailed")) return "detailed";
-    if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
-    if (raw.includes("mut") || raw.includes("manual ut")) return "mut";
-    if (raw.includes("visual") || raw.includes("vt") || raw.includes("visual testing"))
+    if (raw.includes("aut") ) return "aut";
+    if (raw.includes("mut") ) return "mut";
+    if (raw.includes("visual"))
       return "visual";
     if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray"))
       return "visual";
@@ -100,7 +104,14 @@ const ReportDownloadView = ({
       try {
         const snap = await getDoc(doc(db, "companyprofile", "default"));
         if (snap.exists()) {
-          setCompanyLogo(snap.data()?.logo || "");
+          const data = snap.data() || {};
+          setCompanyLogo(
+            data.logo ||
+              data.companyLogo ||
+              data.companyLogoUrl ||
+              data.image ||
+              "",
+          );
         }
       } catch (error) {
         console.error("Failed to load company profile:", error);
@@ -166,6 +177,62 @@ const ReportDownloadView = ({
       signoff: base.signoff || {},
     };
   })();
+
+  const reportPayload = report || normalizedReportData;
+
+  if (techniqueType === "visual") {
+    return (
+      <VisualReport
+        previewData={reportPayload}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
+      />
+    );
+  }
+
+  if (techniqueType === "Integrity Check") {
+    return (
+      <IntegrityCheck
+        reportData={normalizedReportData}
+        companyLogo={companyLogo}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+      />
+    );
+  }
+  if (techniqueType === "aut") {
+    return (
+      <Aut
+        previewData={reportPayload}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
+      />
+    );
+  }
+
+  if (techniqueType === "mut") {
+    return (
+      <MutReport
+        previewData={reportPayload}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
+      />
+    );
+  }
+
+  if (techniqueType === "detailed") {
+    return (
+      <DetailedReport
+        previewData={reportPayload}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
+      />
+    );
+  }
 
   return (
     <IntegrityWebView

@@ -798,7 +798,12 @@ const INSPECTION_SCHEMAS = {
   ],
 };
 
-const VisualReport = () => {
+const VisualReport = ({
+  previewData,
+  onBack,
+  hideControls = false,
+  companyLogo: companyLogoProp,
+}) => {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -814,6 +819,7 @@ const VisualReport = () => {
     user?.role === "Supervisor" ||
     user?.role === "Manager";
 
+  const [companyLogo, setCompanyLogo] = useState(companyLogoProp || "");
   const [reportData, setReportData] = useState({
     general: {
       platform: " ",
@@ -1008,6 +1014,32 @@ const VisualReport = () => {
     };
     initializeManifest();
   }, [location.state]);
+
+  useEffect(() => {
+    if (companyLogoProp) {
+      setCompanyLogo(companyLogoProp);
+      return;
+    }
+    const loadCompanyProfile = async () => {
+      try {
+        const snap = await getDoc(doc(db, "companyprofile", "default"));
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          setCompanyLogo(
+            data.logo ||
+              data.companyLogo ||
+              data.companyLogoUrl ||
+              data.image ||
+              "",
+          );
+        }
+      } catch (error) {
+        console.error("Failed to load company profile:", error);
+      }
+    };
+
+    loadCompanyProfile();
+  }, [companyLogoProp]);
 
   const handlePhotoUpload = async (e, idx) => {
     const file = e.target.files[0];
@@ -1598,7 +1630,13 @@ const VisualReport = () => {
       </div>
     );
   };
-  const IntegrityStyleWebView = () => {
+  const VisualReportWebView = ({
+    reportData,
+    onBack,
+    hideControls = false,
+    companyLogo,
+  }) => {
+    const handleBack = onBack || (() => {});
     const observations = reportData.observations || [];
     const photoItems = observations.filter((obs) => obs.photoRef);
     const photosPerPage = 6;
@@ -1608,23 +1646,47 @@ const VisualReport = () => {
       photoItems.slice(idx * photosPerPage, (idx + 1) * photosPerPage),
     );
 
+    const resolvedCompanyLogo =
+      companyLogo ||
+      reportData?.general?.companyLogo ||
+      reportData?.general?.companyLogoUrl ||
+      "";
     const Header = () => (
-      <div className="relative flex items-center justify-between px-12 py-6 border-b border-slate-200/80 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/30" />
-          <div className="text-blue-900 font-black text-xl tracking-wide">
-            INSPECTPRO
+      <div className="relative px-10 py-4 border-b border-slate-200/80 backdrop-blur-md">
+        <div className="border border-slate-400 bg-white/90 p-[2px]">
+          <div className="border border-slate-300">
+            <div className="grid grid-cols-[140px_1fr_140px] items-center">
+              <div className="h-16 border-r border-slate-300 flex items-center justify-center">
+                {reportData.general.clientLogo ? (
+                  <img
+                    src={reportData.general.clientLogo}
+                    alt="Client"
+                    className="h-12 w-auto object-contain"
+                  />
+                ) : (
+                  <div className="h-8 w-20 border border-slate-300 bg-slate-100" />
+                )}
+              </div>
+              <div className="h-16 flex items-center justify-center px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 text-center leading-tight">
+                {reportData?.general?.inspectionTypeName ||
+                  reportData?.general?.inspectionTypeCode ||
+                  reportData?.general?.inspectionType ||
+                  "Visual Inspection Report"}
+              </div>
+              <div className="h-16 border-l border-slate-300 flex items-center justify-center">
+              {resolvedCompanyLogo ? (
+                <img
+                  src={resolvedCompanyLogo}
+                  alt="Company logo"
+                  className="h-12 w-auto object-contain"
+                />
+              ) : (
+                  <div className="h-8 w-20 border border-slate-300 bg-slate-100" />
+                )}
+              </div>
+            </div>
           </div>
         </div>
-        {reportData.general.clientLogo ? (
-          <img
-            src={reportData.general.clientLogo}
-            alt="Client"
-            className="h-12 w-auto object-contain"
-          />
-        ) : (
-          <div className="h-10 w-24 rounded-lg bg-slate-200/70" />
-        )}
       </div>
     );
 
@@ -1666,28 +1728,30 @@ const VisualReport = () => {
             }
           }
         `}</style>
-        <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
-          <button
-            onClick={() => setReportMode(false)}
-            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
-          >
-            <ChevronLeft size={18} /> Back
-          </button>
-          <div className="flex gap-4">
+        {!hideControls && (
+          <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
             <button
-              onClick={() => window.print()}
-              className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 border border-slate-700"
+              onClick={handleBack}
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
             >
-              <Printer size={18} /> Print
+              <ChevronLeft size={18} /> Back
             </button>
-            <button
-              onClick={() => setReportMode(false)}
-              className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-900/20"
-            >
-              <XCircle size={18} /> Close Preview
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => window.print()}
+                className="bg-slate-800 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 border border-slate-700"
+              >
+                <Printer size={18} /> Print
+              </button>
+              <button
+                onClick={handleBack}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-orange-900/20"
+              >
+                <XCircle size={18} /> Close Preview
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
           <PageShell>
@@ -1863,7 +1927,7 @@ const VisualReport = () => {
                         key={item.sn || item.id || idx}
                         className="rounded-2xl border border-slate-200 bg-white/70 p-4"
                       >
-                        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px] gap-4 items-start">
+                        <div className="grid grid-cols-1 gap-4 items-start">
                           <div className="flex items-start gap-3 min-w-0">
                             <span className="text-red-600 font-black">
                               {idx + 1}.
@@ -1955,7 +2019,24 @@ const VisualReport = () => {
     );
   };
 
-  if (reportMode) return <IntegrityStyleWebView />;
+  if (previewData)
+    return (
+      <VisualReportWebView
+        reportData={previewData}
+        onBack={onBack}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
+      />
+    );
+
+  if (reportMode)
+    return (
+      <VisualReportWebView
+        reportData={reportData}
+        onBack={() => setReportMode(false)}
+        companyLogo={companyLogo}
+      />
+    );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
