@@ -5,7 +5,7 @@ import {
   deleteDoc, doc, serverTimestamp, orderBy 
 } from "firebase/firestore";
 import { 
-  Plus, Trash2, Edit2, Search, X, Cog, Package, AlertTriangle, 
+  Plus, Tra2, Search, X, Cog, Package, AlertTriangle, 
   Layers, Ruler, Droplets, Factory, Check
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
