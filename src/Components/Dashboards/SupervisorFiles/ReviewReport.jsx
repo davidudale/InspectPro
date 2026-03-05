@@ -5,7 +5,7 @@ import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
-import ReportDownloadView from "../ManagerFile/ReportDownloadView";
+import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
 
 const ReviewReport = () => {
   const { id } = useParams();
@@ -19,8 +19,9 @@ const ReviewReport = () => {
         {user?.role === "Admin" ? <AdminSidebar /> : <SupervisorSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
-            <ReportDownloadView
+            <ProjectPreview
               projectId={id}
+              hideControls
               embedded
               showCloseButton
               onClose={() => navigate(-1)}
@@ -33,4 +34,3 @@ const ReviewReport = () => {
 };
 
 export default ReviewReport;
-

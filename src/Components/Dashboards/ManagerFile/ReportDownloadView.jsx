@@ -161,6 +161,11 @@ const ReportDownloadView = ({
         reportNum: baseGeneral.reportNum || project?.reportNum || "",
         date: baseGeneral.date || project?.startDate || "",
         equipment: baseGeneral.equipment || project?.equipmentCategory || "",
+        diagramImage:
+          baseGeneral.diagramImage ||
+          base.diagramImage ||
+          project?.report?.general?.diagramImage ||
+          "",
         clientLogo:
           baseGeneral.clientLogo ||
           project?.clientLogo ||
@@ -191,10 +196,10 @@ const ReportDownloadView = ({
     );
   }
 
-  if (techniqueType === "Integrity Check") {
+  if (techniqueType === "integrity") {
     return (
       <IntegrityCheck
-        reportData={normalizedReportData}
+        reportData={reportPayload}
         companyLogo={companyLogo}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}

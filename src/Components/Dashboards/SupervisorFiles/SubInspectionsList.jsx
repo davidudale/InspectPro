@@ -37,19 +37,22 @@ const SubInspectionsList = () => {
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
+  const isReviewQueueStatus = (status = "") =>
+    status === "Pending Confirmation" ||
+    status.startsWith("In Lead Review - ") ||
+    status.startsWith("Returned to ");
+
    useEffect(() => {
     if (!user?.uid) return;
   
     let q;
   
-    const statusFilter = ["Pending Confirmation", "Returned for correction", "Reviewing"];
-
     // 1. DYNAMIC QUERY SELECTION BASED ON ROLE
-    // Managers and Admins see EVERYTHING with this status
+    // Managers and Admins see everything; status is filtered client-side
+    // because two required states are dynamic strings with assigned names.
     if (user?.role === "Manager" || user?.role === "Admin") {
       q = query(
         collection(db, "projects"),
-        where("status", "in", statusFilter),
         orderBy("startDate", "desc")
       );
     } 
@@ -58,7 +61,6 @@ const SubInspectionsList = () => {
       q = query(
         collection(db, "projects"),
         where("supervisorId", "==", user.uid),
-        where("status", "in", statusFilter),
         orderBy("startDate", "desc")
       );
     }
@@ -70,23 +72,21 @@ const SubInspectionsList = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        setProjects(projectsData);
+        setProjects(projectsData.filter((p) => isReviewQueueStatus(p.status)));
         setLoading(false);
       },
       (error) => {
         console.error("Firestore Error:", error);
         // Simplified fallback to avoid index issues during role transition
-        const fallbackQ = query(
-          collection(db, "projects"),
-          where("status", "in", statusFilter)
-        );
+        const fallbackQ = query(collection(db, "projects"));
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const filteredByStatus = data.filter((p) => isReviewQueueStatus(p.status));
           // Manual filter for fallback if index isn't ready
           if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
-            setProjects(data.filter(p => p.supervisorId === user.uid));
+            setProjects(filteredByStatus.filter((p) => p.supervisorId === user.uid));
           } else {
-            setProjects(data);
+            setProjects(filteredByStatus);
           }
           setLoading(false);
         });
@@ -121,9 +121,11 @@ const SubInspectionsList = () => {
 
   const handleReview = async (project) => {
     try {
+      const assignedSupervisorName =
+        project?.supervisorName || user?.displayName || "Supervisor";
       const projectRef = doc(db, "projects", project.id);
       await updateDoc(projectRef, {
-        status: "Reviewing",
+        status: `In Lead Review - ${assignedSupervisorName}`,
         updatedAt: serverTimestamp(),
       });
     } catch (error) {

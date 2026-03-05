@@ -155,6 +155,29 @@ const IntegrityCheck = ({
     user?.role === "Supervisor" ||
     user?.role === "Manager";
   const canSendForConfirmation = canSaveReport;
+  const canViewInspectorSignature = [
+    "Inspector",
+    "Lead Inspector",
+    "Supervisor",
+    "Manager",
+    "Admin",
+  ].includes(user?.role);
+  const canEditInspectorSignature =
+    user?.role === "Inspector" || user?.role === "Admin";
+  const canViewLeadSignature = [
+    "Lead Inspector",
+    "Supervisor",
+    "Manager",
+    "Admin",
+  ].includes(user?.role);
+  const canEditLeadSignature =
+    user?.role === "Lead Inspector" ||
+    user?.role === "Supervisor" ||
+    user?.role === "Admin";
+  const canViewManagerSignature =
+    user?.role === "Manager" || user?.role === "Admin";
+  const canEditManagerSignature =
+    user?.role === "Manager" || user?.role === "Admin";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
@@ -341,6 +364,58 @@ const IntegrityCheck = ({
     }));
   };
 
+  const uploadImageToCloudinary = async (file, label = "image") => {
+    const cloudName = "dsgzpl0xt";
+    const uploadPreset = "inspectpro";
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    toast.info(`Uploading ${label}...`);
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+    const data = await res.json();
+    if (!res.ok || !data?.secure_url) {
+      throw new Error(data?.error?.message || "Cloudinary upload failed.");
+    }
+    return data.secure_url;
+  };
+
+  const handleGeneralImageUpload = async (field, file, label) => {
+    try {
+      const url = await uploadImageToCloudinary(file, label);
+      handleChange("general", field, url);
+      toast.success(`${label} uploaded.`);
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handleObservationPhotoUpload = async (obsId, file) => {
+    try {
+      const url = await uploadImageToCloudinary(file, "observation photo");
+      updateObservation(obsId, "photo", url);
+      toast.success("Observation photo uploaded.");
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handleSignoffUpload = async (field, file, label) => {
+    try {
+      const url = await uploadImageToCloudinary(file, label);
+      handleChange("signoff", field, url);
+      toast.success(`${label} uploaded.`);
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
   const updateObservation = (id, field, value) => {
     setReportData((prev) => ({
       ...prev,
@@ -477,6 +552,110 @@ const IntegrityCheck = ({
     }));
   };
 
+  const asText = (value) => {
+    if (value === null || value === undefined) return "";
+    return typeof value === "string" ? value : String(value);
+  };
+
+  const buildFirestoreReportPayload = (statusOverride) => {
+    const g = reportData?.general || {};
+    const i = reportData?.inspection || {};
+    const s = reportData?.signoff || {};
+    const observations = Array.isArray(reportData?.observations)
+      ? reportData.observations.map((obs, idx) => ({
+          id: asText(obs?.id || `${Date.now()}-${idx}`),
+          title: asText(obs?.title),
+          description: asText(obs?.description),
+          photo: asText(obs?.photo),
+          photoNote: asText(obs?.photoNote),
+        }))
+      : [];
+    const utm = Array.isArray(reportData?.utm)
+      ? reportData.utm.map((group, gIdx) => ({
+          id: asText(group?.id || `G-${gIdx + 1}`),
+          tieIn: asText(group?.tieIn || `G-${gIdx + 1}`),
+          points: Array.isArray(group?.points)
+            ? group.points.map((p, pIdx) => ({
+                id: asText(p?.id || `${Date.now()}-${gIdx}-${pIdx}`),
+                point:
+                  typeof p?.point === "number" && Number.isFinite(p.point)
+                    ? p.point
+                    : pIdx + 1,
+                nominal: asText(p?.nominal),
+                add: asText(p?.add),
+                min: asText(p?.min),
+                observation: asText(p?.observation),
+              }))
+            : [],
+        }))
+      : [];
+    const customSections = Array.isArray(reportData?.customSections)
+      ? reportData.customSections.map((section, idx) => ({
+          id: asText(section?.id || `${Date.now()}-${idx}`),
+          title: asText(section?.title),
+          content: asText(section?.content),
+        }))
+      : [];
+
+    return {
+      type: asText(reportData?.type || "Integrity Check"),
+      reportId: asText(projectDocId || g.projectId || ""),
+      status: asText(statusOverride || reportData?.status || "Draft"),
+      general: {
+        client: asText(g.client),
+        platform: asText(g.platform),
+        tag: asText(g.tag),
+        reportNum: asText(g.reportNum),
+        date: asText(g.date),
+        equipment: asText(g.equipment),
+        diagramImage: asText(g.diagramImage),
+        utCalibrationCert: asText(g.utCalibrationCert),
+        projectId: asText(projectDocId || g.projectId || ""),
+        inspectionType: asText(g.inspectionType),
+        inspectionTypeName: asText(g.inspectionTypeName),
+        inspectionTypeCode: asText(g.inspectionTypeCode),
+        projectName: asText(g.projectName),
+        clientLogo: asText(g.clientLogo),
+        material: asText(g.material),
+        utEquipment: asText(g.utEquipment),
+        utSerial: asText(g.utSerial),
+        utProbe: asText(g.utProbe),
+        testTemp: asText(g.testTemp),
+        materialSize: asText(g.materialSize),
+        calibrationDate: asText(g.calibrationDate),
+        couplant: asText(g.couplant),
+        inspectBy: asText(g.inspectBy),
+        contract: asText(g.contract),
+        coordinator: asText(g.coordinator),
+        pidNumber: asText(g.pidNumber),
+        procedure: asText(g.procedure),
+        testCode: asText(g.testCode),
+        criteria: asText(g.criteria),
+      },
+      inspection: {
+        scope: asText(i.scope),
+        method: asText(i.method),
+        findings: asText(i.findings),
+        corrosion: asText(i.corrosion),
+        defects: asText(i.defects),
+        recommendations: asText(i.recommendations),
+        conclusion: asText(i.conclusion),
+      },
+      observations,
+      utm,
+      signoff: {
+        inspector: asText(s.inspector || user?.displayName || ""),
+        reviewer: asText(s.reviewer),
+        manager: asText(s.manager),
+        inspectorSignature: asText(s.inspectorSignature),
+        reviewerSignature: asText(s.reviewerSignature),
+        managerSignature: asText(s.managerSignature),
+      },
+      customSections,
+      timestamp: new Date().toISOString(),
+    };
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -485,16 +664,7 @@ const IntegrityCheck = ({
         throw new Error("Project reference missing.");
       }
 
-      const payload = {
-        ...reportData,
-        reportId: resolvedProjectId,
-        status: reportData.status || "Draft",
-        signoff: {
-          ...reportData.signoff,
-          inspector: reportData.signoff.inspector || user?.displayName || "",
-        },
-        timestamp: serverTimestamp(),
-      };
+      const payload = buildFirestoreReportPayload(reportData?.status || "Draft");
       await setDoc(
         doc(db, "projects", resolvedProjectId),
         {
@@ -521,16 +691,7 @@ const IntegrityCheck = ({
         throw new Error("Project reference missing.");
       }
 
-      const payload = {
-        ...reportData,
-        reportId: resolvedProjectId,
-        status: "Pending Confirmation",
-        signoff: {
-          ...reportData.signoff,
-          inspector: reportData.signoff.inspector || user?.displayName || "",
-        },
-        timestamp: serverTimestamp(),
-      };
+      const payload = buildFirestoreReportPayload("Pending Confirmation");
       await setDoc(
         doc(db, "projects", resolvedProjectId),
         {
@@ -562,10 +723,14 @@ const IntegrityCheck = ({
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <Navbar />
+      {!hideControls && <Navbar />}
       <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+        {!hideControls && <Sidebar />}
+        <main
+          className={`flex-1 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950 ${
+            hideControls ? "" : "ml-16 lg:ml-64"
+          }`}
+        >
           <div className="max-w-5xl mx-auto">
             <header className="flex justify-between items-center mb-8 bg-slate-900/40 p-6 rounded-sm border border-slate-800">
               <div className="flex items-center gap-4">
@@ -591,7 +756,7 @@ const IntegrityCheck = ({
                         ? "Resend"
                         : user?.role === "Inspector"
                           ? "Send For Confirmation"
-                          : "ADD CHANGES"}
+                          : "SAVE REPORT"}
                     </button>
                   )}
                 <button
@@ -699,15 +864,11 @@ const IntegrityCheck = ({
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            handleChange(
-                              "general",
-                              "diagramImage",
-                              reader.result,
-                            );
-                          };
-                          reader.readAsDataURL(file);
+                          handleGeneralImageUpload(
+                            "diagramImage",
+                            file,
+                            "schematic diagram",
+                          );
                         }}
                       />
                     </label>
@@ -783,15 +944,7 @@ const IntegrityCheck = ({
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                updateObservation(
-                                  obs.id,
-                                  "photo",
-                                  reader.result,
-                                );
-                              };
-                              reader.readAsDataURL(file);
+                              handleObservationPhotoUpload(obs.id, file);
                             }}
                       />
                     </label>
@@ -880,15 +1033,11 @@ const IntegrityCheck = ({
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            handleChange(
-                              "general",
-                              "utCalibrationCert",
-                              reader.result,
-                            );
-                          };
-                          reader.readAsDataURL(file);
+                          handleGeneralImageUpload(
+                            "utCalibrationCert",
+                            file,
+                            "UT calibration certificate",
+                          );
                         }}
                       />
                     </label>
@@ -1137,152 +1286,152 @@ const IntegrityCheck = ({
                     required
                   />
                   <InputField
-                    label="Reviewer"
+                    label="Lead Inspector"
                     value={reportData.signoff.reviewer}
                     onChange={(v) => handleChange("signoff", "reviewer", v)}
                     required
                   />
                   <InputField
-                    label="Manager"
+                    label="NDT Manager"
                     value={reportData.signoff.manager}
                     onChange={(v) => handleChange("signoff", "manager", v)}
                     required
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {(user?.role === "Inspector" || user?.role === "Admin") && (
+                  {canViewInspectorSignature && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         Inspector Signature
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                          <Camera size={14} /> Upload
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                handleChange(
-                                  "signoff",
+                        {canEditInspectorSignature && (
+                          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                            <Camera size={14} /> Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                handleSignoffUpload(
                                   "inspectorSignature",
-                                  reader.result,
+                                  file,
+                                  "inspector signature",
                                 );
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                        </label>
+                              }}
+                            />
+                          </label>
+                        )}
                         {reportData.signoff.inspectorSignature && (
                           <>
                             <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
                               Signature attached
                             </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleChange("signoff", "inspectorSignature", "")
-                              }
-                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                            >
-                              Remove
-                            </button>
+                            {canEditInspectorSignature && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleChange("signoff", "inspectorSignature", "")
+                                }
+                                className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              >
+                                Remove
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
                     </div>
                   )}
-                  {(user?.role === "Supervisor" || user?.role === "Admin") && (
+                  {canViewLeadSignature && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        Reviewer Signature
+                        Lead Inspector Signature
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                          <Camera size={14} /> Upload
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                handleChange(
-                                  "signoff",
+                        {canEditLeadSignature && (
+                          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                            <Camera size={14} /> Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                handleSignoffUpload(
                                   "reviewerSignature",
-                                  reader.result,
+                                  file,
+                                  "reviewer signature",
                                 );
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                        </label>
+                              }}
+                            />
+                          </label>
+                        )}
                         {reportData.signoff.reviewerSignature && (
                           <>
                             <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
                               Signature attached
                             </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleChange("signoff", "reviewerSignature", "")
-                              }
-                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                            >
-                              Remove
-                            </button>
+                            {canEditLeadSignature && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleChange("signoff", "reviewerSignature", "")
+                                }
+                                className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              >
+                                Remove
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
                     </div>
                   )}
-                  {(user?.role === "Manager" || user?.role === "Admin") && (
+                  {canViewManagerSignature && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        Manager Signature
+                        NDT Manager Signature
                       </label>
                       <div className="flex items-center gap-3">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                          <Camera size={14} /> Upload
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                handleChange(
-                                  "signoff",
+                        {canEditManagerSignature && (
+                          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                            <Camera size={14} /> Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                handleSignoffUpload(
                                   "managerSignature",
-                                  reader.result,
+                                  file,
+                                  "manager signature",
                                 );
-                              };
-                              reader.readAsDataURL(file);
-                            }}
-                          />
-                        </label>
+                              }}
+                            />
+                          </label>
+                        )}
                         {reportData.signoff.managerSignature && (
                           <>
                             <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
                               Signature attached
                             </span>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleChange("signoff", "managerSignature", "")
-                              }
-                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                            >
-                              Remove
-                            </button>
+                            {canEditManagerSignature && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleChange("signoff", "managerSignature", "")
+                                }
+                                className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              >
+                                Remove
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -1291,14 +1440,14 @@ const IntegrityCheck = ({
                 </div>
               </section>
             </div>
-            {canSaveReport && (
+            {user?.role === "Inspector" && (
               <div className="mt-8 flex justify-end">
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
                   className="bg-orange-600 px-6 py-3 rounded-sm text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-orange-700 shadow-lg disabled:opacity-50"
                 >
-                  <Save size={14} /> {isSaving ? "Saving..." : "Save Report"}
+                  <Save size={14} /> {isSaving ? "Saving..." : "Save Report"} 
                 </button>
               </div>
             )}
@@ -1401,7 +1550,7 @@ export const IntegrityWebView = ({
                 <div className="h-8 w-20 border border-slate-300 bg-slate-100" />
               )}
             </div>
-            <div className="h-16 flex items-center justify-center px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 text-center leading-tight">
+            <div className="h-16 flex items-center justify-center px-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-black text-center leading-tight">
               {reportData?.general?.inspectionTypeName ||
                 reportData?.general?.inspectionTypeCode ||
                 reportData?.general?.inspectionType ||
@@ -1629,7 +1778,7 @@ export const IntegrityWebView = ({
               </div>
             </div>
 
-            <div className="text-sm font-semibold uppercase tracking-wide text-slate-700">
+            <div className="text-sm font-semibold uppercase tracking-wide text-black">
               {formattedMonthYear || "Inspection Date"}
             </div>
           </div>
@@ -1640,7 +1789,7 @@ export const IntegrityWebView = ({
                 ORIGINAL
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page 2 of {totalPages}
             </div>
           </div>
@@ -1658,35 +1807,35 @@ export const IntegrityWebView = ({
             <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
               <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
                 <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black ">
                     Client
                   </div>
-                  <div className="font-bold text-slate-800">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.client || "N/A"}
                   </div>
                 </div>
                 <div className="p-3 space-y-1">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="font-bold uppercase text-slate-500">
+                    <div className="font-bold uppercase text-[13px] text-black">
                       Report Number
                     </div>
-                    <div className="font-bold">
+                    <div className="font-bold text-blue-900 text-[12px]">
                       {reportData?.general?.reportNum || "N/A"}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="font-bold uppercase text-slate-500">
+                    <div className="font-bold uppercase text-[13px] text-black">
                       Contract Number
                     </div>
-                    <div className="font-bold">
+                    <div className="font-bold text-blue-900 text-[12px]">
                       {reportData?.general?.contract || "N/A"}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="font-bold uppercase text-slate-500">
+                    <div className="font-bold uppercase text-[13px] text-black">
                       Date of Inspection
                     </div>
-                    <div className="font-bold">
+                    <div className="font-bold text-blue-900 text-[12px]">
                       {reportData?.general?.date || "N/A"}
                     </div>
                   </div>
@@ -1695,18 +1844,18 @@ export const IntegrityWebView = ({
 
               <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
                 <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black">
                     Location
                   </div>
-                  <div className="font-bold text-slate-800">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.platform || "N/A"}
                   </div>
                 </div>
                 <div className="p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black">
                     Inspection Coordinator
                   </div>
-                  <div className="font-bold">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.coordinator || "N/A"}
                   </div>
                 </div>
@@ -1714,18 +1863,18 @@ export const IntegrityWebView = ({
 
               <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
                 <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black">
                     P & ID Number / DWG No.
                   </div>
-                  <div className="font-bold">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.pidNumber || "N/A"}
                   </div>
                 </div>
                 <div className="p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black">
                     Operating Procedure
                   </div>
-                  <div className="font-bold">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.procedure || "N/A"}
                   </div>
                 </div>
@@ -1733,61 +1882,57 @@ export const IntegrityWebView = ({
 
               <div className="grid grid-cols-2 text-[10px]">
                 <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black">
                     Test Code
                   </div>
-                  <div className="text-red-600 font-black">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.testCode || "N/A"}
                   </div>
                 </div>
                 <div className="p-3">
-                  <div className="font-bold uppercase text-slate-500">
+                  <div className="font-bold uppercase text-[13px] text-black">
                     Acceptance Criteria
                   </div>
-                  <div className="font-bold">
+                  <div className="font-bold text-blue-900 text-[12px]">
                     {reportData?.general?.criteria || "N/A"}
                   </div>
                 </div>
               </div>
             </div>
            
-            <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
-              <div className="px-5 py-3 border-b border-slate-200">
-                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 text-center">
+            <div className="rounded-sm mt-[40px] border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
+              <div className="px-5 py-3 border-b border-slate-200 ">
+                <p className="text-[13px] font-bold text-blue-900 uppercase tracking-[0.3em]  text-center">
                   Table of Contents
                 </p>
               </div>
-              <table className="w-full text-[10px] border-collapse">
+              <table className="w-full text-[10px] border-collapse bg-blue-200">
                 <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="border-r border-slate-200 p-2 w-12">S/N</th>
-                    <th className="border-r border-slate-200 p-2">
+                  <tr className="border-b border-slate-200 text-black ">
+                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">S/N</th>
+                    <th className="border-r border-slate-200 p-2 text-[12px]">
                       Description
                     </th>
-                    <th className="p-2 w-20">Page No.</th>
+                    <th className="p-2 w-20 text-[12px]">Page No.</th>
                   </tr>
                 </thead>
                 <tbody className="text-slate-800">
                   {[
-                    { sn: "1.0", desc: "Introduction", page: "3" },
+                    { desc: "Introduction", page: "3" },
                     {
-                      sn: "2.0",
                       desc: "Schematic Diagram for Item Identification",
                       page: "3",
                     },
-                    { sn: "3.0", desc: "Summary of Findings", page: "4-5" },
+                    { desc: "Summary of Findings", page: "4-5" },
                     {
-                      sn: "4.0",
                       desc: "Inspection Finding Overview",
                       page: "5",
                     },
                     ...customSections.map((section, idx) => ({
-                      sn: `C${idx + 1}.0`,
                       desc: section.title || `Custom Section ${idx + 1}`,
                       page: `${customStartPage + idx}`,
                     })),
                     {
-                      sn: "5.0",
                       desc: "Photographic Detail",
                       page:
                         photoPageCount > 1
@@ -1795,27 +1940,24 @@ export const IntegrityWebView = ({
                           : `${photoPageStart}`,
                     },
                     {
-                      sn: "6.0",
                       desc: "UTM Readings and Observation",
                       page: `${utmPage}`,
                     },
                     {
-                      sn: "7.0",
                       desc: "UT Equipment Calibration Certificate",
                       page: `${calibrationPage}`,
                     },
                     {
-                      sn: "8.0",
                       desc: "Operators Certificate",
                       page: `${operatorPage}`,
                     },
                   ].map((row, idx) => (
                     <tr
-                      key={row.sn}
+                      key={`${row.desc}-${idx}`}
                       className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
                     >
                       <td className="border-r border-slate-200 p-2 text-center font-bold">
-                        {row.sn}
+                        {`${idx + 1}.0`}
                       </td>
                       <td className="border-r border-slate-200 p-2 font-bold uppercase text-center">
                         {row.desc}
@@ -1834,7 +1976,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page 3 of {totalPages}
             </div>
           </div>
@@ -1849,24 +1991,23 @@ export const IntegrityWebView = ({
           {reportHeader}
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-            <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+            <div className="text-sm font-black uppercase tracking-wide text-blue-900">
               1.0 Introduction
             </div>
-            <p className="text-xs text-slate-700  leading-relaxed">
+            <p className="text-[13px] text-black  leading-relaxed">
               As requested by{" "}
-              <span className="text-xs text-red-800">
+              <span className="text-md font-bold text-blue-900">
                 {reportData?.general?.client || "the Client"}
-              </span>{" "}
-              , the inspection team carried out General Visual Inspection (GVI)
+              </span>, the inspection team carried out General Visual Inspection (GVI)
               and Ultrasonic Thickness Measurements (UTM) on the &nbsp;
-              <span className="text-xs text-red-800">
+              <span className="text-xs font-bold text-blue-900">
                 {reportData?.general?.projectName ||
                   reportData?.general?.inspectionTypeName ||
                   "inspectionTypeName"}
               </span>
             </p>
 
-            <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+            <div className="text-sm font-black uppercase tracking-wide text-blue-900">
               2.0 Diagram
             </div>
             <div className="bg-white/80 backdrop-blur-sm border border-slate-200 rounded-sm shadow-xl shadow-blue-200/40 overflow-hidden p-6">
@@ -1890,7 +2031,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page 4 of {totalPages}
             </div>
           </div>
@@ -1906,7 +2047,7 @@ export const IntegrityWebView = ({
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
             <div className="text-center space-y-2">
-              <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+              <div className="text-sm font-black uppercase tracking-wide text-blue-900">
                 3.0 Summary of Inspection Findings (Access 1)
               </div>
               <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
@@ -1916,7 +2057,7 @@ export const IntegrityWebView = ({
 
             <div className="rounded-sm border w-full border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
               {reportData?.observations?.length ? (
-                <ol className="space-y-2 text-[10px] leading-relaxed  text-slate-700 pb-2">
+                <ol className="space-y-2 text-[10px] leading-relaxed  text-black pb-2">
                   {reportData.observations.map((item, idx) => (
                     <li
                       key={item.id}
@@ -1932,7 +2073,7 @@ export const IntegrityWebView = ({
                               {item.title || "Observation"}
                             </div>
                             {item.description && (
-                              <p className="mt-1 text-slate-700 text-[10px]">
+                              <p className="mt-1 text-black text-[10px]">
                                 {item.description}
                               </p>
                             )}
@@ -1956,7 +2097,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page 5 of {totalPages}
             </div>
           </div>
@@ -1972,7 +2113,7 @@ export const IntegrityWebView = ({
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
             <div className="text-center">
-              <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+              <div className="text-sm font-black uppercase tracking-wide text-blue-900">
                 4.0 Inspection Finding Overview
               </div>
             </div>
@@ -2003,7 +2144,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page 6 of {totalPages}
             </div>
           </div>
@@ -2023,14 +2164,14 @@ export const IntegrityWebView = ({
 
             <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
               <div className="text-center space-y-2">
-                <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                <div className="text-sm font-black uppercase tracking-wide text-black">
                   
                 </div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
+                <p className="text-sm font-black uppercase tracking-wide text-blue-900">
                   {section.title || "Additional Notes"}
                 </p>
               </div>
-              <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6 text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap">
+              <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6 text-[11px] leading-relaxed text-black whitespace-pre-wrap">
                 {section.content || "No content provided."}
               </div>
             </div>
@@ -2041,7 +2182,7 @@ export const IntegrityWebView = ({
                   Original Document
                 </p>
               </div>
-              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
                 Page {customStartPage + idx} of {totalPages}
               </div>
             </div>
@@ -2058,7 +2199,7 @@ export const IntegrityWebView = ({
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
             <div className="text-center space-y-2">
-              <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+              <div className="text-sm font-black uppercase tracking-wide text-blue-900">
                 5.0 Photographic Details
               </div>
               <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
@@ -2078,11 +2219,11 @@ export const IntegrityWebView = ({
                           className="h-[180px] w-auto object-contain"
                         />
                       </div>
-                      <div className="text-[10px] text-slate-700 text-center font-semibold">
+                      <div className="text-[10px] text-black text-center font-semibold">
                       {/*  {o.title || `Evidence ${idx + 1}`} */}
                       </div>
                       {o.photoNote && (
-                        <div className="text-[9px] text-slate-500 text-center uppercase tracking-[0.2em]">
+                        <div className="text-[9px] text-black text-center uppercase tracking-[0.2em]">
                           {o.photoNote}
                         </div>
                       )}
@@ -2103,7 +2244,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page {photoPageStart} of {totalPages}
             </div>
           </div>
@@ -2125,7 +2266,7 @@ export const IntegrityWebView = ({
 
               <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
                 <div className="text-center space-y-2">
-                  <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                  <div className="text-sm font-black uppercase tracking-wide text-blue-900">
                     5.0 Photographic Details
                   </div>
                   <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
@@ -2145,7 +2286,7 @@ export const IntegrityWebView = ({
                               className="h-[180px] w-auto object-contain"
                             />
                           </div>
-                          <div className="text-[10px] text-slate-700 text-center font-semibold">
+                          <div className="text-[10px] text-black text-center font-semibold">
                             {o.title || `Evidence ${idx + 1}`}
                           </div>
                           {o.photoNote && (
@@ -2170,7 +2311,7 @@ export const IntegrityWebView = ({
                     Original Document
                   </p>
                 </div>
-                <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+                <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
                   Page {photoPageStart + pageIdx + 1} of {totalPages}
                 </div>
               </div>
@@ -2189,7 +2330,7 @@ export const IntegrityWebView = ({
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
             <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
               <div className="text-center space-y-1 mb-4">
-                <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+                <div className="text-sm font-bold uppercase tracking-wide text-blue-900 ">
                   6.0 UTM Readings and Observation
                 </div>
                 <p className="text-[9px] text-slate-500 uppercase tracking-[0.3em]">
@@ -2197,122 +2338,135 @@ export const IntegrityWebView = ({
                 </p>
               </div>
 
-              <div className="text-[9px] border border-slate-900">
-                <div className="border-b border-slate-900 text-center font-bold uppercase py-1">
-                  Waterflood Module Deck Extension (Level 1) Modification Tie-In
-                  UT Points
-                </div>
-                <div className="grid grid-cols-2 border-b border-slate-900">
-                  <div className="border-r border-slate-900 p-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="font-bold uppercase">
-                        Structure Material
-                      </div>
-                      <div>
-                        {reportData?.general?.material || "Carbon Steel"}
-                      </div>
-                      <div className="font-bold uppercase">UT Equipment</div>
-                      <div>
-                        {reportData?.general?.utEquipment || "SUII SMARTOR"}
-                      </div>
-                      <div className="font-bold uppercase">
-                        Equipment Serial No.
-                      </div>
-                      <div>
-                        {reportData?.general?.utSerial || "M033223205600"}
-                      </div>
-                      <div className="font-bold uppercase">
-                        UT Probe: Dia / MHz / Type
-                      </div>
-                      <div>
-                        {reportData?.general?.utProbe || "10mm / 5MHz / Dual"}
-                      </div>
-                      <div className="font-bold uppercase">
-                        Test Temperature
-                      </div>
-                      <div>{reportData?.general?.testTemp || "Ambient"}</div>
-                    </div>
-                  </div>
-                  <div className="p-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="font-bold uppercase">Material Size</div>
-                      <div>
-                        {reportData?.general?.materialSize || "VARIOUS"}
-                      </div>
-                      <div className="font-bold uppercase">
-                        Calibration Date
-                      </div>
-                      <div>
-                        {reportData?.general?.calibrationDate || "23 JULY 2025"}
-                      </div>
-                      <div className="font-bold uppercase">Couplant Used</div>
-                      <div>{reportData?.general?.couplant || "Poly gel"}</div>
-                      <div className="font-bold uppercase">Inspected By</div>
-                      <div>
-                        {reportData?.general?.inspectBy ||
-                          reportData?.general?.client ||
-                          "Inspector"}
-                      </div>
-                      <div className="font-bold uppercase">Date</div>
-                      <div>{reportData?.general?.date || "09/11/2025"}</div>
-                    </div>
-                  </div>
+              <div className="text-[9px] border border-slate-200 w-full">
+                <div className="border-b border-slate-200 text-center uppercase py-2 bg-blue-900">
+                  <span className="text-white font-bold">
+                    Waterflood Module Deck Extension (Level 1) Modification Tie-In
+                    UT Points
+                  </span>
                 </div>
 
-                <div className="grid ">
-                  <table className="w-full border-collapse text-[9px]">
-                    <thead>
-                      <tr className="border-b border-slate-900">
-                        <th className="border-r border-slate-900 p-1 uppercase">
-                          Tie-In
-                        </th>
-                        <th className="border-r border-slate-900 p-1 uppercase">
-                          UT Point
-                        </th>
-                        <th className="border-r border-slate-900 p-1 uppercase">
-                          Nom (mm)
-                        </th>
-                        <th className="border-r border-slate-900 p-1 uppercase">
-                          Add (mm)
-                        </th>
-                        <th className="border-r border-slate-900 p-1 uppercase">
-                          Min (mm)
-                        </th>
-                        <th className="p-1 uppercase">Observation</th>
+                <table className="w-full text-[10px] border-collapse bg-blue-200">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-black">
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Parameter
+                      </th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Value
+                      </th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Parameter
+                      </th>
+                      <th className="p-2 text-[12px]">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-800">
+                    {[
+                      {
+                        leftLabel: "Structure Material:",
+                        leftValue: reportData?.general?.material || "Carbon Steel",
+                        rightLabel: "Material Size",
+                        rightValue: reportData?.general?.materialSize || "VARIOUS",
+                      },
+                      {
+                        leftLabel: "UT Equipment:",
+                        leftValue: reportData?.general?.utEquipment || "SUII SMARTOR",
+                        rightLabel: "Calibration Date",
+                        rightValue: reportData?.general?.calibrationDate || "23 JULY 2025",
+                      },
+                      {
+                        leftLabel: "Equipment Serial No.:",
+                        leftValue: reportData?.general?.utSerial || "M033223205600",
+                        rightLabel: "Couplant Used:",
+                        rightValue: reportData?.general?.couplant || "Poly gel",
+                      },
+                      {
+                        leftLabel: "UT Probe: Dia / MHz / Type:",
+                        leftValue: reportData?.general?.utProbe || "10mm / 5MHz / Dual",
+                        rightLabel: "Inspected By:",
+                        rightValue:
+                          reportData?.general?.inspectBy ||
+                          reportData?.general?.client ||
+                          "Inspector",
+                      },
+                      {
+                        leftLabel: "Test Temperature:",
+                        leftValue: reportData?.general?.testTemp || "Ambient",
+                        rightLabel: "Date:",
+                        rightValue: reportData?.general?.date || "09/11/2025",
+                      },
+                    ].map((row, idx) => (
+                      <tr
+                        key={row.leftLabel}
+                        className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
+                      >
+                        <td className="border-r border-slate-200 p-2 font-bold uppercase">
+                          {row.leftLabel}
+                        </td>
+                        <td className="border-r border-slate-200 p-2 font-bold uppercase text-black/80">
+                          {row.leftValue}
+                        </td>
+                        <td className="border-r border-slate-200 p-2 font-bold uppercase">
+                          {row.rightLabel}
+                        </td>
+                        <td className="p-2 font-bold uppercase text-black/80">
+                          {row.rightValue}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {(reportData.utm || [])
-                        .filter((g) => g.tieIn === "A1" || g.tieIn === "A2")
-                        .flatMap((g) =>
-                          g.points.map((p, idx) => (
-                            <tr
-                              key={p.id}
-                              className="border-b border-slate-900"
-                            >
-                              <td className="border-r border-slate-900 p-1 text-center">
-                                {idx === 0 ? g.tieIn : ""}
-                              </td>
-                              <td className="border-r border-slate-900 p-1 text-center">
-                                {p.point}
-                              </td>
-                              <td className="border-r border-slate-900 p-1 text-center">
-                                {p.nominal || "N/A"}
-                              </td>
-                              <td className="border-r border-slate-900 p-1 text-center">
-                                {p.add || ""}
-                              </td>
-                              <td className="border-r border-slate-900 p-1 text-center">
-                                {p.min || ""}
-                              </td>
-                              <td className="p-1">{p.observation || ""}</td>
-                            </tr>
-                          )),
-                        )}
-                    </tbody>
-                  </table>
-                  
-                </div>
+                    ))}
+                  </tbody>
+                </table>
+
+                <table className="w-full text-[10px] border-collapse bg-blue-200">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-black">
+                      <th className="border-r border-slate-200 p-2 text-[12px]">Tie-In</th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">UT Point</th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">Nom (mm)</th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">Add (mm)</th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">Min (mm)</th>
+                      <th className="p-2 text-[12px]">Observation</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-800">
+                    {(reportData.utm || [])
+                      .flatMap((g) =>
+                        (g.points || []).map((p, idx) => ({
+                          key: p.id || `${g.id}-${idx}`,
+                          tieIn: idx === 0 ? g.tieIn : "",
+                          point: p.point,
+                          nominal: p.nominal || "N/A",
+                          add: p.add || "",
+                          min: p.min || "",
+                          observation: p.observation || "",
+                        })),
+                      )
+                      .map((row, idx) => (
+                        <tr
+                          key={row.key}
+                          className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
+                        >
+                          <td className="border-r border-slate-200 p-2 text-center font-bold">
+                            {row.tieIn}
+                          </td>
+                          <td className="border-r border-slate-200 p-2 text-center font-bold">
+                            {row.point}
+                          </td>
+                          <td className="border-r border-slate-200 p-2 text-center font-bold">
+                            {row.nominal}
+                          </td>
+                          <td className="border-r border-slate-200 p-2 text-center font-bold">
+                            {row.add}
+                          </td>
+                          <td className="border-r border-slate-200 p-2 text-center font-bold">
+                            {row.min}
+                          </td>
+                          <td className="p-2 font-bold">{row.observation}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -2323,7 +2477,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page {utmPage} of {totalPages}
             </div>
           </div>
@@ -2339,7 +2493,7 @@ export const IntegrityWebView = ({
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
             <div className="text-center space-y-2">
-              <div className="text-sm font-black uppercase tracking-wide text-slate-900">
+              <div className="text-sm font-bold uppercase tracking-wide text-blue-900">
                 7.0 UT Equipment Calibration Certificate
               </div>
               <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
@@ -2352,7 +2506,7 @@ export const IntegrityWebView = ({
                 <img
                   src={reportData.general.utCalibrationCert}
                   alt="UT Equipment Calibration Certificate"
-                  className="max-h-[520px] w-auto object-contain"
+                  className="max-h-screen w-full object-contain"
                 />
               ) : (
                 <div className="h-[420px] w-full border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center text-slate-400 text-xs font-bold uppercase tracking-[0.3em] text-center px-6 gap-3">
@@ -2369,7 +2523,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page {calibrationPage} of {totalPages}
             </div>
           </div>
@@ -2386,17 +2540,15 @@ export const IntegrityWebView = ({
           
  <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
             <div className="rounded-2xl border border-slate-300 bg-white/90 overflow-hidden">
-              <div className="grid grid-cols-3 text-[10px] uppercase font-bold text-slate-700">
+              <div className="grid grid-cols-3 text-[10px] uppercase font-bold text-black">
                 <div className="border-r border-slate-300 p-3">
                   Inspector
                 </div>
                 <div className="border-r border-slate-300 p-3">
-                  Reviewer
-                  <div className="text-[9px] font-semibold text-slate-500 normal-case">
-                    NDT Reviewer
-                  </div>
+                  Lead Inspector
+                  
                 </div>
-                <div className="p-3">Manager</div>
+                <div className="p-3">NDT Manager</div>
               </div>
               <div className="grid grid-cols-3 text-[10px]">
                 <div className="border-r border-t border-slate-300 p-3 space-y-3 min-h-[160px]">
@@ -2410,7 +2562,7 @@ export const IntegrityWebView = ({
                   ) : (
                     <div className="h-16 border-b border-slate-400" />
                   )}
-                  <div className="font-semibold uppercase text-slate-700">
+                  <div className="font-semibold uppercase text-black">
                     {reportData.signoff.inspector || " "}
                   </div>
                 </div>
@@ -2425,7 +2577,7 @@ export const IntegrityWebView = ({
                   ) : (
                     <div className="h-16 border-b border-slate-400" />
                   )}
-                  <div className="font-semibold uppercase text-slate-700">
+                  <div className="font-semibold uppercase text-black">
                     {reportData.signoff.reviewer || " "}
                   </div>
                 </div>
@@ -2434,13 +2586,13 @@ export const IntegrityWebView = ({
                   {reportData.signoff.managerSignature ? (
                     <img
                       src={reportData.signoff.managerSignature}
-                      alt="Manager signature"
+                      alt="NDT Reviewer signature"
                       className="h-16 w-auto object-contain"
                     />
                   ) : (
                     <div className="h-16 border-b border-slate-400" />
                   )}
-                  <div className="font-semibold uppercase text-slate-700">
+                  <div className="font-semibold uppercase text-black">
                     {reportData.signoff.manager || " "}
                   </div>
                 </div>
@@ -2454,7 +2606,7 @@ export const IntegrityWebView = ({
                 Original Document
               </p>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 text-right">
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
               Page {operatorPage} of {totalPages}
             </div>
           </div>
@@ -2487,7 +2639,7 @@ const ReportRow = ({ label, value }) => (
 const SignatureBlock = ({ label, name }) => (
   <div className="space-y-4">
     <p className="text-[9px] font-black uppercase text-slate-400">{label}</p>
-    <div className="border-b-2 border-slate-950 pb-1 font-serif italic text-lg text-slate-900">
+    <div className="border-b-2 border-slate-950 pb-1 font-serif italic text-lg text-black">
       {name || " "}
     </div>
   </div>

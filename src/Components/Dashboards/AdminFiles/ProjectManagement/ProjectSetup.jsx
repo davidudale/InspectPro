@@ -76,7 +76,7 @@ const ProjectSetup = () => {
     supervisorId: "",
     supervisorName: "",
     startDate: "",
-    status: "Forwarded to Inspector", // Status updated for workflow
+    status: "Not Started Inspector",
   });
 
   // --- 1. Real-time Synchronization across all Management Modules ---
@@ -167,8 +167,11 @@ const ProjectSetup = () => {
       const contractNumber =
         setupData.contractNumber || buildUniqueCode("PEL-WPQ");
 
+      const assignedInspectorName = setupData.inspectorName || "Inspector";
+
       await setDoc(projectRef, {
         ...setupData,
+        status: `Not Started ${assignedInspectorName}`,
         reportNum,
         contractNumber,
         adminId: user?.uid,
@@ -389,7 +392,7 @@ const ProjectSetup = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                {/*  <div className="mt-6 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
                     <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
                       Client Logo (Optional)
                     </label>
@@ -420,7 +423,7 @@ const ProjectSetup = () => {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </div>*/}
                 </div>
 
                 {/* SECTION 2: ASSET MANAGEMENT INTEGRATION */}
@@ -466,14 +469,16 @@ const ProjectSetup = () => {
                       const selected = inspectors.find(
                         (ins) => ins.id === e.target.value,
                       );
+                      const assignedInspectorName =
+                        selected?.name ||
+                        selected?.displayName ||
+                        selected?.fullName ||
+                        "Technical Resource";
                       setSetupData({
                         ...setupData,
                         inspectorId: e.target.value,
-                        inspectorName:
-                          selected?.name ||
-                          selected?.displayName ||
-                          selected?.fullName ||
-                          "Technical Resource",
+                        inspectorName: assignedInspectorName,
+                        status: `Not Started ${assignedInspectorName}`,
                       });
                     }}
                   >

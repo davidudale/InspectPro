@@ -153,7 +153,11 @@ const ViewInspectionsList = () => {
   const getReturnFeedback = (project) => {
     const status = (project?.status || "").toLowerCase();
     if (
-      (status === "returned for correction" || status === "forwarded to inspector") &&
+      (
+        status === "returned for correction" ||
+        status.startsWith("returned to ") ||
+        status === "forwarded to inspector"
+      ) &&
       project?.returnNote
     ) {
       return project.returnNote;
@@ -163,10 +167,16 @@ const ViewInspectionsList = () => {
 
   const getInspectorStatusLabel = (project) => {
     const status = (project?.status || "").toLowerCase();
-    if (status === "forwarded to inspector" && !project?.inspectionStartedAt) {
+    if (
+      (status === "forwarded to inspector" || status.startsWith("not started ")) &&
+      !project?.inspectionStartedAt
+    ) {
       return "New";
     }
-    if (status === "forwarded to inspector" && project?.inspectionStartedAt) {
+    if (
+      (status === "forwarded to inspector" || status.startsWith("not started ")) &&
+      project?.inspectionStartedAt
+    ) {
       return "Pending";
     }
     return project?.status || "Pending";
@@ -174,13 +184,19 @@ const ViewInspectionsList = () => {
 
   const getInspectionActionLabel = (project) => {
     const status = (project?.status || "").toLowerCase();
-    if (status === "returned for correction") return "Continue";
+    if (status === "returned for correction" || status.startsWith("returned to ")) return "Continue";
     if (project?.inspectionStartedAt) return "Continue Inspection";
     return "Start Inspection";
   };
 
   const handleOpenInspection = async (project) => {
     const label = getInspectionActionLabel(project);
+    const assignedInspectorName =
+      project?.inspectorName ||
+      user?.displayName ||
+      user?.name ||
+      user?.email ||
+      "Inspector";
 
     // First open only: mark inspection as started so button changes on return.
     if (label === "Start Inspection" && user?.role === "Inspector") {
@@ -188,7 +204,7 @@ const ViewInspectionsList = () => {
         await updateDoc(doc(db, "projects", project.id), {
           inspectionStartedAt: serverTimestamp(),
           inspectionStartedBy: user?.uid || "",
-          status: "Pending",
+          status: `In Progress - ${assignedInspectorName}`,
         });
       } catch (error) {
         console.error("Failed to stamp inspection start:", error);

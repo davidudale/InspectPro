@@ -4,6 +4,10 @@
   --inspectpro-accent: #f97316;
 }
 
+body {
+  font-family: 'Bahnschrift Condensed', sans-serif;
+}
+
 html[data-theme-accent="orange"] {
   --inspectpro-accent: #f97316;
 }

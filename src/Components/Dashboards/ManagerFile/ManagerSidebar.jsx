@@ -31,21 +31,7 @@ const sidebarLinks = [
     icon: <LayoutDashboard size={20} />,
     href: "/ManagerDashboard",
   },
-   {
-      name: "Inspections",
-      icon: <ClipboardList size={20} />,
-      href: "/Inspection_view",
-    },
-   {
-       name: "Pending Inspections",
-       icon: <FileClock size={20} />,
-       href: "/SubInspection_view",
-     },
-      {
-       name: "Confirmed Inspection",
-       icon: <BadgeCheck size={20} />,
-       href: "/ConfirmedInspection",
-     },
+
   {
     name: "Pending Approval",
     icon: <FileClock size={20} />,

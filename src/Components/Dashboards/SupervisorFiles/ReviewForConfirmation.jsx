@@ -268,6 +268,11 @@ const ReviewForConfirmation = () => {
         throw new Error("Project record not found.");
       }
       const projectData = projectSnap.exists() ? projectSnap.data() : {};
+      const assignedInspectorName =
+        projectData?.inspectorName ||
+        reportData?.general?.inspectorName ||
+        location.state?.preFill?.inspectorName ||
+        "Inspector";
       const inspectorUserId =
         projectData?.inspectorId ||
         reportData?.general?.inspectorId ||
@@ -286,7 +291,7 @@ const ReviewForConfirmation = () => {
       }
 
       await updateDoc(projectRef, {
-        status: "Returned for correction",
+        status: `Returned to ${assignedInspectorName}`,
         returnNote: feedback,
         returnedBy: user?.displayName || user?.email || "Lead Inspector",
         returnedAt: serverTimestamp(),
@@ -347,11 +352,11 @@ const ReviewForConfirmation = () => {
                 <button
                   onClick={() => setShowReturnModal(true)}
                   disabled={isSaving || isReturning || isSavingReport}
-                  className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="bg-blue-900 hover:bg-amber-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   <RotateCcw size={16} /> {isReturning ? "Returning..." : "Return Report"}
                 </button>
-                {(user?.role === "Supervisor" ||
+                {/*{(user?.role === "Supervisor" ||
                   user?.role === "Lead Inspector" ||
                   user?.role === "Manager") && (
                   <button
@@ -359,16 +364,16 @@ const ReviewForConfirmation = () => {
                     disabled={isSaving || isReturning || isSavingReport}
                     className="bg-blue-700 hover:bg-blue-800 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                   >
-                    {isSavingReport ? "Saving..." : "Save"}
+                    {isSavingReport ? "Saving..." : "Save"} 
                   </button>
-                )}
-                <button
+                )}*/}
+                {/*<button
                   onClick={handleModifyReport}
                   disabled={isSaving || isReturning || isSavingReport}
                   className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   Modify
-                </button>
+                </button>*/}
                 <button
                   onClick={handleConfirmProject}
                   disabled={isSaving || isReturning || isSavingReport}
@@ -430,4 +435,3 @@ const ReviewForConfirmation = () => {
 };
 
 export default ReviewForConfirmation;
-

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ShieldCheck,
@@ -32,21 +32,15 @@ const InspectionDashboard = () => {
   const fullName =
     user?.fullName || user?.name || user?.displayName || user?.email || "Inspector";
 
-  const getSeenNotifications = (uid) => {
-    try {
-      const raw = localStorage.getItem(`inspectpro_seen_notifications_${uid}`);
-      const parsed = raw ? JSON.parse(raw) : {};
-      return {
-        newSent: Array.isArray(parsed.newSent) ? parsed.newSent : [],
-        returned: Array.isArray(parsed.returned) ? parsed.returned : [],
-      };
-    } catch {
-      return { newSent: [], returned: [] };
-    }
-  };
+  const seenInSessionRef = useRef({ newSent: [], returned: [] });
 
-  const saveSeenNotifications = (uid, data) => {
-    localStorage.setItem(`inspectpro_seen_notifications_${uid}`, JSON.stringify(data));
+  const getMarker = (value) => {
+    if (!value) return "";
+    if (typeof value?.toMillis === "function") return String(value.toMillis());
+    if (typeof value === "number") return String(value);
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return String(value.getTime());
+    return "";
   };
 
   const formatTimeAgo = (timestamp) => {
@@ -70,62 +64,40 @@ const InspectionDashboard = () => {
     }
 
     setLoading(true);
-    const initialized = { active: false, returned: false, completed: false, total: false };
-    const markReady = (key) => {
-      if (!initialized[key]) {
-        initialized[key] = true;
-        if (
-          initialized.active &&
-          initialized.returned &&
-          initialized.completed &&
-          initialized.total
-        ) {
-          setLoading(false);
-        }
-      }
-    };
-
-    const activeRef = query(
-      collection(db, "projects"),
-      where("inspectorId", "==", user.uid),
-      where("status", "==", "Forwarded to Inspector"),
-    );
-    const completedRef = query(
-      collection(db, "projects"),
-      where("inspectorId", "==", user.uid),
-      where("status", "==", "Completed"),
-    );
-    const returnedRef = query(
-      collection(db, "projects"),
-      where("inspectorId", "==", user.uid),
-      where("status", "==", "Returned for correction"),
-    );
     const totalRef = query(
       collection(db, "projects"),
       where("inspectorId", "==", user.uid),
     );
 
-    const unsubActive = onSnapshot(activeRef, (snapshot) => {
-      setMetrics((prev) => ({ ...prev, active: snapshot.size }));
-      markReady("active");
-    });
-    const unsubReturned = onSnapshot(returnedRef, (snapshot) => {
-      setMetrics((prev) => ({ ...prev, returned: snapshot.size }));
-      markReady("returned");
-    });
-    const unsubCompleted = onSnapshot(completedRef, (snapshot) => {
-      setMetrics((prev) => ({ ...prev, completed: snapshot.size }));
-      markReady("completed");
-    });
     const unsubTotal = onSnapshot(totalRef, (snapshot) => {
-      setMetrics((prev) => ({ ...prev, total: snapshot.size }));
-      markReady("total");
+      const projects = snapshot.docs.map((docItem) => docItem.data());
+
+      const completed = projects.filter(
+        (project) => (project?.status || "").toLowerCase() === "completed",
+      ).length;
+      const returned = projects.filter((project) => {
+        const status = (project?.status || "").toLowerCase();
+        return status === "returned for correction" || status.startsWith("returned to ");
+      }).length;
+      const active = projects.filter((project) => {
+        const status = (project?.status || "").toLowerCase();
+        if (status === "completed") return false;
+        if (status === "confirmed and forwarded") return false;
+        if (status === "approved") return false;
+        if (status === "pending confirmation") return false;
+        return true;
+      }).length;
+
+      setMetrics({
+        active,
+        returned,
+        completed,
+        total: projects.length,
+      });
+      setLoading(false);
     });
 
     return () => {
-      unsubActive();
-      unsubReturned();
-      unsubCompleted();
       unsubTotal();
     };
   }, [user?.uid]);
@@ -206,8 +178,12 @@ const InspectionDashboard = () => {
     if (!user?.uid) {
       setNotificationQueue([]);
       setActiveNotification(null);
+      seenInSessionRef.current = { newSent: [], returned: [] };
       return undefined;
     }
+
+    // Reset per-login session so notifications can show again on each login.
+    seenInSessionRef.current = { newSent: [], returned: [] };
 
     const projectNotificationsRef = query(
       collection(db, "projects"),
@@ -216,7 +192,7 @@ const InspectionDashboard = () => {
     );
 
     const unsubscribe = onSnapshot(projectNotificationsRef, (snapshot) => {
-      const seen = getSeenNotifications(user.uid);
+      const seen = seenInSessionRef.current;
       const nextNotifications = [];
 
       snapshot.docs.forEach((docItem) => {
@@ -224,29 +200,39 @@ const InspectionDashboard = () => {
         const projectDocId = docItem.id;
         const projectLabel = project.projectName || project.projectId || projectDocId;
         const status = (project.status || "").toLowerCase();
+        const updatedMarker =
+          getMarker(project.updatedAt) ||
+          getMarker(project.returnedAt) ||
+          getMarker(project.deploymentDate) ||
+          "na";
         const isReturned =
-          status === "returned for correction" ||
-          (status === "forwarded to inspector" && Boolean(project.returnedAt || project.returnNote));
+          status === "returned for correction" || status.startsWith("returned to ");
+        const isNewAssignment =
+          status.startsWith("not started ");
+        const returnedSignature = `${projectDocId}|${status}|${
+          getMarker(project.returnedAt) || updatedMarker
+        }|${project.returnNote || ""}`;
+        const newSignature = `${projectDocId}|${status}|${updatedMarker}`;
 
-        if (isReturned && !seen.returned.includes(projectDocId)) {
+        if (isReturned && !seen.returned.includes(returnedSignature)) {
           nextNotifications.push({
             key: `returned-${projectDocId}`,
             title: "Returned Inspection",
             message: `Inspection ${projectLabel} was returned for corrections.`,
             tone: "returned",
           });
-          seen.returned.push(projectDocId);
+          seen.returned.push(returnedSignature);
           return;
         }
 
-        if (status === "forwarded to inspector" && !seen.newSent.includes(projectDocId)) {
+        if (isNewAssignment && !seen.newSent.includes(newSignature)) {
           nextNotifications.push({
             key: `new-${projectDocId}`,
             title: "New Inspection Sent",
             message: `A new inspection (${projectLabel}) has been assigned to you.`,
             tone: "new",
           });
-          seen.newSent.push(projectDocId);
+          seen.newSent.push(newSignature);
         }
       });
 
@@ -261,7 +247,6 @@ const InspectionDashboard = () => {
           const dedupedIncoming = returnedFirst.filter((item) => !existingKeys.has(item.key));
           return [...prev, ...dedupedIncoming];
         });
-        saveSeenNotifications(user.uid, seen);
       }
     });
 
