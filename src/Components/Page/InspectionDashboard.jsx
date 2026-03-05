@@ -77,14 +77,18 @@ const InspectionDashboard = () => {
       ).length;
       const returned = projects.filter((project) => {
         const status = (project?.status || "").toLowerCase();
-        return status === "returned for correction" || status.startsWith("returned to ");
+        return (
+          status === "returned for correction" ||
+          status.startsWith("returned for correction - rpt_with ") ||
+          status.startsWith("returned to ")
+        );
       }).length;
       const active = projects.filter((project) => {
         const status = (project?.status || "").toLowerCase();
         if (status === "completed") return false;
         if (status === "confirmed and forwarded") return false;
         if (status === "approved") return false;
-        if (status === "pending confirmation") return false;
+        if (status.startsWith("pending confirmation")) return false;
         return true;
       }).length;
 
@@ -206,9 +210,11 @@ const InspectionDashboard = () => {
           getMarker(project.deploymentDate) ||
           "na";
         const isReturned =
-          status === "returned for correction" || status.startsWith("returned to ");
+          status === "returned for correction" ||
+          status.startsWith("returned for correction - rpt_with ") ||
+          status.startsWith("returned to ");
         const isNewAssignment =
-          status.startsWith("not started ");
+          status.startsWith("not started- report with ");
         const returnedSignature = `${projectDocId}|${status}|${
           getMarker(project.returnedAt) || updatedMarker
         }|${project.returnNote || ""}`;

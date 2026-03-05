@@ -691,7 +691,12 @@ const IntegrityCheck = ({
         throw new Error("Project reference missing.");
       }
 
-      const payload = buildFirestoreReportPayload("Pending Confirmation");
+      const assignedSupervisorName =
+        reportData?.general?.supervisorName ||
+        location.state?.preFill?.supervisorName ||
+        "Lead Inspector";
+      const pendingConfirmationStatus = `Pending Confirmation ${assignedSupervisorName}`;
+      const payload = buildFirestoreReportPayload(pendingConfirmationStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),
         {
@@ -702,7 +707,7 @@ const IntegrityCheck = ({
         { merge: true },
       );
 
-      setReportData((prev) => ({ ...prev, status: "Pending Confirmation" }));
+      setReportData((prev) => ({ ...prev, status: pendingConfirmationStatus }));
       toast.success("Report sent for confirmation.");
     } catch (error) {
       toast.error(`Error sending for confirmation: ${error.message}`);
@@ -746,13 +751,15 @@ const IntegrityCheck = ({
               </div>
               <div className="flex items-center gap-3">
                 {canSendForConfirmation &&
-                  reportData.status !== "Pending Confirmation" && (
+                  !String(reportData.status || "").startsWith("Pending Confirmation") && (
                     <button
                       onClick={handleSendForConfirmation}
                       disabled={isSaving}
                       className="bg-orange-600 px-5 py-2 rounded-sm text-xs font-bold uppercase tracking-widest text-white hover:bg-orange-700 transition-colors disabled:opacity-60"
                     >
-                      {reportData.status === "Returned for correction"
+                      {String(reportData.status || "").startsWith(
+                        "Returned for correction",
+                      )
                         ? "Resend"
                         : user?.role === "Inspector"
                           ? "Send For Confirmation"

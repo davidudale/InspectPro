@@ -38,9 +38,9 @@ const SubInspectionsList = () => {
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   const isReviewQueueStatus = (status = "") =>
-    status === "Pending Confirmation" ||
+    status.startsWith("Pending Confirmation") ||
     status.startsWith("In Lead Review - ") ||
-    status.startsWith("Returned to ");
+    status.startsWith("Returned for correction - Rpt_With ");
 
    useEffect(() => {
     if (!user?.uid) return;
@@ -97,7 +97,7 @@ const SubInspectionsList = () => {
   }, [user]);
 
   // --- NEW: Function to return manifest to Inspector ---
-  const handleReturnToInspector = async (projectId, name) => {
+  const handleReturnToInspector = async (projectId, name, inspectorName = "Inspector") => {
     const confirmed = await openConfirm({
       title: "Return to Inspector",
       message: `Return "${name}" to Inspector for corrections?`,
@@ -109,7 +109,7 @@ const SubInspectionsList = () => {
     try {
       const projectRef = doc(db, "projects", projectId);
       await updateDoc(projectRef, {
-        status: "Returned for correction",
+        status: `Returned for correction - Rpt_With ${inspectorName}`,
         lastUpdated: serverTimestamp(),
         returnNote: "Lead Inspector requested review/corrections",
       });
@@ -221,7 +221,13 @@ const SubInspectionsList = () => {
                           <td className="p-6 text-right space-x-2 item-center flex">
                             {/* NEW: Reject/Return Button */}
                             {/*<button
-                              onClick={() => handleReturnToInspector(project.id, project.projectName)}
+                              onClick={() =>
+                                handleReturnToInspector(
+                                  project.id,
+                                  project.projectName,
+                                  project.inspectorName,
+                                )
+                              }
                               className="bg-red-900/20 hover:bg-red-900/40 text-red-500 p-2 rounded-xl border border-red-500/20 transition-all group/btn"
                               title="Return to Inspector"
                             >

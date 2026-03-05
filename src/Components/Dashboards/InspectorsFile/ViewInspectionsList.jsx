@@ -140,7 +140,7 @@ const ViewInspectionsList = () => {
   const getInspectionActionState = (project) => {
     const status = (project?.status || "").toLowerCase();
     if (
-      status === "pending confirmation" ||
+      status.startsWith("pending confirmation") ||
       status === "completed" ||
       status === "confirmed and forwarded" ||
       status === "approved"
@@ -155,6 +155,7 @@ const ViewInspectionsList = () => {
     if (
       (
         status === "returned for correction" ||
+        status.startsWith("returned for correction - rpt_with ") ||
         status.startsWith("returned to ") ||
         status === "forwarded to inspector"
       ) &&
@@ -168,13 +169,13 @@ const ViewInspectionsList = () => {
   const getInspectorStatusLabel = (project) => {
     const status = (project?.status || "").toLowerCase();
     if (
-      (status === "forwarded to inspector" || status.startsWith("not started ")) &&
+      (status === "forwarded to inspector" || status.startsWith("not started- report with ")) &&
       !project?.inspectionStartedAt
     ) {
       return "New";
     }
     if (
-      (status === "forwarded to inspector" || status.startsWith("not started ")) &&
+      (status === "forwarded to inspector" || status.startsWith("not started- report with ")) &&
       project?.inspectionStartedAt
     ) {
       return "Pending";
@@ -184,7 +185,12 @@ const ViewInspectionsList = () => {
 
   const getInspectionActionLabel = (project) => {
     const status = (project?.status || "").toLowerCase();
-    if (status === "returned for correction" || status.startsWith("returned to ")) return "Continue";
+    if (
+      status === "returned for correction" ||
+      status.startsWith("returned for correction - rpt_with ") ||
+      status.startsWith("returned to ")
+    )
+      return "Continue";
     if (project?.inspectionStartedAt) return "Continue Inspection";
     return "Start Inspection";
   };

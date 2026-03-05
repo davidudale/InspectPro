@@ -291,7 +291,7 @@ const ReviewForConfirmation = () => {
       }
 
       await updateDoc(projectRef, {
-        status: `Returned to ${assignedInspectorName}`,
+        status: `Returned for correction - Rpt_With ${assignedInspectorName}`,
         returnNote: feedback,
         returnedBy: user?.displayName || user?.email || "Lead Inspector",
         returnedAt: serverTimestamp(),

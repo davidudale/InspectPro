@@ -76,7 +76,7 @@ const ProjectSetup = () => {
     supervisorId: "",
     supervisorName: "",
     startDate: "",
-    status: "Not Started Inspector",
+    status: "Not started- Report With Inspector",
   });
 
   // --- 1. Real-time Synchronization across all Management Modules ---
@@ -171,7 +171,7 @@ const ProjectSetup = () => {
 
       await setDoc(projectRef, {
         ...setupData,
-        status: `Not Started ${assignedInspectorName}`,
+        status: `Not started- Report With ${assignedInspectorName}`,
         reportNum,
         contractNumber,
         adminId: user?.uid,
@@ -478,7 +478,7 @@ const ProjectSetup = () => {
                         ...setupData,
                         inspectorId: e.target.value,
                         inspectorName: assignedInspectorName,
-                        status: `Not Started ${assignedInspectorName}`,
+                        status: `Not started- Report With ${assignedInspectorName}`,
                       });
                     }}
                   >

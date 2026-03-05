@@ -53,6 +53,30 @@ const ProjectList = () => {
     p.projectId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const getOperationalStatus = (project) => {
+    const topLevelStatus = String(project?.status || "").trim();
+    const reportStatus = String(project?.report?.status || "").trim();
+
+    // Prefer report workflow status if it's meaningful and differs.
+    if (
+      reportStatus &&
+      !["draft", "new"].includes(reportStatus.toLowerCase()) &&
+      reportStatus.toLowerCase() !== topLevelStatus.toLowerCase()
+    ) {
+      return reportStatus;
+    }
+
+    // Safety fallback for rows where start timestamp exists but status text was not synchronized.
+    if (
+      project?.inspectionStartedAt &&
+      topLevelStatus.toLowerCase().startsWith("not started")
+    ) {
+      return `In Progress - ${project?.inspectorName || "Inspector"}`;
+    }
+
+    return topLevelStatus || "Planned";
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
@@ -108,7 +132,12 @@ const ProjectList = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {filteredProjects.map((project) => (
+                      {filteredProjects.map((project) => {
+                        const operationalStatus = getOperationalStatus(project);
+                        const isInProgress = operationalStatus
+                          .toLowerCase()
+                          .startsWith("in progress");
+                        return (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
                           <td className="p-6">
                             <div className="flex items-center gap-4">
@@ -140,12 +169,12 @@ const ProjectList = () => {
                           </td>
                           <td className="p-6">
                             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${
-                              project.status === 'In-Progress' 
+                              isInProgress
                                 ? 'border-orange-500/50 text-orange-500 bg-orange-500/5' 
                                 : 'border-slate-700 text-slate-500 bg-slate-800/20'
                             }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${project.status === 'In-Progress' ? 'bg-orange-500 animate-pulse' : 'bg-slate-600'}`}></span>
-                              {project.status || 'Planned'}
+                              <span className={`w-1.5 h-1.5 rounded-full ${isInProgress ? 'bg-orange-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                              {operationalStatus}
                             </div>
                           </td>
                           <td className="p-6 text-right">
@@ -175,7 +204,7 @@ const ProjectList = () => {
                             <MoreVertical size={16} className="text-slate-800 group-hover:hidden inline-block ml-auto" />
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>

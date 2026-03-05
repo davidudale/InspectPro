@@ -1108,7 +1108,11 @@ const VisualReport = ({
     if (isFinalizing) {
       // When Inspector submits, it skips "Review" and goes straight to "Pending Confirmation"
       if (isFinalizing && user?.role === "Inspector") {
-        workflowStatus = "Pending Confirmation";
+        const assignedSupervisorName =
+          reportData?.general?.supervisorName ||
+          location.state?.preFill?.supervisorName ||
+          "Lead Inspector";
+        workflowStatus = `Pending Confirmation ${assignedSupervisorName}`;
       }
       // When Lead Inspector submits, it moves to "Authorized"
       else if (user?.role === "Lead Inspector") {
