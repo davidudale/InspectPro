@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import React from "react";
 import {
   Activity,
@@ -9,8 +9,6 @@ import {
   User,
   Clock
 } from "lucide-react";
-import AdminNavbar from "../Dashboards/AdminNavbar";
-import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
 import {
   collection,
@@ -25,8 +23,12 @@ import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
 import ManagerNavbar from "../Dashboards/ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../Dashboards/ManagerFile/ManagerSidebar";
+import { useAuth } from "../Auth/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
   const [inspectionCount, setInspectionCount] = useState(0);
   const [equipmentCount, setEquipmentCount] = useState(0);
@@ -35,6 +37,18 @@ const AdminDashboard = () => {
   const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
   const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [notificationQueue, setNotificationQueue] = useState([]);
+  const [activeNotification, setActiveNotification] = useState(null);
+  const seenInSessionRef = useRef({ forwarded: [], returned: [] });
+
+  const getMarker = (value) => {
+    if (!value) return "";
+    if (typeof value?.toMillis === "function") return String(value.toMillis());
+    if (typeof value === "number") return String(value);
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return String(value.getTime());
+    return "";
+  };
 
   // 1. Fetch live user count
   useEffect(() => {
@@ -131,6 +145,87 @@ const AdminDashboard = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Login-time manager notifications: forwarded approvals and returned items.
+  useEffect(() => {
+    if (!user?.uid) {
+      setNotificationQueue([]);
+      setActiveNotification(null);
+      seenInSessionRef.current = { forwarded: [], returned: [] };
+      return undefined;
+    }
+
+    seenInSessionRef.current = { forwarded: [], returned: [] };
+
+    const projectNotificationsRef = query(
+      collection(db, "projects"),
+      where("managerId", "==", user.uid),
+      limit(100),
+    );
+
+    const unsubscribe = onSnapshot(projectNotificationsRef, (snapshot) => {
+      const seen = seenInSessionRef.current;
+      const nextNotifications = [];
+
+      snapshot.docs.forEach((docItem) => {
+        const project = docItem.data();
+        const projectDocId = docItem.id;
+        const projectLabel = project.projectName || project.projectId || projectDocId;
+        const status = String(project.status || "").toLowerCase();
+        const updatedMarker =
+          getMarker(project.updatedAt) ||
+          getMarker(project.confirmedAt) ||
+          getMarker(project.lastUpdated) ||
+          "na";
+        const isForwardedToManager = status.startsWith("passed and forwarded to ");
+        const isReturnedToLead = status.startsWith("pending confirmation");
+        const forwardedSignature = `${projectDocId}|${status}|${updatedMarker}`;
+        const returnedSignature = `${projectDocId}|${status}|${updatedMarker}|${project.returnNote || ""}`;
+
+        if (isReturnedToLead && !seen.returned.includes(returnedSignature)) {
+          nextNotifications.push({
+            key: `returned-${projectDocId}`,
+            title: "Returned To Lead Review",
+            message: `Project ${projectLabel} was returned and is no longer in manager approval queue.`,
+            tone: "returned",
+          });
+          seen.returned.push(returnedSignature);
+          return;
+        }
+
+        if (isForwardedToManager && !seen.forwarded.includes(forwardedSignature)) {
+          nextNotifications.push({
+            key: `forwarded-${projectDocId}`,
+            title: "New Approval Request",
+            message: `Project ${projectLabel} has been passed and forwarded for your approval.`,
+            tone: "new",
+          });
+          seen.forwarded.push(forwardedSignature);
+        }
+      });
+
+      if (nextNotifications.length > 0) {
+        const returnedFirst = [
+          ...nextNotifications.filter((item) => item.tone === "returned"),
+          ...nextNotifications.filter((item) => item.tone !== "returned"),
+        ];
+
+        setNotificationQueue((prev) => {
+          const existingKeys = new Set(prev.map((item) => item.key));
+          const dedupedIncoming = returnedFirst.filter((item) => !existingKeys.has(item.key));
+          return [...prev, ...dedupedIncoming];
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (activeNotification || notificationQueue.length === 0) return;
+    setActiveNotification(notificationQueue[0]);
+    setNotificationQueue((prev) => prev.slice(1));
+  }, [activeNotification, notificationQueue]);
 
   const stats = [
     {
@@ -271,6 +366,38 @@ const AdminDashboard = () => {
           </div>
         </main>
       </div>
+      {activeNotification && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <p
+              className={`text-xs font-bold uppercase tracking-[0.2em] ${
+                activeNotification.tone === "returned" ? "text-rose-400" : "text-orange-400"
+              }`}
+            >
+              Notification
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-white">{activeNotification.title}</h3>
+            <p className="mt-3 text-sm text-slate-300">{activeNotification.message}</p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setActiveNotification(null);
+                  navigate("/Pending_approval");
+                }}
+                className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+              >
+                Open Approvals
+              </button>
+              <button
+                onClick={() => setActiveNotification(null)}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

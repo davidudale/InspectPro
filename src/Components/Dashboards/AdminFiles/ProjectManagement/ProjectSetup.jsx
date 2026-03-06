@@ -49,6 +49,7 @@ const ProjectSetup = () => {
   const [masterEquipment, setMasterEquipment] = useState([]);
   const [inspectors, setInspectors] = useState([]);
   const [supervisor, setSupervisor] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
 
   // --- Consolidated Project Manifest State ---
@@ -75,6 +76,8 @@ const ProjectSetup = () => {
     inspectorName: "",
     supervisorId: "",
     supervisorName: "",
+    managerId: "",
+    managerName: "",
     startDate: "",
     status: "Not started- Report With Inspector",
   });
@@ -117,6 +120,12 @@ const ProjectSetup = () => {
         setSupervisor(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
 
+    // Sync qualified Managers from Users Management
+    const unsubManagers = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "Manager")),
+      (snap) => setManagers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+
     return () => {
       unsubClients();
       unsubLocs();
@@ -124,6 +133,7 @@ const ProjectSetup = () => {
       unsubEquip();
       unsubInspectors();
       unsubSupervisor();
+      unsubManagers();
     };
   }, []);
 
@@ -149,9 +159,10 @@ const ProjectSetup = () => {
       !setupData.clientId ||
       !setupData.inspectorId ||
       !setupData.equipmentId ||
-      !setupData.supervisorId // Ensure you have actually selected a supervisor in the UI
+      !setupData.supervisorId ||
+      !setupData.managerId
     ) {
-      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, and Lead Inspector are assigned.");
+      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, Lead Inspector, and Manager are assigned.");
       return;
     }
 
@@ -426,38 +437,11 @@ const ProjectSetup = () => {
                   </div>*/}
                 </div>
 
-                {/* SECTION 2: ASSET MANAGEMENT INTEGRATION */}
-                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem]">
-                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <Package size={14} /> 2. Select Equipment
-                  </h2>
-                  <select
-                    required
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white cursor-pointer"
-                    value={setupData.equipmentId}
-                    onChange={(e) => {
-                      const selected = masterEquipment.find(
-                        (eq) => eq.id === e.target.value,
-                      );
-                      setSetupData({
-                        ...setupData,
-                        equipmentId: e.target.value,
-                        equipmentTag: selected?.tagNumber || "",
-                        equipmentCategory: selected?.assetType || "",
-                      });
-                    }}
-                  >
-                    <option value="">Assign Asset Tag...</option>
-                    {masterEquipment.map((eq) => (
-                      <option key={eq.id} value={eq.id}>
-                        {eq.tagNumber} - {eq.assetType}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                
 
                 {/* SECTION 3: INSPECTOR ASSIGNMENT (USER MANAGEMENT) */}
-                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                <div className="flex justify-between space-x-2">
+                  <div className="bg-slate-900/40 border  m w-full border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
                     <UserCheck size={14} /> 3. Assign Inspection
                   </h2>
@@ -490,7 +474,7 @@ const ProjectSetup = () => {
                     ))}
                   </select>
                 </div>
-                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                <div className="bg-slate-900/40 border w-full border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
                     <UserCheck size={14} /> 3. Assign Lead Inspector
                   </h2>
@@ -517,6 +501,39 @@ const ProjectSetup = () => {
                     {supervisor.map((ins) => (
                       <option key={ins.id} value={ins.id}>
                         {ins.name || ins.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                </div>
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <UserCheck size={14} /> 4. Assign Manager
+                  </h2>
+                  <select
+                    required
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                    value={setupData.managerId}
+                    onChange={(e) => {
+                      const selected = managers.find(
+                        (mgr) => mgr.id === e.target.value,
+                      );
+                      setSetupData({
+                        ...setupData,
+                        managerId: e.target.value,
+                        managerName:
+                          selected?.displayName ||
+                          selected?.name ||
+                          selected?.fullName ||
+                          "Manager",
+                      });
+                    }}
+                  >
+                    <option value="">Choose Manager...</option>
+                    {managers.map((mgr) => (
+                      <option key={mgr.id} value={mgr.id}>
+                        {mgr.name || mgr.displayName || mgr.fullName}
                       </option>
                     ))}
                   </select>
@@ -609,6 +626,35 @@ const ProjectSetup = () => {
                       }
                     />
                   </div>
+                  {/* SECTION 2: ASSET MANAGEMENT INTEGRATION */}
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem]">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <Package size={14} /> 2. Select Equipment
+                  </h2>
+                  <select
+                    required
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white cursor-pointer"
+                    value={setupData.equipmentId}
+                    onChange={(e) => {
+                      const selected = masterEquipment.find(
+                        (eq) => eq.id === e.target.value,
+                      );
+                      setSetupData({
+                        ...setupData,
+                        equipmentId: e.target.value,
+                        equipmentTag: selected?.tagNumber || "",
+                        equipmentCategory: selected?.assetType || "",
+                      });
+                    }}
+                  >
+                    <option value="">Assign Asset Tag...</option>
+                    {masterEquipment.map((eq) => (
+                      <option key={eq.id} value={eq.id}>
+                        {eq.tagNumber} - {eq.assetType}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 </div>
 
                 <button
@@ -648,6 +694,7 @@ const ProjectSetup = () => {
               <PreviewItem label="Asset" value={setupData.equipmentTag} icon={<Package size={14}/>} />
               <PreviewItem label="Technique" value={setupData.selectedTechnique} icon={<Zap size={14}/>} />
               <PreviewItem label="Assigned Inspector" value={setupData.inspectorName} icon={<UserCheck size={14}/>} />
+              <PreviewItem label="Assigned Manager" value={setupData.managerName} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Schedule Start" value={setupData.startDate} icon={<Calendar size={14}/>} />
               <PreviewItem label="Report Number" value={setupData.reportNum} icon={<FileText size={14}/>} />
               <PreviewItem label="Contract Number" value={setupData.contractNumber} icon={<Briefcase size={14}/>} />

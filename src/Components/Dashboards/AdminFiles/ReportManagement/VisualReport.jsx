@@ -1103,7 +1103,13 @@ const VisualReport = ({
     setIsSaving(true);
 
     // 1. DYNAMIC WORKFLOW LOGIC
-    let workflowStatus = "Forwarded to Inspector"; // Default for "Save Draft"
+    const assignedInspectorName =
+      reportData?.general?.inspectorName ||
+      location.state?.preFill?.inspectorName ||
+      reportData?.signoff?.inspector ||
+      user?.displayName ||
+      "Inspector";
+    let workflowStatus = `In Progress - Report With ${assignedInspectorName}`;
 
     if (isFinalizing) {
       // When Inspector submits, it skips "Review" and goes straight to "Pending Confirmation"
@@ -1112,7 +1118,7 @@ const VisualReport = ({
           reportData?.general?.supervisorName ||
           location.state?.preFill?.supervisorName ||
           "Lead Inspector";
-        workflowStatus = `Pending Confirmation ${assignedSupervisorName}`;
+        workflowStatus = `Pending Confirmation- Report With ${assignedSupervisorName}`;
       }
       // When Lead Inspector submits, it moves to "Authorized"
       else if (user?.role === "Lead Inspector") {
@@ -1120,7 +1126,8 @@ const VisualReport = ({
       }
     } else {
       // If NOT finalizing (just saving draft), keep current status
-      workflowStatus = reportData.status || "Forwarded to Inspector";
+      workflowStatus =
+        reportData.status || `In Progress - Report With ${assignedInspectorName}`;
     }
 
     const currentUserIdentifier =

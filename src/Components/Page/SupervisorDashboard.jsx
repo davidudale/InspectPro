@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import React from "react";
 import {
   Activity,
@@ -6,11 +6,8 @@ import {
   AlertCircle,
   Terminal,
   PlusCircle,
-  User,
   Clock
 } from "lucide-react";
-import AdminNavbar from "../Dashboards/AdminNavbar";
-import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase"; // Ensure auth is exported from your firebase config
 import {
   collection,
@@ -25,8 +22,12 @@ import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
 import SupervisorNavbar from "../Dashboards/SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../Dashboards/SupervisorFiles/SupervisorSidebar";
+import { useAuth } from "../Auth/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const SupervisorDashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
   const [inspectionCount, setInspectionCount] = useState(0);
   const [equipmentCount, setEquipmentCount] = useState(0);
@@ -35,6 +36,18 @@ const SupervisorDashboard = () => {
   const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
   const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [notificationQueue, setNotificationQueue] = useState([]);
+  const [activeNotification, setActiveNotification] = useState(null);
+  const seenInSessionRef = useRef({ pending: [], returned: [] });
+
+  const getMarker = (value) => {
+    if (!value) return "";
+    if (typeof value?.toMillis === "function") return String(value.toMillis());
+    if (typeof value === "number") return String(value);
+    if (typeof value === "string") return value;
+    if (value instanceof Date) return String(value.getTime());
+    return "";
+  };
 
   // 1. Fetch live user count
   useEffect(() => {
@@ -131,6 +144,89 @@ const SupervisorDashboard = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Login-time supervisor notifications: pending confirmations and manager returns.
+  useEffect(() => {
+    if (!user?.uid) {
+      setNotificationQueue([]);
+      setActiveNotification(null);
+      seenInSessionRef.current = { pending: [], returned: [] };
+      return undefined;
+    }
+
+    seenInSessionRef.current = { pending: [], returned: [] };
+
+    const projectNotificationsRef = query(
+      collection(db, "projects"),
+      where("supervisorId", "==", user.uid),
+      limit(100),
+    );
+
+    const unsubscribe = onSnapshot(projectNotificationsRef, (snapshot) => {
+      const seen = seenInSessionRef.current;
+      const nextNotifications = [];
+
+      snapshot.docs.forEach((docItem) => {
+        const project = docItem.data();
+        const projectDocId = docItem.id;
+        const projectLabel = project.projectName || project.projectId || projectDocId;
+        const status = String(project.status || "").toLowerCase();
+        const updatedMarker =
+          getMarker(project.updatedAt) ||
+          getMarker(project.returnedAt) ||
+          getMarker(project.confirmedAt) ||
+          "na";
+        const hasReturnNote = Boolean(String(project.returnNote || "").trim());
+        const isPendingForLead = status.startsWith("pending confirmation");
+        const pendingSignature = `${projectDocId}|${status}|${updatedMarker}`;
+        const returnedSignature = `${projectDocId}|${status}|${updatedMarker}|${project.returnNote || ""}`;
+
+        if (!isPendingForLead) return;
+
+        if (hasReturnNote && !seen.returned.includes(returnedSignature)) {
+          nextNotifications.push({
+            key: `returned-${projectDocId}`,
+            title: "Returned For Lead Review",
+            message: `Project ${projectLabel} was returned with feedback and needs your review.`,
+            tone: "returned",
+          });
+          seen.returned.push(returnedSignature);
+          return;
+        }
+
+        if (!hasReturnNote && !seen.pending.includes(pendingSignature)) {
+          nextNotifications.push({
+            key: `pending-${projectDocId}`,
+            title: "Pending Confirmation",
+            message: `Project ${projectLabel} is waiting for your confirmation.`,
+            tone: "new",
+          });
+          seen.pending.push(pendingSignature);
+        }
+      });
+
+      if (nextNotifications.length > 0) {
+        const returnedFirst = [
+          ...nextNotifications.filter((item) => item.tone === "returned"),
+          ...nextNotifications.filter((item) => item.tone !== "returned"),
+        ];
+
+        setNotificationQueue((prev) => {
+          const existingKeys = new Set(prev.map((item) => item.key));
+          const dedupedIncoming = returnedFirst.filter((item) => !existingKeys.has(item.key));
+          return [...prev, ...dedupedIncoming];
+        });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (activeNotification || notificationQueue.length === 0) return;
+    setActiveNotification(notificationQueue[0]);
+    setNotificationQueue((prev) => prev.slice(1));
+  }, [activeNotification, notificationQueue]);
 
   const stats = [
     {
@@ -258,6 +354,38 @@ const SupervisorDashboard = () => {
           </div>
         </main>
       </div>
+      {activeNotification && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <p
+              className={`text-xs font-bold uppercase tracking-[0.2em] ${
+                activeNotification.tone === "returned" ? "text-rose-400" : "text-orange-400"
+              }`}
+            >
+              Notification
+            </p>
+            <h3 className="mt-2 text-xl font-bold text-white">{activeNotification.title}</h3>
+            <p className="mt-3 text-sm text-slate-300">{activeNotification.message}</p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setActiveNotification(null);
+                  navigate("/SubInspection_view");
+                }}
+                className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700"
+              >
+                Open Queue
+              </button>
+              <button
+                onClick={() => setActiveNotification(null)}
+                className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-300 hover:border-slate-600 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -215,15 +215,20 @@ const ReviewForConfirmation = () => {
       if (!projectSnap.exists()) {
         throw new Error("Project record not found.");
       }
+      const projectData = projectSnap.data() || {};
+      const assignedManagerName =
+        projectData?.managerName ||
+        location.state?.preFill?.managerName ||
+        "Manager";
 
       await updateDoc(projectRef, {
-        status: "Confirmed and Forwarded",
+        status: `Passed and Forwarded to ${assignedManagerName}`,
         confirmedBy: user?.displayName || user?.email || "Lead Inspector",
         confirmedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      toast.success("Project Confirmed and Forwarded successfully");
+      toast.success(`Project passed and forwarded to ${assignedManagerName}`);
       navigate("/ConfirmedInspection");
     } catch (error) {
       console.error("Confirm Error:", error);

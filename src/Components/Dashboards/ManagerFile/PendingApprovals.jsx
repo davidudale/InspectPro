@@ -36,26 +36,27 @@ const PendingApprovals = () => {
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
+  const isPendingReviewStatus = (status = "") =>
+    status.startsWith("Pending Confirmation");
+  const canViewAllStatuses = user?.role === "Manager";
+
    useEffect(() => {
     if (!user?.uid) return;
   
     let q;
   
-    // 1. DYNAMIC QUERY SELECTION BASED ON ROLE
-    // Managers and Admins see EVERYTHING with this status
+    // Managers/Admins fetch all, then filter by dynamic pending-confirmation status.
     if (user?.role === "Manager" || user?.role === "Admin") {
       q = query(
         collection(db, "projects"),
-        where("status", "==", "Confirmed and Forwarded"),
-        
+        orderBy("startDate", "desc"),
       );
     } 
-    // Inspectors ONLY see their own specific confirmed assignments
+    // Supervisors/other roles: scoped list, then filtered by dynamic pending status.
     else {
       q = query(
         collection(db, "projects"),
         where("supervisorId", "==", user.uid),
-        where("status", "==", "Approved"),
         orderBy("startDate", "desc")
       );
     }
@@ -67,23 +68,29 @@ const PendingApprovals = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        setProjects(projectsData);
+        setProjects(
+          canViewAllStatuses
+            ? projectsData
+            : projectsData.filter((p) =>
+                isPendingReviewStatus(String(p.status || "")),
+              ),
+        );
         setLoading(false);
       },
       (error) => {
         console.error("Firestore Error:", error);
         // Simplified fallback to avoid index issues during role transition
-        const fallbackQ = query(
-          collection(db, "projects"),
-          where("status", "==", "Pending Confirmation")
-        );
+        const fallbackQ = query(collection(db, "projects"));
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const filteredByStatus = canViewAllStatuses
+            ? data
+            : data.filter((p) => isPendingReviewStatus(String(p.status || "")));
           // Manual filter for fallback if index isn't ready
           if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
-            setProjects(data.filter(p => p.supervisorId === user.uid));
+            setProjects(filteredByStatus.filter((p) => p.supervisorId === user.uid));
           } else {
-            setProjects(data);
+            setProjects(filteredByStatus);
           }
           setLoading(false);
         });
@@ -91,10 +98,14 @@ const PendingApprovals = () => {
     );
   
     return () => unsubscribe();
-  }, [user]);
+  }, [user, canViewAllStatuses]);
 
   // --- NEW: Function to return manifest to Inspector ---
-  const handleReturnToInspector = async (projectId, name) => {
+  const handleReturnToInspector = async (
+    projectId,
+    name,
+    supervisorName = "Lead Inspector",
+  ) => {
     const confirmed = await openConfirm({
       title: "Return to Lead Inspector",
       message: `Return "${name}" to Lead Inspector for corrections?`,
@@ -106,7 +117,7 @@ const PendingApprovals = () => {
     try {
       const projectRef = doc(db, "projects", projectId);
       await updateDoc(projectRef, {
-        status: "Pending Confirmation",
+        status: `Pending Confirmation- Report With ${supervisorName}`,
         lastUpdated: serverTimestamp(),
         returnNote: "Manager requested review/corrections",
       });
@@ -200,7 +211,13 @@ const PendingApprovals = () => {
                           <td className="p-6 text-right space-x-2 item-center flex">
                             {/* NEW: Reject/Return Button */}
                             <button
-                              onClick={() => handleReturnToInspector(project.id, project.projectName)}
+                              onClick={() =>
+                                handleReturnToInspector(
+                                  project.id,
+                                  project.projectName,
+                                  project.supervisorName,
+                                )
+                              }
                               className="bg-red-900/20 hover:bg-red-900/40 text-red-500 p-2 rounded-xl border border-red-500/20 transition-all group/btn"
                               title="Return to Inspector"
                             >

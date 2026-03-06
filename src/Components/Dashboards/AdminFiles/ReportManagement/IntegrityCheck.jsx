@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import {
@@ -30,6 +30,7 @@ import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
+import html2pdf from "html2pdf.js";
 
 const IntegrityCheck = ({
   reportData: reportDataProp,
@@ -65,7 +66,7 @@ const IntegrityCheck = ({
       diagramImage: "",
       utCalibrationCert: "",
       projectId: "",
-      inspectionType: ""
+      inspectionType: "",
     },
     inspection: {
       scope: "",
@@ -142,10 +143,10 @@ const IntegrityCheck = ({
       target: "toc-calibration",
     },
     { label: "8.0 Operators Certificate", target: "toc-operator" },
-    ...((reportData.customSections || []).map((section, idx) => ({
+    ...(reportData.customSections || []).map((section, idx) => ({
       label: `C${idx + 1}. ${section.title || "Custom Section"}`,
       target: `toc-custom-${section.id}`,
-    }))),
+    })),
   ];
   const isSupervisorRole =
     user?.role === "Supervisor" || user?.role === "Lead Inspector";
@@ -430,7 +431,13 @@ const IntegrityCheck = ({
       ...prev,
       observations: [
         ...prev.observations,
-        { id: Date.now(), title: "", description: "", photo: "", photoNote: "" },
+        {
+          id: Date.now(),
+          title: "",
+          description: "",
+          photo: "",
+          photoNote: "",
+        },
       ],
     }));
   };
@@ -664,7 +671,14 @@ const IntegrityCheck = ({
         throw new Error("Project reference missing.");
       }
 
-      const payload = buildFirestoreReportPayload(reportData?.status || "Draft");
+      const assignedInspectorName =
+        reportData?.general?.inspectorName ||
+        reportData?.signoff?.inspector ||
+        location.state?.preFill?.inspectorName ||
+        user?.displayName ||
+        "Inspector";
+      const inProgressStatus = `In Progress - Report With ${assignedInspectorName}`;
+      const payload = buildFirestoreReportPayload(inProgressStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),
         {
@@ -675,6 +689,7 @@ const IntegrityCheck = ({
         { merge: true },
       );
 
+      setReportData((prev) => ({ ...prev, status: inProgressStatus }));
       toast.success("Integrity Check report saved.");
     } catch (error) {
       toast.error(`Error saving report: ${error.message}`);
@@ -695,7 +710,7 @@ const IntegrityCheck = ({
         reportData?.general?.supervisorName ||
         location.state?.preFill?.supervisorName ||
         "Lead Inspector";
-      const pendingConfirmationStatus = `Pending Confirmation ${assignedSupervisorName}`;
+      const pendingConfirmationStatus = `Pending Confirmation- Report With ${assignedSupervisorName}`;
       const payload = buildFirestoreReportPayload(pendingConfirmationStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),
@@ -751,7 +766,9 @@ const IntegrityCheck = ({
               </div>
               <div className="flex items-center gap-3">
                 {canSendForConfirmation &&
-                  !String(reportData.status || "").startsWith("Pending Confirmation") && (
+                  !String(reportData.status || "").startsWith(
+                    "Pending Confirmation",
+                  ) && (
                     <button
                       onClick={handleSendForConfirmation}
                       disabled={isSaving}
@@ -850,7 +867,7 @@ const IntegrityCheck = ({
                     ))}
                   </select>
                 </div>
-                
+
                 <h2
                   className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900"
                   id="toc-schematic"
@@ -897,15 +914,13 @@ const IntegrityCheck = ({
                     )}
                   </div>
                 </div>
-
-                
               </section>
               {/*SUMMARY OF INSPECTION FINDINGS */}
               <section className="space-y-4" id="toc-summary">
                 <div id="toc-photos" className="scroll-mt-24" />
-                
+
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
-                  SUMMARY OF INSPECTION FINDINGS 
+                  SUMMARY OF INSPECTION FINDINGS
                 </h2>
                 <div className="space-y-4">
                   {reportData.observations.map((obs, idx) => (
@@ -953,46 +968,52 @@ const IntegrityCheck = ({
                               if (!file) return;
                               handleObservationPhotoUpload(obs.id, file);
                             }}
-                      />
-                    </label>
-                    <input
-                      type="text"
-                      value={obs.photoNote || ""}
-                      onChange={(e) =>
-                        updateObservation(obs.id, "photoNote", e.target.value)
-                      }
-                      placeholder="Photo note"
-                      className="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-sm text-[10px] text-white focus:border-orange-500 outline-none transition-all uppercase tracking-widest"
-                    />
-                    {obs.photo && (
-                      <>
-                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                          Photo attached
-                        </span>
-                        <div className="flex flex-col gap-2">
-                          <div className="h-20 w-28 border border-slate-800 bg-slate-950 rounded-sm flex items-center justify-center overflow-hidden">
-                            <img
-                              src={obs.photo}
-                              alt={obs.title || "Observation photo"}
-                              className="max-h-full max-w-full object-contain"
-                            />
-                          </div>
-                          {obs.photoNote && (
-                            <div className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
-                              {obs.photoNote}
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={obs.photoNote || ""}
+                          onChange={(e) =>
+                            updateObservation(
+                              obs.id,
+                              "photoNote",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Photo note"
+                          className="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-sm text-[10px] text-white focus:border-orange-500 outline-none transition-all uppercase tracking-widest"
+                        />
+                        {obs.photo && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Photo attached
+                            </span>
+                            <div className="flex flex-col gap-2">
+                              <div className="h-20 w-28 border border-slate-800 bg-slate-950 rounded-sm flex items-center justify-center overflow-hidden">
+                                <img
+                                  src={obs.photo}
+                                  alt={obs.title || "Observation photo"}
+                                  className="max-h-full max-w-full object-contain"
+                                />
+                              </div>
+                              {obs.photoNote && (
+                                <div className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
+                                  {obs.photoNote}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => updateObservation(obs.id, "photo", "")}
-                          className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                        >
-                          Remove
-                        </button>
-                      </>
-                    )}
-                  </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateObservation(obs.id, "photo", "")
+                              }
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                            >
+                              Remove
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1004,23 +1025,18 @@ const IntegrityCheck = ({
                   + Add More Summary
                 </button>
 
-              
-              
-              <section className="space-y-4" id="toc-overview">
-                <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12">
-                  Findings Summary
-                </h2>
-                <TextArea
-                  label=""
-                  value={reportData?.inspection?.findings || ""}
-                  onChange={(v) => handleChange("inspection", "findings", v)}
-                  required
-                />
+                <section className="space-y-4" id="toc-overview">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12">
+                    Findings Summary
+                  </h2>
+                  <TextArea
+                    label=""
+                    value={reportData?.inspection?.findings || ""}
+                    onChange={(v) => handleChange("inspection", "findings", v)}
+                    required
+                  />
+                </section>
               </section>
-
-              
-              </section>
-              
 
               <section className="space-y-4" id="toc-calibration">
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
@@ -1106,7 +1122,9 @@ const IntegrityCheck = ({
                   <InputField
                     label="Calibration Date"
                     value={reportData.general.calibrationDate || ""}
-                    onChange={(v) => handleChange("general", "calibrationDate", v)}
+                    onChange={(v) =>
+                      handleChange("general", "calibrationDate", v)
+                    }
                   />
                   <InputField
                     label="Couplant Used"
@@ -1240,9 +1258,7 @@ const IntegrityCheck = ({
                       className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          
-                        </p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400"></p>
                         <button
                           type="button"
                           onClick={() => removeCustomSection(section.id)}
@@ -1279,7 +1295,6 @@ const IntegrityCheck = ({
                 </button>
               </section>
               {/*Integrity Assessment */}
-              
 
               <section className="space-y-4" id="toc-operator">
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">
@@ -1340,7 +1355,11 @@ const IntegrityCheck = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleChange("signoff", "inspectorSignature", "")
+                                  handleChange(
+                                    "signoff",
+                                    "inspectorSignature",
+                                    "",
+                                  )
                                 }
                                 className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
                               >
@@ -1386,7 +1405,11 @@ const IntegrityCheck = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleChange("signoff", "reviewerSignature", "")
+                                  handleChange(
+                                    "signoff",
+                                    "reviewerSignature",
+                                    "",
+                                  )
                                 }
                                 className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
                               >
@@ -1432,7 +1455,11 @@ const IntegrityCheck = ({
                               <button
                                 type="button"
                                 onClick={() =>
-                                  handleChange("signoff", "managerSignature", "")
+                                  handleChange(
+                                    "signoff",
+                                    "managerSignature",
+                                    "",
+                                  )
                                 }
                                 className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
                               >
@@ -1454,7 +1481,7 @@ const IntegrityCheck = ({
                   disabled={isSaving}
                   className="bg-orange-600 px-6 py-3 rounded-sm text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-orange-700 shadow-lg disabled:opacity-50"
                 >
-                  <Save size={14} /> {isSaving ? "Saving..." : "Save Report"} 
+                  <Save size={14} /> {isSaving ? "Saving..." : "Save Report"}
                 </button>
               </div>
             )}
@@ -1518,11 +1545,55 @@ export const IntegrityWebView = ({
   onBack,
   hideControls = false,
 }) => {
+  const reportRootRef = useRef(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const resolvedCompanyLogo =
     companyLogo ||
     reportData?.general?.companyLogo ||
     reportData?.general?.companyLogoUrl ||
     "";
+  const handleDownloadPdf = async () => {
+    if (!reportRootRef.current) {
+      toast.error("Report content is not ready for PDF export.");
+      return;
+    }
+
+    setIsDownloadingPdf(true);
+    try {
+      const fileBase =
+        reportData?.general?.projectId ||
+        reportData?.general?.reportNum ||
+        reportData?.general?.projectName ||
+        "inspection-report";
+      const safeFileBase = String(fileBase)
+        .trim()
+        .replace(/[^\w\-]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+
+      await html2pdf()
+        .set({
+          margin: 0,
+          filename: `${safeFileBase || "inspection-report"}.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff",
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          pagebreak: { mode: ["css", "legacy"] },
+        })
+        .from(reportRootRef.current)
+        .save();
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error("Failed to download PDF.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
   const companyMark = (
     <div className="flex items-center gap-3">
       {resolvedCompanyLogo ? (
@@ -1683,16 +1754,17 @@ export const IntegrityWebView = ({
               <Printer size={16} /> Print
             </button>
             <button
-              onClick={() => window.print()}
+              onClick={handleDownloadPdf}
+              disabled={isDownloadingPdf}
               className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-sm font-bold flex items-center gap-2 shadow-lg shadow-orange-900/20"
             >
-              <FileDown size={16} /> Save as PDF
+              <FileDown size={16} /> {isDownloadingPdf ? "Generating..." : "Save as PDF"}
             </button>
           </div>
         </div>
       )}
 
-      <div className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
+      <div ref={reportRootRef} className="max-w-[210mm] w-full mx-auto space-y-0 px-2 sm:px-0">
         <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
           <div className="absolute inset-0">
             <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-blue-100/70 blur-2xl" />
@@ -1906,7 +1978,7 @@ export const IntegrityWebView = ({
                 </div>
               </div>
             </div>
-           
+
             <div className="rounded-sm mt-[40px] border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-200 ">
                 <p className="text-[13px] font-bold text-blue-900 uppercase tracking-[0.3em]  text-center">
@@ -1916,7 +1988,9 @@ export const IntegrityWebView = ({
               <table className="w-full text-[10px] border-collapse bg-blue-200">
                 <thead>
                   <tr className="border-b border-slate-200 text-black ">
-                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">S/N</th>
+                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">
+                      S/N
+                    </th>
                     <th className="border-r border-slate-200 p-2 text-[12px]">
                       Description
                     </th>
@@ -2005,7 +2079,8 @@ export const IntegrityWebView = ({
               As requested by{" "}
               <span className="text-md font-bold text-blue-900">
                 {reportData?.general?.client || "the Client"}
-              </span>, the inspection team carried out General Visual Inspection (GVI)
+              </span>
+              , the inspection team carried out General Visual Inspection (GVI)
               and Ultrasonic Thickness Measurements (UTM) on the &nbsp;
               <span className="text-xs font-bold text-blue-900">
                 {reportData?.general?.projectName ||
@@ -2066,10 +2141,7 @@ export const IntegrityWebView = ({
               {reportData?.observations?.length ? (
                 <ol className="space-y-2 text-[10px] leading-relaxed  text-black pb-2">
                   {reportData.observations.map((item, idx) => (
-                    <li
-                      key={item.id}
-                      className="rounded-2xl  bg-white/70 p-4"
-                    >
+                    <li key={item.id} className="rounded-2xl  bg-white/70 p-4">
                       <div className="grid grid-cols-1 gap-4 items-start">
                         <div className="flex items-start gap-3 min-w-0">
                           <span className="text-red-600 font-black">
@@ -2130,9 +2202,7 @@ export const IntegrityWebView = ({
                 <ol className="space-y-2">
                   {findingLines.map((line, idx) => (
                     <li key={`${idx}-${line.slice(0, 20)}`}>
-                      <span className="font-semibold">
-                        {toRoman(idx + 1)}.
-                      </span>{" "}
+                      <span className="font-semibold">{toRoman(idx + 1)}.</span>{" "}
                       {line}
                     </li>
                   ))}
@@ -2171,9 +2241,7 @@ export const IntegrityWebView = ({
 
             <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
               <div className="text-center space-y-2">
-                <div className="text-sm font-black uppercase tracking-wide text-black">
-                  
-                </div>
+                <div className="text-sm font-black uppercase tracking-wide text-black"></div>
                 <p className="text-sm font-black uppercase tracking-wide text-blue-900">
                   {section.title || "Additional Notes"}
                 </p>
@@ -2227,7 +2295,7 @@ export const IntegrityWebView = ({
                         />
                       </div>
                       <div className="text-[10px] text-black text-center font-semibold">
-                      {/*  {o.title || `Evidence ${idx + 1}`} */}
+                        {/*  {o.title || `Evidence ${idx + 1}`} */}
                       </div>
                       {o.photoNote && (
                         <div className="text-[9px] text-black text-center uppercase tracking-[0.2em]">
@@ -2257,7 +2325,6 @@ export const IntegrityWebView = ({
           </div>
         </div>
 
-        
         {remainingPhotoChunks.map((chunk, pageIdx) => {
           return (
             <div
@@ -2348,8 +2415,8 @@ export const IntegrityWebView = ({
               <div className="text-[9px] border border-slate-200 w-full">
                 <div className="border-b border-slate-200 text-center uppercase py-2 bg-blue-900">
                   <span className="text-white font-bold">
-                    Waterflood Module Deck Extension (Level 1) Modification Tie-In
-                    UT Points
+                    Waterflood Module Deck Extension (Level 1) Modification
+                    Tie-In UT Points
                   </span>
                 </div>
 
@@ -2372,25 +2439,32 @@ export const IntegrityWebView = ({
                     {[
                       {
                         leftLabel: "Structure Material:",
-                        leftValue: reportData?.general?.material || "Carbon Steel",
+                        leftValue:
+                          reportData?.general?.material || "Carbon Steel",
                         rightLabel: "Material Size",
-                        rightValue: reportData?.general?.materialSize || "VARIOUS",
+                        rightValue:
+                          reportData?.general?.materialSize || "VARIOUS",
                       },
                       {
                         leftLabel: "UT Equipment:",
-                        leftValue: reportData?.general?.utEquipment || "SUII SMARTOR",
+                        leftValue:
+                          reportData?.general?.utEquipment || "SUII SMARTOR",
                         rightLabel: "Calibration Date",
-                        rightValue: reportData?.general?.calibrationDate || "23 JULY 2025",
+                        rightValue:
+                          reportData?.general?.calibrationDate ||
+                          "23 JULY 2025",
                       },
                       {
                         leftLabel: "Equipment Serial No.:",
-                        leftValue: reportData?.general?.utSerial || "M033223205600",
+                        leftValue:
+                          reportData?.general?.utSerial || "M033223205600",
                         rightLabel: "Couplant Used:",
                         rightValue: reportData?.general?.couplant || "Poly gel",
                       },
                       {
                         leftLabel: "UT Probe: Dia / MHz / Type:",
-                        leftValue: reportData?.general?.utProbe || "10mm / 5MHz / Dual",
+                        leftValue:
+                          reportData?.general?.utProbe || "10mm / 5MHz / Dual",
                         rightLabel: "Inspected By:",
                         rightValue:
                           reportData?.general?.inspectBy ||
@@ -2406,7 +2480,9 @@ export const IntegrityWebView = ({
                     ].map((row, idx) => (
                       <tr
                         key={row.leftLabel}
-                        className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
+                        className={
+                          idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"
+                        }
                       >
                         <td className="border-r border-slate-200 p-2 font-bold uppercase">
                           {row.leftLabel}
@@ -2428,11 +2504,21 @@ export const IntegrityWebView = ({
                 <table className="w-full text-[10px] border-collapse bg-blue-200">
                   <thead>
                     <tr className="border-b border-slate-200 text-black">
-                      <th className="border-r border-slate-200 p-2 text-[12px]">Tie-In</th>
-                      <th className="border-r border-slate-200 p-2 text-[12px]">UT Point</th>
-                      <th className="border-r border-slate-200 p-2 text-[12px]">Nom (mm)</th>
-                      <th className="border-r border-slate-200 p-2 text-[12px]">Add (mm)</th>
-                      <th className="border-r border-slate-200 p-2 text-[12px]">Min (mm)</th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Tie-In
+                      </th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        UT Point
+                      </th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Nom (mm)
+                      </th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Add (mm)
+                      </th>
+                      <th className="border-r border-slate-200 p-2 text-[12px]">
+                        Min (mm)
+                      </th>
                       <th className="p-2 text-[12px]">Observation</th>
                     </tr>
                   </thead>
@@ -2452,7 +2538,9 @@ export const IntegrityWebView = ({
                       .map((row, idx) => (
                         <tr
                           key={row.key}
-                          className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
+                          className={
+                            idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"
+                          }
                         >
                           <td className="border-r border-slate-200 p-2 text-center font-bold">
                             {row.tieIn}
@@ -2544,66 +2632,81 @@ export const IntegrityWebView = ({
 
           {reportHeader}
 
-          
- <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-            <div className="rounded-2xl border border-slate-300 bg-white/90 overflow-hidden">
-              <div className="grid grid-cols-3 text-[10px] uppercase font-bold text-black">
-                <div className="border-r border-slate-300 p-3">
-                  Inspector
-                </div>
-                <div className="border-r border-slate-300 p-3">
-                  Lead Inspector
-                  
-                </div>
-                <div className="p-3">NDT Manager</div>
-              </div>
-              <div className="grid grid-cols-3 text-[10px]">
-                <div className="border-r border-t border-slate-300 p-3 space-y-3 min-h-[160px]">
-                  <div className="text-slate-500">Signature:</div>
-                  {reportData.signoff.inspectorSignature ? (
-                    <img
-                      src={reportData.signoff.inspectorSignature}
-                      alt="Inspector signature"
-                      className="h-16 w-auto object-contain"
-                    />
-                  ) : (
-                    <div className="h-16 border-b border-slate-400" />
-                  )}
-                  <div className="font-semibold uppercase text-black">
-                    {reportData.signoff.inspector || " "}
-                  </div>
-                </div>
-                <div className="border-r border-t border-slate-300 p-3 space-y-3 min-h-[160px]">
-                  <div className="text-slate-500">Signature:</div>
-                  {reportData.signoff.reviewerSignature ? (
-                    <img
-                      src={reportData.signoff.reviewerSignature}
-                      alt="Reviewer signature"
-                      className="h-16 w-auto object-contain"
-                    />
-                  ) : (
-                    <div className="h-16 border-b border-slate-400" />
-                  )}
-                  <div className="font-semibold uppercase text-black">
-                    {reportData.signoff.reviewer || " "}
-                  </div>
-                </div>
-                <div className="border-t border-slate-300 p-3 space-y-3 min-h-[160px]">
-                  <div className="text-slate-500">Signature:</div>
-                  {reportData.signoff.managerSignature ? (
-                    <img
-                      src={reportData.signoff.managerSignature}
-                      alt="NDT Reviewer signature"
-                      className="h-16 w-auto object-contain"
-                    />
-                  ) : (
-                    <div className="h-16 border-b border-slate-400" />
-                  )}
-                  <div className="font-semibold uppercase text-black">
-                    {reportData.signoff.manager || " "}
-                  </div>
-                </div>
-              </div>
+          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+            <div className="rounded-sm border border-slate-800 bg-white overflow-hidden">
+              <table className="w-full border-collapse table-fixed">
+                <thead>
+                  <tr className="text-[11px] font-bold text-black leading-tight uppercase">
+                    <th className="w-1/4 border-r border-b border-slate-800 p-2 text-left">
+                      Prepared By
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        Inspector I
+                      </div>
+                    </th>
+                    <th className="w-1/4 border-r border-b border-slate-800 p-2 text-left">
+                      Reviewed by
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        Lead Inspector
+                      </div>
+                    </th>
+                    <th className="w-1/4 border-r border-b border-slate-800 p-2 text-left">
+                      Verified By
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        NDE Advisor
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="text-[10px]">
+                    <td className="h-[200px] border-r border-slate-800 p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.inspectorSignature ? (
+                          <img
+                            src={reportData.signoff.inspectorSignature}
+                            alt="Prepared by signature"
+                            className="h-14 w-auto object-contain mb-2"
+                          />
+                        ) : null}
+                        <div className="h-6 border-b border-slate-400 mb-2" />
+                        <div className="font-semibold uppercase text-black text-[9px]">
+                          {reportData.signoff.inspector || " "}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="h-[200px] border-r border-slate-800 p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.reviewerSignature ? (
+                          <img
+                            src={reportData.signoff.reviewerSignature}
+                            alt="Lead inspector signature"
+                            className="h-14 w-auto object-contain mb-2"
+                          />
+                        ) : null}
+                        <div className="h-6 border-b border-slate-400 mb-2" />
+                        <div className="font-semibold uppercase text-black text-[9px]">
+                          {reportData.signoff.reviewer || " "}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="h-[200px] border-r border-slate-800 p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.ndeAdvisorSignature ? (
+                          <img
+                            src={reportData.signoff.ndeAdvisorSignature}
+                            alt="NDE advisor signature"
+                            className="h-14 w-auto object-contain mb-2"
+                          />
+                        ) : null}
+                        <div className="h-6 border-b border-slate-400 mb-2" />
+                        <div className="font-semibold uppercase text-black text-[9px]">
+                          {reportData.signoff.ndeAdvisor || " "}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 

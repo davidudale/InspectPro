@@ -43,6 +43,8 @@ const ViewInspectionsList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const isPassedForwardedStatus = (status = "") =>
+    String(status).startsWith("Passed and Forwarded to ");
 
   useEffect(() => {
   if (!user?.uid) {
@@ -55,11 +57,10 @@ const ViewInspectionsList = () => {
   let fallbackUnsubscribe = null;
 
   // 1. DYNAMIC QUERY SELECTION BASED ON ROLE
-  // Managers and Admins see EVERYTHING with this status
+  // Managers and Admins see everything, then filtered by passed/forwarded status.
   if (user?.role === "Manager" || user?.role === "Admin") {
     q = query(
       collection(db, "projects"),
-      where("status", "==", "Confirmed and Forwarded"),
       orderBy("startDate", "desc")
     );
   } 
@@ -79,7 +80,15 @@ const ViewInspectionsList = () => {
         id: doc.id,
         ...doc.data(),
       }));
-      setProjects(projectsData);
+      if (user?.role === "Manager" || user?.role === "Admin") {
+        setProjects(
+          projectsData.filter((project) =>
+            isPassedForwardedStatus(project.status),
+          ),
+        );
+      } else {
+        setProjects(projectsData);
+      }
       setLoading(false);
     },
     (error) => {
@@ -87,10 +96,7 @@ const ViewInspectionsList = () => {
       // Simplified fallback to avoid index issues during role transition
       const fallbackQ =
         user?.role === "Manager" || user?.role === "Admin"
-          ? query(
-              collection(db, "projects"),
-              where("status", "==", "Confirmed and Forwarded"),
-            )
+          ? query(collection(db, "projects"))
           : query(
               collection(db, "projects"),
               where("inspectorId", "==", user.uid),
@@ -99,8 +105,15 @@ const ViewInspectionsList = () => {
       fallbackUnsubscribe = onSnapshot(fallbackQ, (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         // Keep rows visible for inspector across all status values
-        if (user?.role === "Inspector") setProjects(data.filter((p) => p.inspectorId === user.uid));
-        else setProjects(data);
+        if (user?.role === "Inspector") {
+          setProjects(data.filter((p) => p.inspectorId === user.uid));
+        } else {
+          setProjects(
+            data.filter((project) =>
+              isPassedForwardedStatus(project.status),
+            ),
+          );
+        }
         setLoading(false);
       });
     }
@@ -142,7 +155,7 @@ const ViewInspectionsList = () => {
     if (
       status.startsWith("pending confirmation") ||
       status === "completed" ||
-      status === "confirmed and forwarded" ||
+      status.startsWith("passed and forwarded to ") ||
       status === "approved"
     ) {
       return "completed";
@@ -153,12 +166,7 @@ const ViewInspectionsList = () => {
   const getReturnFeedback = (project) => {
     const status = (project?.status || "").toLowerCase();
     if (
-      (
-        status === "returned for correction" ||
-        status.startsWith("returned for correction - rpt_with ") ||
-        status.startsWith("returned to ") ||
-        status === "forwarded to inspector"
-      ) &&
+      status.startsWith("returned for correction - rpt_with ") &&
       project?.returnNote
     ) {
       return project.returnNote;
@@ -169,13 +177,13 @@ const ViewInspectionsList = () => {
   const getInspectorStatusLabel = (project) => {
     const status = (project?.status || "").toLowerCase();
     if (
-      (status === "forwarded to inspector" || status.startsWith("not started- report with ")) &&
+      status.startsWith("not started- report with ") &&
       !project?.inspectionStartedAt
     ) {
       return "New";
     }
     if (
-      (status === "forwarded to inspector" || status.startsWith("not started- report with ")) &&
+      status.startsWith("not started- report with ") &&
       project?.inspectionStartedAt
     ) {
       return "Pending";
@@ -185,11 +193,7 @@ const ViewInspectionsList = () => {
 
   const getInspectionActionLabel = (project) => {
     const status = (project?.status || "").toLowerCase();
-    if (
-      status === "returned for correction" ||
-      status.startsWith("returned for correction - rpt_with ") ||
-      status.startsWith("returned to ")
-    )
+    if (status.startsWith("returned for correction - rpt_with "))
       return "Continue";
     if (project?.inspectionStartedAt) return "Continue Inspection";
     return "Start Inspection";
@@ -210,7 +214,7 @@ const ViewInspectionsList = () => {
         await updateDoc(doc(db, "projects", project.id), {
           inspectionStartedAt: serverTimestamp(),
           inspectionStartedBy: user?.uid || "",
-          status: `In Progress - ${assignedInspectorName}`,
+          status: `In Progress - Report With ${assignedInspectorName}`,
         });
       } catch (error) {
         console.error("Failed to stamp inspection start:", error);

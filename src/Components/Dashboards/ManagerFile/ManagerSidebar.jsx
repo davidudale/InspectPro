@@ -61,7 +61,7 @@ const sidebarLinks = [
   },
 
   
-  {
+  {/*{
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
@@ -147,7 +147,7 @@ const sidebarLinks = [
         href: "/reports/next-day-plan",
       },
     ],
-  },
+  },*/}
 ];
 
 const ManagerSidebar = () => {

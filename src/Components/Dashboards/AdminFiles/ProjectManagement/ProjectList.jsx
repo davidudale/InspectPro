@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, query, deleteDoc, doc } from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
-  Clock, MapPin, Users, Edit3, Trash2, ShieldAlert,
-  ChevronRight, MoreVertical
+  MapPin, Users, Edit3, Trash2, ShieldAlert, MoreVertical
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
@@ -33,7 +32,7 @@ const ProjectList = () => {
   const handleDelete = async (projectId, name) => {
     const confirmed = await openConfirm({
       title: "Delete Project",
-      message: `CRITICAL: Permanently Delete project "${name}" and all linked Reports?`,
+      message: `CRITICAL: Permanently delete project "${name}" and its embedded report data?`,
       confirmLabel: "Delete",
       cancelLabel: "Cancel",
       tone: "danger",
@@ -41,7 +40,7 @@ const ProjectList = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "projects", projectId));
-      toast.error(`${name} Deleted from database`);
+      toast.success(`${name} deleted from database`);
     } catch (error) {
       toast.error("Deletion failed: Admin permissions required");
     }
@@ -49,32 +48,35 @@ const ProjectList = () => {
 
   const filteredProjects = projects.filter(p => 
     p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.client?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.clientName || p.client || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.projectId?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getOperationalStatus = (project) => {
     const topLevelStatus = String(project?.status || "").trim();
     const reportStatus = String(project?.report?.status || "").trim();
+    const topLower = topLevelStatus.toLowerCase();
+    const reportLower = reportStatus.toLowerCase();
 
-    // Prefer report workflow status if it's meaningful and differs.
-    if (
-      reportStatus &&
-      !["draft", "new"].includes(reportStatus.toLowerCase()) &&
-      reportStatus.toLowerCase() !== topLevelStatus.toLowerCase()
-    ) {
+    // Primary source: top-level project workflow status (kept in sync across stages).
+    if (topLevelStatus) {
+      return topLevelStatus;
+    }
+
+    // Fallback for legacy rows where top-level status has not been synchronized yet.
+    if (reportStatus && !["draft", "new"].includes(reportLower)) {
       return reportStatus;
     }
 
     // Safety fallback for rows where start timestamp exists but status text was not synchronized.
     if (
       project?.inspectionStartedAt &&
-      topLevelStatus.toLowerCase().startsWith("not started")
+      (topLower.startsWith("not started") || !topLevelStatus)
     ) {
       return `In Progress - ${project?.inspectorName || "Inspector"}`;
     }
 
-    return topLevelStatus || "Planned";
+    return "Planned";
   };
 
   return (
@@ -156,7 +158,7 @@ const ProjectList = () => {
                             <div className="flex items-center gap-2">
                               <Users size={14} className="text-slate-600" />
                               <div>
-                                <p className="text-xs font-semibold text-slate-300 uppercase">{project.client}</p>
+                                <p className="text-xs font-semibold text-slate-300 uppercase">{project.clientName || project.client || "N/A"}</p>
                                 <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">Oil & Gas Sector</p>
                               </div>
                             </div>
@@ -164,7 +166,7 @@ const ProjectList = () => {
                           <td className="p-6">
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin size={14} className="text-orange-500/50" />
-                              <span className="text-xs font-medium">{project.location || "On-Shore Terminal"}</span>
+                              <span className="text-xs font-medium">{project.locationName || project.location || "On-Shore Terminal"}</span>
                             </div>
                           </td>
                           <td className="p-6">
@@ -178,9 +180,9 @@ const ProjectList = () => {
                             </div>
                           </td>
                           <td className="p-6 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                               <button 
-                                onClick={() => navigate("/viewprojects/project-edit/:id", { state: { editMode: true, project } })}
+                                onClick={() => navigate(`/viewprojects/project-edit/${project.projectId || project.id}`, { state: { editMode: true, project } })}
                                 className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-blue-500 hover:border-blue-500/50 transition-all rounded-xl shadow-inner"
                                 title="Edit Project"
                               >

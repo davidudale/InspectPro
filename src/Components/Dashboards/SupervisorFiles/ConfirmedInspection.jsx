@@ -34,16 +34,16 @@ const ConfirmedInspections = () => {
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const isPassedForwardedStatus = (status = "") =>
+    String(status).startsWith("Passed and Forwarded to ");
 
   useEffect(() => {
     if (!user?.uid) return;
 
-    // --- FIXED QUERY: Use separate where clauses ---
-    // Note: status filter is set to "Pending Confirmation" based on previous workflow
+    // Fetch supervisor projects and filter dynamic passed/forwarded status client-side.
     const q = query(
       collection(db, "projects"),
       where("supervisorId", "==", user.uid),
-      where("status", "==", "Confirmed and forwarded"),
       orderBy("startDate", "desc"),
     );
 
@@ -54,7 +54,11 @@ const ConfirmedInspections = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        setProjects(projectsData);
+        setProjects(
+          projectsData.filter((project) =>
+            isPassedForwardedStatus(project.status),
+          ),
+        );
         setLoading(false);
       },
       (error) => {
@@ -62,10 +66,13 @@ const ConfirmedInspections = () => {
         // Fallback if index isn't ready
         const fallbackQ = query(
           collection(db, "projects"),
-          where("status", "==", "Confirmed and Forwarded"),
+          where("supervisorId", "==", user.uid),
         );
         onSnapshot(fallbackQ, (snap) => {
-          setProjects(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          setProjects(
+            data.filter((project) => isPassedForwardedStatus(project.status)),
+          );
           setLoading(false);
         });
       },
@@ -75,21 +82,22 @@ const ConfirmedInspections = () => {
   }, [user]);
 
   // --- NEW: Function to update existing project status ---
-  const handleConfirmProject = async (projectId, projectName) => {
+  const handleConfirmProject = async (projectId, projectName, managerName) => {
     const projectRef = doc(db, "projects", projectId);
+    const assignedManagerName = managerName || "Manager";
 
     try {
       toast.info(`Authorizing ${projectName}...`);
 
       // This UPDATES the existing project document
       await updateDoc(projectRef, {
-        status: "Confirmed and Forwarded",
+        status: `Passed and Forwarded to ${assignedManagerName}`,
         confirmedBy: user?.displayName || user?.email,
         confirmationDate: serverTimestamp(),
         lastUpdated: serverTimestamp(),
       });
 
-      toast.success("Project Authorized and Forwarded");
+      toast.success(`Project Authorized and Forwarded to ${assignedManagerName}`);
     } catch (error) {
       console.error("Update Error:", error);
       toast.error("Failed to update project status: " + error.message);

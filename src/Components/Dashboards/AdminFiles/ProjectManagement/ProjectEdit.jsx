@@ -35,7 +35,8 @@ import { useAuth } from "../../../Auth/AuthContext";
 
 const ProjectEdit = () => {
   const { user } = useAuth();
-  const { projectId } = useParams();
+  const { id, projectId } = useParams();
+  const routeProjectId = projectId || id || "";
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -74,7 +75,7 @@ const ProjectEdit = () => {
     supervisorId: "",
     supervisorName: "",
     startDate: "",
-    status: "Forwarded to Inspector",
+    status: "Not started- Report With Inspector",
   });
 
   useEffect(() => {
@@ -126,7 +127,7 @@ const ProjectEdit = () => {
         return;
       }
 
-      if (!projectId) {
+      if (!routeProjectId) {
         setLoading(false);
         return;
       }
@@ -135,7 +136,7 @@ const ProjectEdit = () => {
         let resolvedDoc = null;
         const projectQuery = query(
           collection(db, "projects"),
-          where("projectId", "==", projectId),
+          where("projectId", "==", routeProjectId),
           limit(1),
         );
         const snapshot = await getDocs(projectQuery);
@@ -144,7 +145,7 @@ const ProjectEdit = () => {
         }
 
         if (!resolvedDoc) {
-          const docSnap = await getDoc(doc(db, "projects", projectId));
+          const docSnap = await getDoc(doc(db, "projects", routeProjectId));
           if (docSnap.exists()) {
             resolvedDoc = docSnap;
           }
@@ -166,7 +167,7 @@ const ProjectEdit = () => {
     };
 
     bootstrap();
-  }, [location.state, projectId, navigate]);
+  }, [location.state, routeProjectId, navigate]);
 
   const availableLocations = useMemo(
     () => locations.filter((loc) => loc.clientId === setupData.clientId),
@@ -448,11 +449,17 @@ const ProjectEdit = () => {
                           const selected = inspectors.find(
                             (ins) => ins.id === e.target.value,
                           );
+                          const assignedInspectorName =
+                            selected?.displayName || selected?.name || "";
                           setSetupData((prev) => ({
                             ...prev,
                             inspectorId: selected?.id || "",
-                            inspectorName:
-                              selected?.displayName || selected?.name || "",
+                            inspectorName: assignedInspectorName,
+                            status:
+                              !prev.status ||
+                              String(prev.status).toLowerCase().startsWith("not started")
+                                ? `Not started- Report With ${assignedInspectorName || "Inspector"}`
+                                : prev.status,
                           }));
                         }}
                       >
@@ -561,9 +568,13 @@ const ProjectEdit = () => {
                           }))
                         }
                       >
-                        <option value="Forwarded to Inspector">Forwarded to Inspector</option>
+                        <option value="Not started- Report With Inspector">
+                          Not started- Report With Inspector
+                        </option>
                         <option value="Planned">Planned</option>
-                        <option value="In-Progress">In-Progress</option>
+                        <option value="In Progress - Report With Inspector">
+                          In Progress - Report With Inspector
+                        </option>
                         <option value="On-Hold">On-Hold</option>
                         <option value="Completed">Completed</option>
                       </select>

@@ -11,11 +11,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { Activity } from "lucide-react";
-import IntegrityCheck, { IntegrityWebView } from "../../AdminFiles/ReportManagement/IntegrityCheck";
-import VisualReport from "../../AdminFiles/ReportManagement/VisualReport";
-import Aut from "../../AdminFiles/ReportManagement/Aut";
-import DetailedReport from "../../AdminFiles/ReportManagement/DetailedReport";
-import MutReport from "../../AdminFiles/ReportManagement/MutReport";
+import { IntegrityWebView } from "../../AdminFiles/ReportManagement/IntegrityCheck";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -159,8 +155,24 @@ const ReportDownloadView = ({
         platform: baseGeneral.platform || project?.locationName || "",
         tag: baseGeneral.tag || project?.equipmentTag || "",
         reportNum: baseGeneral.reportNum || project?.reportNum || "",
+        contract:
+          baseGeneral.contract ||
+          baseGeneral.contractNumber ||
+          project?.contractNumber ||
+          "",
+        pidNumber: baseGeneral.pidNumber || project?.pidNumber || "",
         date: baseGeneral.date || project?.startDate || "",
         equipment: baseGeneral.equipment || project?.equipmentCategory || "",
+        diagramImage:
+          baseGeneral.diagramImage ||
+          base.diagramImage ||
+          project?.report?.general?.diagramImage ||
+          "",
+        utCalibrationCert:
+          baseGeneral.utCalibrationCert ||
+          base.utCalibrationCert ||
+          project?.report?.general?.utCalibrationCert ||
+          "",
         clientLogo:
           baseGeneral.clientLogo ||
           project?.clientLogo ||
@@ -177,62 +189,6 @@ const ReportDownloadView = ({
       signoff: base.signoff || {},
     };
   })();
-
-  const reportPayload = report || normalizedReportData;
-
-  if (techniqueType === "visual") {
-    return (
-      <VisualReport
-        previewData={reportPayload}
-        onBack={() => (onClose ? onClose() : navigate(-1))}
-        hideControls={hideControls}
-        companyLogo={companyLogo}
-      />
-    );
-  }
-
-  if (techniqueType === "Integrity Check") {
-    return (
-      <IntegrityCheck
-        reportData={normalizedReportData}
-        companyLogo={companyLogo}
-        onBack={() => (onClose ? onClose() : navigate(-1))}
-        hideControls={hideControls}
-      />
-    );
-  }
-  if (techniqueType === "aut") {
-    return (
-      <Aut
-        previewData={reportPayload}
-        onBack={() => (onClose ? onClose() : navigate(-1))}
-        hideControls={hideControls}
-        companyLogo={companyLogo}
-      />
-    );
-  }
-
-  if (techniqueType === "mut") {
-    return (
-      <MutReport
-        previewData={reportPayload}
-        onBack={() => (onClose ? onClose() : navigate(-1))}
-        hideControls={hideControls}
-        companyLogo={companyLogo}
-      />
-    );
-  }
-
-  if (techniqueType === "detailed") {
-    return (
-      <DetailedReport
-        previewData={reportPayload}
-        onBack={() => (onClose ? onClose() : navigate(-1))}
-        hideControls={hideControls}
-        companyLogo={companyLogo}
-      />
-    );
-  }
 
   return (
     <IntegrityWebView
