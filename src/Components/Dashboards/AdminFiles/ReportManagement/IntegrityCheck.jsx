@@ -102,7 +102,7 @@ const IntegrityCheck = ({
     ],
     signoff: {
       inspector: "",
-      reviewer: "",
+      supervisor: "",
       manager: "",
       inspectorSignature: "",
       reviewerSignature: "",
@@ -179,6 +179,10 @@ const IntegrityCheck = ({
     user?.role === "Manager" || user?.role === "Admin";
   const canEditManagerSignature =
     user?.role === "Manager" || user?.role === "Admin";
+  // Role-aware visibility for signoff name fields.
+  const canViewInspectorField = canViewInspectorSignature;
+  const canViewLeadField = canViewLeadSignature;
+  const canViewManagerField = canViewManagerSignature;
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
@@ -203,6 +207,12 @@ const IntegrityCheck = ({
       const p = location.state.preFill;
       const projectKey = p.id || p.projectDocId || p.projectId || "";
       const reportKey = p.reportId || p.reportDocId || p.reportKey || "";
+      const prefillInspectorName =
+        p.inspectorName || p.assignedInspectorName || "";
+      const prefillSupervisorName =
+        p.supervisorName || p.assignedSupervisorName || "";
+      const prefillManagerName =
+        p.managerName || p.assignedManagerName || "";
 
       setReportData((prev) => ({
         ...prev,
@@ -219,6 +229,15 @@ const IntegrityCheck = ({
           reportNum: p.reportNum || p.reportNo || prev.general.reportNum,
           date: new Date().toISOString().split("T")[0],
           projectId: projectKey,
+          supervisorName: p.supervisorName || p.assignedSupervisorName || "",
+          assignedSupervisorName:
+            p.assignedSupervisorName || p.supervisorName || "",
+        },
+        signoff: {
+          ...prev.signoff,
+          inspector: prev.signoff.inspector || prefillInspectorName,
+          reviewer: prev.signoff.reviewer || prefillSupervisorName,
+          manager: prev.signoff.manager || prefillManagerName,
         },
       }));
 
@@ -298,6 +317,24 @@ const IntegrityCheck = ({
                 projectData?.inspectionTypeCode ||
                 "",
             },
+            signoff: {
+              ...(existingData.signoff || {}),
+              inspector:
+                existingData?.signoff?.inspector ||
+                projectData?.inspectorName ||
+                prefillInspectorName ||
+                "",
+              reviewer:
+                existingData?.signoff?.reviewer ||
+                projectData?.supervisorName ||
+                prefillSupervisorName ||
+                "",
+              manager:
+                existingData?.signoff?.manager ||
+                projectData?.managerName ||
+                prefillManagerName ||
+                "",
+            },
           });
           toast.info("Previous Integrity Check report loaded for correction.");
         } else if (projectData?.status) {
@@ -320,6 +357,24 @@ const IntegrityCheck = ({
               inspectionTypeCode:
                 prev.general.inspectionTypeCode ||
                 projectData?.inspectionTypeCode ||
+                "",
+            },
+            signoff: {
+              ...prev.signoff,
+              inspector:
+                prev.signoff.inspector ||
+                projectData?.inspectorName ||
+                prefillInspectorName ||
+                "",
+              reviewer:
+                prev.signoff.reviewer ||
+                projectData?.supervisorName ||
+                prefillSupervisorName ||
+                "",
+              manager:
+                prev.signoff.manager ||
+                projectData?.managerName ||
+                prefillManagerName ||
                 "",
             },
           }));
@@ -623,6 +678,10 @@ const IntegrityCheck = ({
         inspectionTypeCode: asText(g.inspectionTypeCode),
         projectName: asText(g.projectName),
         clientLogo: asText(g.clientLogo),
+        supervisorName: asText(g.supervisorName || g.assignedSupervisorName),
+        assignedSupervisorName: asText(
+          g.assignedSupervisorName || g.supervisorName,
+        ),
         material: asText(g.material),
         utEquipment: asText(g.utEquipment),
         utSerial: asText(g.utSerial),
@@ -1301,24 +1360,45 @@ const IntegrityCheck = ({
                   Sign-Off
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <InputField
-                    label="Inspector"
-                    value={reportData.signoff.inspector}
-                    onChange={(v) => handleChange("signoff", "inspector", v)}
-                    required
-                  />
-                  <InputField
-                    label="Lead Inspector"
-                    value={reportData.signoff.reviewer}
-                    onChange={(v) => handleChange("signoff", "reviewer", v)}
-                    required
-                  />
-                  <InputField
-                    label="NDT Manager"
-                    value={reportData.signoff.manager}
-                    onChange={(v) => handleChange("signoff", "manager", v)}
-                    required
-                  />
+                  {canViewInspectorField && (
+                    <InputField
+                      label="Inspector"
+                      value={
+                        reportData.signoff.inspector ||
+                        reportData.general.inspectorName ||
+                        location.state?.preFill?.inspectorName ||
+                        ""
+                      }
+                      onChange={(v) => handleChange("signoff", "inspector", v)}
+                      required
+                    />
+                  )}
+                  {canViewLeadField && (
+                    <InputField
+                      label="Lead Inspector"
+                      value={
+                        reportData.signoff.reviewer ||
+                        reportData.general.supervisorName ||
+                        location.state?.preFill?.supervisorName ||
+                        ""
+                      }
+                      onChange={(v) => handleChange("signoff", "reviewer", v)}
+                      required
+                    />
+                  )}
+                  {canViewManagerField && (
+                    <InputField
+                      label="NDT Manager"
+                      value={
+                        reportData.signoff.manager ||
+                        reportData.general.managerName ||
+                        location.state?.preFill?.managerName ||
+                        ""
+                      }
+                      onChange={(v) => handleChange("signoff", "manager", v)}
+                      required
+                    />
+                  )}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {canViewInspectorSignature && (
@@ -2670,7 +2750,9 @@ export const IntegrityWebView = ({
                         ) : null}
                         <div className="h-6 border-b border-slate-400 mb-2" />
                         <div className="font-semibold uppercase text-black text-[9px]">
-                          {reportData.signoff.inspector || " "}
+                          {reportData.signoff.inspector ||
+                            reportData.general?.inspectorName ||
+                            "Inspector"}
                         </div>
                       </div>
                     </td>
@@ -2685,22 +2767,29 @@ export const IntegrityWebView = ({
                         ) : null}
                         <div className="h-6 border-b border-slate-400 mb-2" />
                         <div className="font-semibold uppercase text-black text-[9px]">
-                          {reportData.signoff.reviewer || " "}
+                          {reportData.signoff.reviewer ||
+                            reportData.general?.assignedSupervisorName ||
+                            reportData.general?.supervisorName ||
+                            reportData?.assignedSupervisorName ||
+                            reportData?.supervisorName ||
+                            "Lead Inspector"}
                         </div>
                       </div>
                     </td>
                     <td className="h-[200px] border-r border-slate-800 p-3 align-bottom">
                       <div className="flex h-full flex-col justify-end">
-                        {reportData.signoff.ndeAdvisorSignature ? (
+                        {reportData.signoff.managerSignature ? (
                           <img
-                            src={reportData.signoff.ndeAdvisorSignature}
+                            src={reportData.signoff.managerSignature}
                             alt="NDE advisor signature"
                             className="h-14 w-auto object-contain mb-2"
                           />
                         ) : null}
                         <div className="h-6 border-b border-slate-400 mb-2" />
                         <div className="font-semibold uppercase text-black text-[9px]">
-                          {reportData.signoff.ndeAdvisor || " "}
+                          {reportData.signoff.manager ||
+                            reportData.general?.managerName ||
+                            "NDT Advisor"}
                         </div>
                       </div>
                     </td>

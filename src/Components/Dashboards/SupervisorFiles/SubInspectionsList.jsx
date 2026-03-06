@@ -17,8 +17,6 @@ import {
   MapPin,
   ShieldAlert,
   Activity,
-  RotateCcw, // Icon for returning to inspector
-  CheckCircle,
 } from "lucide-react";
 
 import { toast } from "react-toastify";
@@ -37,19 +35,13 @@ const SubInspectionsList = () => {
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
-  const isReviewQueueStatus = (status = "") =>
-    status.startsWith("Pending Confirmation") ||
-    status.startsWith("In Lead Review - ") ||
-    status.startsWith("Returned for correction - Rpt_With ");
-
    useEffect(() => {
     if (!user?.uid) return;
   
     let q;
   
     // 1. DYNAMIC QUERY SELECTION BASED ON ROLE
-    // Managers and Admins see everything; status is filtered client-side
-    // because two required states are dynamic strings with assigned names.
+    // Managers/Admins see everything.
     if (user?.role === "Manager" || user?.role === "Admin") {
       q = query(
         collection(db, "projects"),
@@ -72,7 +64,7 @@ const SubInspectionsList = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        setProjects(projectsData.filter((p) => isReviewQueueStatus(p.status)));
+        setProjects(projectsData);
         setLoading(false);
       },
       (error) => {
@@ -81,12 +73,11 @@ const SubInspectionsList = () => {
         const fallbackQ = query(collection(db, "projects"));
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          const filteredByStatus = data.filter((p) => isReviewQueueStatus(p.status));
-          // Manual filter for fallback if index isn't ready
+          // Manual role filter for fallback if index isn't ready
           if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
-            setProjects(filteredByStatus.filter((p) => p.supervisorId === user.uid));
+            setProjects(data.filter((p) => p.supervisorId === user.uid));
           } else {
-            setProjects(filteredByStatus);
+            setProjects(data);
           }
           setLoading(false);
         });
@@ -120,6 +111,22 @@ const SubInspectionsList = () => {
   };
 
   const handleReview = async (project) => {
+    const isEditableStatus = String(project?.status || "")
+      .toLowerCase()
+      .startsWith("pending confirmation");
+
+    if (!isEditableStatus) {
+      navigate(`/review/${project.id || project.projectId}`, {
+        state: {
+          preFill: {
+            ...project,
+            assetType: project.equipmentCategory || project.assetType,
+          },
+        },
+      });
+      return;
+    }
+
     try {
       const assignedSupervisorName =
         project?.supervisorName || user?.displayName || "Supervisor";
@@ -239,7 +246,11 @@ const SubInspectionsList = () => {
                               onClick={() => handleReview(project)}
                               className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
                             >
-                              Review
+                              {String(project?.status || "")
+                                .toLowerCase()
+                                .startsWith("pending confirmation")
+                                ? "Review"
+                                : "View"}
                             </button>
                           </td>
                         </tr>

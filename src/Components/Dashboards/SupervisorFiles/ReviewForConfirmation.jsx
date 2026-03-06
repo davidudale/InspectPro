@@ -315,7 +315,7 @@ const ReviewForConfirmation = () => {
       toast.warning("Report returned to inspector");
       setShowReturnModal(false);
       setReturnFeedback("");
-      navigate("/ConfirmedInspection");
+      navigate("/SubInspection_view");
     } catch (error) {
       console.error("Return Error:", error);
       toast.error(`Return failed: ${error.message}`);

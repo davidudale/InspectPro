@@ -221,8 +221,8 @@ const PendingApprovals = () => {
                               className="bg-red-900/20 hover:bg-red-900/40 text-red-500 p-2 rounded-xl border border-red-500/20 transition-all group/btn"
                               title="Return to Inspector"
                             >
-                              <RotateCcw size={16} className="group-active/btn:rotate-[-90deg] transition-transform" />
-                            </button>
+                            {/* <RotateCcw size={16} className="group-active/btn:rotate-[-90deg] transition-transform" />
+                            */}</button>
 
                             {/* View Report / Final Approval Button */}
                             <button
@@ -231,7 +231,11 @@ const PendingApprovals = () => {
                               })}
                               className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
                             >
-                             Review
+                             {String(project?.status || "")
+                               .toLowerCase()
+                               .startsWith("passed and forwarded")
+                               ? "Review"
+                               : "View"}
                             </button>
                           </td>
                         </tr>

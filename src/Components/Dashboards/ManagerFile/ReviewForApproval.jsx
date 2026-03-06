@@ -8,6 +8,7 @@ import { useAuth } from "../../Auth/AuthContext";
 import ManagerNavbar from "./ManagerNavbar";
 import ManagerSidebar from "./ManagerSidebar";
 import ReportDownloadView from "./ReportDownloadView";
+import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
 
 const ReviewForApproval = () => {
   const { user } = useAuth();
@@ -16,11 +17,23 @@ const ReviewForApproval = () => {
   const { id } = useParams();
 
   const [isSaving, setIsSaving] = useState(false);
+  // Return modal state (manager -> supervisor feedback loop).
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnFeedback, setReturnFeedback] = useState("");
 
+  // Accept route id and state prefill id to support both direct route and in-app navigation.
   const targetProjectId =
     id || location.state?.preFill?.id || location.state?.preFill?.projectId;
+  // Determine whether this record is still in manager-editable phase.
+  const currentStatus = String(
+    location.state?.preFill?.status || location.state?.preFill?.report?.status || "",
+  );
+  const isEditableView = currentStatus
+    .toLowerCase()
+    .startsWith("passed and forwarded");
 
   const getTechniqueType = () => {
+    // Resolve template type from prefilled project metadata.
     const raw = (
       location.state?.preFill?.reportTemplate ||
       location.state?.preFill?.selectedTechnique ||
@@ -37,6 +50,7 @@ const ReviewForApproval = () => {
   };
 
   const resolveEditRoute = () => {
+    // Map technique to editor route.
     const techniqueType = getTechniqueType();
     const base = "/admin/reports";
 
@@ -48,6 +62,7 @@ const ReviewForApproval = () => {
   };
 
   const handleModifyReport = () => {
+    // Preserve current prefill payload when switching into report editor.
     const editRoute = resolveEditRoute();
     const preFill = {
       ...(location.state?.preFill || {}),
@@ -59,6 +74,7 @@ const ReviewForApproval = () => {
   };
 
   const handleConfirmProject = async () => {
+    // Final manager approval transitions the workflow to Approved.
     const projectId = targetProjectId;
 
     if (!projectId) {
@@ -86,6 +102,49 @@ const ReviewForApproval = () => {
     }
   };
 
+  const handleReturnToSupervisor = async () => {
+    // Open feedback modal first; submit handler performs the DB update.
+    setShowReturnModal(true);
+  };
+
+  const handleSubmitReturnToSupervisor = async () => {
+    // Return action pushes workflow back to supervisor queue with explicit feedback note.
+    const projectId = targetProjectId;
+    if (!projectId) {
+      return toast.error("Technical Error: Project Reference Missing");
+    }
+    const feedback = returnFeedback.trim();
+    if (!feedback) {
+      return toast.error("Please provide return feedback.");
+    }
+
+    setIsSaving(true);
+    try {
+      // Keep the dynamic assignee naming pattern used across status strings.
+      const assignedSupervisorName =
+        location.state?.preFill?.supervisorName || "Lead Inspector";
+      const projectRef = doc(db, "projects", projectId);
+
+      await updateDoc(projectRef, {
+        status: `Pending Confirmation- Report With ${assignedSupervisorName}`,
+        returnNote: feedback,
+        returnedBy: user?.name || user?.email || "Manager",
+        returnedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      toast.warning("Report returned to Supervisor successfully");
+      setShowReturnModal(false);
+      setReturnFeedback("");
+      navigate("/Pending_approval");
+    } catch (error) {
+      console.error("Return Error:", error);
+      toast.error(`Return failed: ${error.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <ManagerNavbar />
@@ -106,9 +165,19 @@ const ReviewForApproval = () => {
                 </h1>
               </div>
               <div className="flex gap-3">
+                {/* Return action is only valid while item is in "Passed and Forwarded..." stage. */}
+                {isEditableView && (
+                  <button
+                    onClick={handleReturnToSupervisor}
+                    disabled={isSaving}
+                    className="bg-amber-600 hover:bg-amber-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    Return
+                  </button>
+                )}
                 <button
                   onClick={handleModifyReport}
-                  disabled={isSaving}
+                  disabled={isSaving || !isEditableView}
                   className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   Modify
@@ -118,13 +187,18 @@ const ReviewForApproval = () => {
                   disabled={isSaving}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  <Check size={16} /> {isSaving ? "Syncing..." : "OK"}
+                  <Check size={16} /> {isSaving ? "Syncing..." : "Confirm"}
                 </button>
               </div>
             </header>
 
             {targetProjectId ? (
-              <ReportDownloadView projectId={targetProjectId} hideControls embedded />
+              // Editable renderer for active manager-review stage; read-only webview for other states.
+              isEditableView ? (
+                <ReportDownloadView projectId={targetProjectId} hideControls embedded />
+              ) : (
+                <ProjectPreview projectId={targetProjectId} hideControls />
+              )
             ) : (
               <div className="bg-slate-900/40 p-6 rounded-2xl border border-slate-800 text-center text-xs uppercase tracking-widest text-slate-400">
                 Manifest ID missing.
@@ -133,9 +207,45 @@ const ReviewForApproval = () => {
           </div>
         </main>
       </div>
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Return Report</h3>
+            <p className="mt-1 text-xs text-slate-400 uppercase tracking-wider">
+              Write feedback for the supervisor before returning.
+            </p>
+            <textarea
+              value={returnFeedback}
+              onChange={(e) => setReturnFeedback(e.target.value)}
+              placeholder="State clearly what should be corrected before resubmission..."
+              className="mt-4 h-32 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200 outline-none focus:border-amber-500"
+            />
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setReturnFeedback("");
+                }}
+                disabled={isSaving}
+                className="rounded-lg border border-slate-600 px-4 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmitReturnToSupervisor}
+                disabled={isSaving}
+                className="rounded-lg bg-amber-600 px-5 py-2 text-xs font-bold uppercase text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {isSaving ? "Returning..." : "Submit Return"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default ReviewForApproval;
-
