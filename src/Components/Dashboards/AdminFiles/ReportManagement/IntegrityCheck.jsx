@@ -2720,7 +2720,7 @@ export const IntegrityWebView = ({
                     <th className="w-1/4 border-r border-b border-slate-800 p-2 text-left">
                       Prepared By
                       <div className="mt-1 text-[10px] font-semibold normal-case">
-                        Inspector I
+                        Inspector
                       </div>
                     </th>
                     <th className="w-1/4 border-r border-b border-slate-800 p-2 text-left">
