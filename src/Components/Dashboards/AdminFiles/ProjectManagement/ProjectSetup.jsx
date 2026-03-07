@@ -509,7 +509,7 @@ const ProjectSetup = () => {
                 </div>
                 <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <UserCheck size={14} /> 4. Assign NDT Manager
+                    <UserCheck size={14} /> 4. Assign NDE Reviewer
                   </h2>
                   <select
                     required
@@ -530,7 +530,7 @@ const ProjectSetup = () => {
                       });
                     }}
                   >
-                    <option value="">Choose NDT Manager...</option>
+                    <option value="">Choose NDE Reviewer...</option>
                     {managers.map((mgr) => (
                       <option key={mgr.id} value={mgr.id}>
                         {mgr.name || mgr.displayName || mgr.fullName}

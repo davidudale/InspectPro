@@ -117,7 +117,11 @@ const UserPage = () => {
   };
 
   // ... rest of the component (Delete handler and Return UI) remain same as previous version
-  const handleDelete = async (id, name) => {
+  const handleDelete = async (id, name, role = "") => {
+    if (String(role).toUpperCase() === "ADMIN") {
+      return;
+    }
+
     const confirmed = await openConfirm({
       title: "Remove User",
       message: `Permanently remove ${name} from the directory?`,
@@ -202,7 +206,17 @@ const UserPage = () => {
                               <button onClick={() => handleOpenModal(u)} title="Edit User" aria-label={`Edit ${u.name}`} className="p-2 text-slate-500 hover:text-orange-500 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm">
                                 <Edit2 size={14} />
                               </button>
-                              <button onClick={() => handleDelete(u.id, u.name)} title="Delete User" aria-label={`Delete ${u.name}`} className="p-2 text-slate-500 hover:text-red-500 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm">
+                              <button
+                                onClick={() => handleDelete(u.id, u.name, u.role)}
+                                title={String(u.role).toUpperCase() === "ADMIN" ? "Admin users cannot be deleted" : "Delete User"}
+                                aria-label={`Delete ${u.name}`}
+                                disabled={String(u.role).toUpperCase() === "ADMIN"}
+                                className={`p-2 transition-colors bg-slate-900/50 border border-slate-800 rounded-lg shadow-sm ${
+                                  String(u.role).toUpperCase() === "ADMIN"
+                                    ? "text-slate-700 cursor-not-allowed opacity-50"
+                                    : "text-slate-500 hover:text-red-500"
+                                }`}
+                              >
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -313,3 +327,4 @@ const UserPage = () => {
 };
 
 export default UserPage;
+

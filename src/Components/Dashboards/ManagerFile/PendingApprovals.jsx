@@ -232,7 +232,7 @@ const PendingApprovals = () => {
 
                           <td className="p-6 text-right space-x-2 item-center flex">
                             {/* NEW: Reject/Return Button */}
-                            <button
+                           {/* <button
                               onClick={() =>
                                 handleReturnToInspector(
                                   project.id,
@@ -243,15 +243,15 @@ const PendingApprovals = () => {
                               className="bg-red-900/20 hover:bg-red-900/40 text-red-500 p-2 rounded-xl border border-red-500/20 transition-all group/btn"
                               title="Return to Inspector"
                             >
-                            {/* <RotateCcw size={16} className="group-active/btn:rotate-[-90deg] transition-transform" />
-                            */}</button>
+                             <RotateCcw size={16} className="group-active/btn:rotate-[-90deg] transition-transform" />
+                            </button>*/}
 
                             {/* View Report / Final Approval Button */}
                             <button
                               onClick={() => navigate("/ReviewForApproval", { 
                                 state: { preFill: { ...project, assetType: project.equipmentCategory || project.assetType } } 
                               })}
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
+                              className="bg-orange-600 hover:bg-orange-700 text-white ml-6 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg "
                             >
                              {String(project?.status || "")
                                .toLowerCase()
