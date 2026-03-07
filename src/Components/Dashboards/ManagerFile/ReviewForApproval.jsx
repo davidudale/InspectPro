@@ -77,6 +77,12 @@ const ReviewForApproval = () => {
     // Final manager approval transitions the workflow to Approved.
     const projectId = targetProjectId;
 
+    if (!isEditableView) {
+      return toast.error(
+        "Confirm is only available when status starts with 'Passed and Forwarded'.",
+      );
+    }
+
     if (!projectId) {
       return toast.error("Technical Error: Project Reference Missing");
     }
@@ -184,7 +190,7 @@ const ReviewForApproval = () => {
                 </button>
                 <button
                   onClick={handleConfirmProject}
-                  disabled={isSaving}
+                  disabled={isSaving || !isEditableView}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   <Check size={16} /> {isSaving ? "Syncing..." : "Confirm"}
