@@ -154,6 +154,7 @@ const ViewInspectionsList = () => {
     const status = (project?.status || "").toLowerCase();
     if (
       status.startsWith("pending confirmation") ||
+      status.startsWith("in lead review") ||
       status === "completed" ||
       status.startsWith("passed and forwarded to ") ||
       status === "approved"
@@ -257,6 +258,16 @@ const ViewInspectionsList = () => {
     });
 
     toast.info(`Initializing ${technique} Manifest...`);
+  };
+  const handleViewInspection = (project) => {
+    navigate(`/review/${project.id || project.projectId}`, {
+      state: {
+        preFill: {
+          ...project,
+          assetType: project.equipmentCategory || project.assetType,
+        },
+      },
+    });
   };
 
   return (
@@ -376,12 +387,19 @@ const ViewInspectionsList = () => {
                           </td>
 
                           <td className="p-6 text-right">
-                            {getInspectionActionState(project) === "active" && (
+                            {getInspectionActionState(project) === "active" ? (
                               <button
                                 onClick={() => handleOpenInspection(project)}
                                 className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
                               >
                                 {getInspectionActionLabel(project)}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleViewInspection(project)}
+                                className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+                              >
+                                View
                               </button>
                             )}
                           </td>
@@ -410,4 +428,11 @@ const ViewInspectionsList = () => {
 };
 
 export default ViewInspectionsList;
+
+
+
+
+
+
+
 

@@ -110,41 +110,17 @@ const SubInspectionsList = () => {
     }
   };
 
-  const getTechniqueEditRoute = (project) => {
-    const raw = String(
-      project?.report?.general?.selectedTechnique ||
-      project?.report?.technique ||
-      project?.reportTemplate ||
-      project?.selectedTechnique ||
-      "",
-    ).toLowerCase();
-
-    if (raw.includes("pressure vessel") || raw.includes("integrity")) {
-      return "/inspector/integrity-check";
-    }
-    if (raw.includes("detailed")) {
-      return "/inspector/Detailed-report";
-    }
-    if (raw.includes("aut") || raw.includes("corrosion mapping")) {
-      return "/inspector/aut-report";
-    }
-    if (raw.includes("mut") || raw.includes("manual ut")) {
-      return "/admin/reports/mut";
-    }
-    return "/inspector/visual-report";
-  };
-
   const handleReview = async (project) => {
     const normalizedStatus = String(project?.status || "").toLowerCase();
     const isPendingConfirmation = normalizedStatus.startsWith("pending confirmation");
     const isLeadReview = normalizedStatus.startsWith("in lead review");
-    const isEditableStatus = isPendingConfirmation || isLeadReview;
+    const isReviewStatus = isPendingConfirmation || isLeadReview;
     const preFill = {
       ...project,
       assetType: project.equipmentCategory || project.assetType,
     };
 
-    if (!isEditableStatus) {
+    if (!isReviewStatus) {
       navigate(`/review/${project.id || project.projectId}`, {
         state: { preFill },
       });
@@ -165,7 +141,7 @@ const SubInspectionsList = () => {
         });
       }
 
-      navigate(getTechniqueEditRoute(project), {
+      navigate("/pendinginspections", {
         state: {
           preFill: {
             ...preFill,
@@ -309,6 +285,7 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
+
 
 
 

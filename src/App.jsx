@@ -181,7 +181,7 @@ function App() {
           path="/review/:id"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector","Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <ReviewReport />
             </ProtectedRoute>

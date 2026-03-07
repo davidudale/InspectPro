@@ -3,8 +3,12 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../Auth/AuthContext";
 import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
+import ManagerNavbar from "../ManagerFile/ManagerNavbar";
+import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
+import InspectorNavbar from "../InspectorsFile/InspectorNavbar";
+import InspectorSidebar from "../InspectorsFile/InspectorSidebar";
 import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
 
 const ReviewReport = () => {
@@ -15,11 +19,30 @@ const ReviewReport = () => {
   const resolvedProjectId =
     id || location.state?.preFill?.id || location.state?.preFill?.projectId || "";
 
+  const isSupervisorRole =
+    user?.role === "Lead Inspector" || user?.role === "Supervisor";
+  const Navbar =
+    user?.role === "Admin"
+      ? AdminNavbar
+      : user?.role === "Manager"
+        ? ManagerNavbar
+        : isSupervisorRole
+          ? SupervisorNavbar
+          : InspectorNavbar;
+  const Sidebar =
+    user?.role === "Admin"
+      ? AdminSidebar
+      : user?.role === "Manager"
+        ? ManagerSidebar
+        : isSupervisorRole
+          ? SupervisorSidebar
+          : InspectorSidebar;
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      {user?.role === "Admin" ? <AdminNavbar /> : <SupervisorNavbar />}
+      <Navbar />
       <div className="flex flex-1">
-        {user?.role === "Admin" ? <AdminSidebar /> : <SupervisorSidebar />}
+        <Sidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
             {resolvedProjectId ? (
