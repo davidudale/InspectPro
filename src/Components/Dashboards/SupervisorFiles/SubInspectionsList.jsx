@@ -110,37 +110,71 @@ const SubInspectionsList = () => {
     }
   };
 
+  const getTechniqueEditRoute = (project) => {
+    const raw = String(
+      project?.report?.general?.selectedTechnique ||
+      project?.report?.technique ||
+      project?.reportTemplate ||
+      project?.selectedTechnique ||
+      "",
+    ).toLowerCase();
+
+    if (raw.includes("pressure vessel") || raw.includes("integrity")) {
+      return "/inspector/integrity-check";
+    }
+    if (raw.includes("detailed")) {
+      return "/inspector/Detailed-report";
+    }
+    if (raw.includes("aut") || raw.includes("corrosion mapping")) {
+      return "/inspector/aut-report";
+    }
+    if (raw.includes("mut") || raw.includes("manual ut")) {
+      return "/admin/reports/mut";
+    }
+    return "/inspector/visual-report";
+  };
+
   const handleReview = async (project) => {
-    const isEditableStatus = String(project?.status || "")
-      .toLowerCase()
-      .startsWith("pending confirmation");
+    const normalizedStatus = String(project?.status || "").toLowerCase();
+    const isPendingConfirmation = normalizedStatus.startsWith("pending confirmation");
+    const isLeadReview = normalizedStatus.startsWith("in lead review");
+    const isEditableStatus = isPendingConfirmation || isLeadReview;
+    const preFill = {
+      ...project,
+      assetType: project.equipmentCategory || project.assetType,
+    };
 
     if (!isEditableStatus) {
       navigate(`/review/${project.id || project.projectId}`, {
-        state: {
-          preFill: {
-            ...project,
-            assetType: project.equipmentCategory || project.assetType,
-          },
-        },
+        state: { preFill },
       });
       return;
     }
 
     try {
-      const assignedSupervisorName =
-        project?.supervisorName || user?.displayName || "Supervisor";
-      const projectRef = doc(db, "projects", project.id);
-      await updateDoc(projectRef, {
-        status: `In Lead Review - ${assignedSupervisorName}`,
-        updatedAt: serverTimestamp(),
+      let nextStatus = project?.status || "";
+
+      if (isPendingConfirmation) {
+        const assignedSupervisorName =
+          project?.supervisorName || user?.displayName || "Supervisor";
+        nextStatus = `In Lead Review - ${assignedSupervisorName}`;
+        const projectRef = doc(db, "projects", project.id);
+        await updateDoc(projectRef, {
+          status: nextStatus,
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      navigate(getTechniqueEditRoute(project), {
+        state: {
+          preFill: {
+            ...preFill,
+            status: nextStatus,
+          },
+        },
       });
     } catch (error) {
       toast.error(`Failed to set status: ${error.message}`);
-    } finally {
-      navigate("/pendinginspections", {
-        state: { preFill: { ...project, assetType: project.equipmentCategory || project.assetType } },
-      });
     }
   };
 
@@ -246,9 +280,11 @@ const SubInspectionsList = () => {
                               onClick={() => handleReview(project)}
                               className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg"
                             >
-                              {String(project?.status || "")
-                                .toLowerCase()
-                                .startsWith("pending confirmation")
+                              {["pending confirmation", "in lead review"].some((statusPrefix) =>
+                                String(project?.status || "")
+                                  .toLowerCase()
+                                  .startsWith(statusPrefix),
+                              )
                                 ? "Review"
                                 : "View"}
                             </button>
@@ -273,4 +309,7 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
+
+
+
 

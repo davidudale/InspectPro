@@ -118,7 +118,7 @@ function App() {
           path="/inspector/aut-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <Aut />
             </ProtectedRoute>
@@ -128,7 +128,7 @@ function App() {
           path="/inspector/Detailed-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <DetailedReport />
             </ProtectedRoute>
@@ -139,7 +139,7 @@ function App() {
           path="/inspector/settings"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
             >
               <UserPreferences />
             </ProtectedRoute>
@@ -567,3 +567,4 @@ function App() {
   );
 }
 export default App;
+
