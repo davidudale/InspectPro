@@ -21,6 +21,7 @@ const ReportDownloadView = ({
   projectId: projectIdProp = "",
   hideControls = false,
   embedded = false,
+  hideSaveReportButton = false,
   showCloseButton = false,
   onClose,
 } = {}) => {
@@ -31,6 +32,7 @@ const ReportDownloadView = ({
   const [project, setProject] = useState(null);
   const [report, setReport] = useState(null);
   const [companyLogo, setCompanyLogo] = useState("");
+  const [projectDocId, setProjectDocId] = useState("");
 
   const getTechniqueType = () => {
     const raw = (
@@ -72,10 +74,12 @@ const ReportDownloadView = ({
       try {
         setLoading(true);
         let resolvedProjectData = null;
+        let resolvedProjectDocId = "";
 
         const projectDoc = await getDoc(doc(db, "projects", id));
         if (projectDoc.exists()) {
           resolvedProjectData = projectDoc.data();
+          resolvedProjectDocId = projectDoc.id;
         } else {
           const projectByBusinessIdQ = query(
             collection(db, "projects"),
@@ -85,10 +89,12 @@ const ReportDownloadView = ({
           const projectByBusinessIdSnap = await getDocs(projectByBusinessIdQ);
           if (!projectByBusinessIdSnap.empty) {
             resolvedProjectData = projectByBusinessIdSnap.docs[0].data();
+            resolvedProjectDocId = projectByBusinessIdSnap.docs[0].id;
           }
         }
 
         if (resolvedProjectData) setProject(resolvedProjectData);
+        setProjectDocId(resolvedProjectDocId);
         setReport(resolvedProjectData?.report || null);
       } catch (error) {
         console.error("PDF Fetch Error:", error);
@@ -172,6 +178,7 @@ const ReportDownloadView = ({
           project?.client?.logo ||
           "",
         projectId: baseGeneral.projectId || project?.projectId || "",
+        projectDocId: baseGeneral.projectDocId || projectDocId || "",
         inspectionTypeName,
         inspectionTypeCode: baseGeneral.inspectionTypeCode || "",
         projectName: baseGeneral.projectName || project?.projectName || "",
@@ -183,7 +190,23 @@ const ReportDownloadView = ({
     };
   })();
 
-  const reportPayload = report || normalizedReportData;
+  const reportPayload = {
+    ...normalizedReportData,
+    ...(report || {}),
+    general: {
+      ...normalizedReportData.general,
+      ...(report?.general || {}),
+      projectDocId:
+        report?.general?.projectDocId ||
+        projectDocId ||
+        normalizedReportData.general.projectDocId ||
+        "",
+      projectId:
+        report?.general?.projectId ||
+        normalizedReportData.general.projectId ||
+        "",
+    },
+  };
 
   if (techniqueType === "visual") {
     return (
@@ -203,6 +226,7 @@ const ReportDownloadView = ({
         companyLogo={companyLogo}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
+        hideSaveReportButton={hideSaveReportButton}
       />
     );
   }

@@ -27,6 +27,19 @@ import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const LocationManager = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const [locations, setLocations] = useState([]);
   const [clients, setClients] = useState([]); // Master Client Location
   const [searchTerm, setSearchTerm] = useState("");
@@ -177,13 +190,17 @@ const LocationManager = () => {
     });
   };
 
-  const filteredLocations = locations.filter((l) => {
-    const name = (l.name || "").toLowerCase();
-    const clientName = (l.clientName || "").toLowerCase();
-    const region = (l.region || "").toLowerCase();
-    const term = searchTerm.toLowerCase();
-    return name.includes(term) || clientName.includes(term) || region.includes(term);
-  });
+  const filteredLocations = locations
+    .filter((l) => {
+      const name = (l.name || "").toLowerCase();
+      const clientName = (l.clientName || "").toLowerCase();
+      const region = (l.region || "").toLowerCase();
+      const term = searchTerm.toLowerCase();
+      return name.includes(term) || clientName.includes(term) || region.includes(term);
+    })
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+    );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">

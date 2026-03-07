@@ -12,6 +12,19 @@ import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const UserPage = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -162,7 +175,13 @@ const UserPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {users.map((u) => (
+                      {[...users]
+                        .sort(
+                          (a, b) =>
+                            toMillis(getRowTimestamp(b)) -
+                            toMillis(getRowTimestamp(a)),
+                        )
+                        .map((u) => (
                         <tr key={u.id} className="hover:bg-slate-800/20 transition-colors group">
                           <td className="p-4">
                             <div className="flex items-center gap-3">

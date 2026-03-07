@@ -25,6 +25,19 @@ import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const InspectionTypeManager = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const [types, setTypes] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -408,12 +421,16 @@ const InspectionTypeManager = () => {
     </div>
   );
 
-  const filteredTypes = types.filter((t) => {
-    const title = (t.title || "").toLowerCase();
-    const fullName = (t.fullName || "").toLowerCase();
-    const term = searchTerm.toLowerCase();
-    return title.includes(term) || fullName.includes(term);
-  });
+  const filteredTypes = types
+    .filter((t) => {
+      const title = (t.title || "").toLowerCase();
+      const fullName = (t.fullName || "").toLowerCase();
+      const term = searchTerm.toLowerCase();
+      return title.includes(term) || fullName.includes(term);
+    })
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+    );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">

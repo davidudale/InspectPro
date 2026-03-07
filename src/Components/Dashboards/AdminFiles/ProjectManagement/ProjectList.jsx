@@ -12,6 +12,24 @@ import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const ProjectList = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt ||
+    row?.lastUpdated ||
+    row?.createdAt ||
+    row?.timestamp ||
+    row?.startDate ||
+    0;
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,11 +64,18 @@ const ProjectList = () => {
     }
   };
 
-  const filteredProjects = projects.filter(p => 
-    p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.clientName || p.client || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.projectId?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProjects = projects
+    .filter(
+      (p) =>
+        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.clientName || p.client || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+    );
 
   const getOperationalStatus = (project) => {
     const topLevelStatus = String(project?.status || "").trim();

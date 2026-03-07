@@ -24,6 +24,25 @@ import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 
 const ApprovedProjects = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt ||
+    row?.lastUpdated ||
+    row?.confirmationDate ||
+    row?.createdAt ||
+    row?.timestamp ||
+    row?.startDate ||
+    0;
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
@@ -52,12 +71,16 @@ const ApprovedProjects = () => {
     return () => unsubscribe();
   }, [user]);
 
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.projectId?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProjects = projects
+    .filter(
+      (p) =>
+        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+    );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">

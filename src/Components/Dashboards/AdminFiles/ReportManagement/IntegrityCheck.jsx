@@ -37,6 +37,7 @@ const IntegrityCheck = ({
   companyLogo: companyLogoProp,
   onBack,
   hideControls = false,
+  hideSaveReportButton = false,
 }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -673,6 +674,7 @@ const IntegrityCheck = ({
         diagramImage: asText(g.diagramImage),
         utCalibrationCert: asText(g.utCalibrationCert),
         projectId: asText(projectDocId || g.projectId || ""),
+        projectDocId: asText(g.projectDocId || projectDocId || ""),
         inspectionType: asText(g.inspectionType),
         inspectionTypeName: asText(g.inspectionTypeName),
         inspectionTypeCode: asText(g.inspectionTypeCode),
@@ -725,7 +727,23 @@ const IntegrityCheck = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const resolvedProjectId = projectDocId || reportData?.general?.projectId;
+      let resolvedProjectId =
+        projectDocId ||
+        reportData?.general?.projectDocId ||
+        location.state?.preFill?.id ||
+        "";
+      if (!resolvedProjectId && reportData?.general?.projectId) {
+        const projectLookup = query(
+          collection(db, "projects"),
+          where("projectId", "==", reportData.general.projectId),
+          limit(1),
+        );
+        const projectSnapshot = await getDocs(projectLookup);
+        if (!projectSnapshot.empty) {
+          resolvedProjectId = projectSnapshot.docs[0].id;
+          setProjectDocId(resolvedProjectId);
+        }
+      }
       if (!resolvedProjectId) {
         throw new Error("Project reference missing.");
       }
@@ -736,8 +754,20 @@ const IntegrityCheck = ({
         location.state?.preFill?.inspectorName ||
         user?.displayName ||
         "Inspector";
-      const inProgressStatus = `In Progress - Report With ${assignedInspectorName}`;
-      const payload = buildFirestoreReportPayload(inProgressStatus);
+      const currentStatus = String(reportData?.status || "").trim();
+      const prefillStatus = String(location.state?.preFill?.status || "").trim();
+      const shouldPreserveForwardedStatus =
+        Boolean(location.state?.preFill?.preserveForwardedStatusOnSave) ||
+        currentStatus
+          .toLowerCase()
+          .startsWith("passed and forwarded") ||
+        prefillStatus
+          .toLowerCase()
+          .startsWith("passed and forwarded");
+      const saveStatus = shouldPreserveForwardedStatus
+        ? currentStatus || prefillStatus
+        : `In Progress - Report With ${assignedInspectorName}`;
+      const payload = buildFirestoreReportPayload(saveStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),
         {
@@ -748,7 +778,7 @@ const IntegrityCheck = ({
         { merge: true },
       );
 
-      setReportData((prev) => ({ ...prev, status: inProgressStatus }));
+      setReportData((prev) => ({ ...prev, status: saveStatus }));
       toast.success("Integrity Check report saved.");
     } catch (error) {
       toast.error(`Error saving report: ${error.message}`);
@@ -760,7 +790,23 @@ const IntegrityCheck = ({
   const handleSendForConfirmation = async () => {
     setIsSaving(true);
     try {
-      const resolvedProjectId = projectDocId || reportData?.general?.projectId;
+      let resolvedProjectId =
+        projectDocId ||
+        reportData?.general?.projectDocId ||
+        location.state?.preFill?.id ||
+        "";
+      if (!resolvedProjectId && reportData?.general?.projectId) {
+        const projectLookup = query(
+          collection(db, "projects"),
+          where("projectId", "==", reportData.general.projectId),
+          limit(1),
+        );
+        const projectSnapshot = await getDocs(projectLookup);
+        if (!projectSnapshot.empty) {
+          resolvedProjectId = projectSnapshot.docs[0].id;
+          setProjectDocId(resolvedProjectId);
+        }
+      }
       if (!resolvedProjectId) {
         throw new Error("Project reference missing.");
       }
@@ -769,7 +815,19 @@ const IntegrityCheck = ({
         reportData?.general?.supervisorName ||
         location.state?.preFill?.supervisorName ||
         "Lead Inspector";
-      const pendingConfirmationStatus = `Pending Confirmation- Report With ${assignedSupervisorName}`;
+      const currentStatus = String(reportData?.status || "").trim();
+      const prefillStatus = String(location.state?.preFill?.status || "").trim();
+      const shouldPreserveForwardedStatus =
+        Boolean(location.state?.preFill?.preserveForwardedStatusOnSave) ||
+        currentStatus
+          .toLowerCase()
+          .startsWith("passed and forwarded") ||
+        prefillStatus
+          .toLowerCase()
+          .startsWith("passed and forwarded");
+      const pendingConfirmationStatus = shouldPreserveForwardedStatus
+        ? currentStatus || prefillStatus
+        : `Pending Confirmation- Report With ${assignedSupervisorName}`;
       const payload = buildFirestoreReportPayload(pendingConfirmationStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),
@@ -825,6 +883,7 @@ const IntegrityCheck = ({
               </div>
               <div className="flex items-center gap-3">
                 {canSendForConfirmation &&
+                  !hideSaveReportButton &&
                   !String(reportData.status || "").startsWith(
                     "Pending Confirmation",
                   ) && (
@@ -1554,7 +1613,7 @@ const IntegrityCheck = ({
                 </div>
               </section>
             </div>
-            {user?.role === "Inspector" && (
+            {user?.role === "Inspector" && !hideSaveReportButton && (
               <div className="mt-8 flex justify-end">
                 <button
                   onClick={handleSave}

@@ -64,10 +64,15 @@ const ReviewForApproval = () => {
   const handleModifyReport = () => {
     // Preserve current prefill payload when switching into report editor.
     const editRoute = resolveEditRoute();
+    const preserveForwardedStatusOnSave = currentStatus
+      .toLowerCase()
+      .startsWith("passed and forwarded");
     const preFill = {
       ...(location.state?.preFill || {}),
       id: targetProjectId,
       projectId: location.state?.preFill?.projectId || targetProjectId,
+      status: currentStatus,
+      preserveForwardedStatusOnSave,
     };
 
     navigate(editRoute, { state: { preFill } });
@@ -201,7 +206,12 @@ const ReviewForApproval = () => {
             {targetProjectId ? (
               // Editable renderer for active manager-review stage; read-only webview for other states.
               isEditableView ? (
-                <ReportDownloadView projectId={targetProjectId} hideControls embedded />
+                <ReportDownloadView
+                  projectId={targetProjectId}
+                  hideControls
+                  embedded
+                  hideSaveReportButton={isEditableView}
+                />
               ) : (
                 <ProjectPreview projectId={targetProjectId} hideControls />
               )

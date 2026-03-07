@@ -62,6 +62,19 @@ const baseStatuses = ["In-Service", "Out-of-Service", "Mothballed", "Decommissio
 const baseServices = ["Hydrocarbon", "Steam", "Cooling Water", "Flare Gas", "Lube Oil"];
 
 const EquipmentManager = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const [equipment, setEquipment] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -291,12 +304,16 @@ const EquipmentManager = () => {
     });
   };
 
-  const filteredEquipment = equipment.filter(
-    (asset) =>
-      asset.tagNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.assetType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      asset.materialSpec.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredEquipment = equipment
+    .filter(
+      (asset) =>
+        asset.tagNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.assetType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        asset.materialSpec.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+    );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">

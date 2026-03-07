@@ -15,6 +15,19 @@ import { useAuth } from "../../../Auth/AuthContext";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const ClientManager = () => {
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -121,13 +134,17 @@ const ClientManager = () => {
     setNewClient({ name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "", address: "" });
   };
 
-  const filteredClients = clients.filter((c) => {
-    const name = (c.name || "").toLowerCase();
-    const industry = (c.industry || "").toLowerCase();
-    const email = (c.email || "").toLowerCase();
-    const term = searchTerm.toLowerCase();
-    return name.includes(term) || industry.includes(term) || email.includes(term);
-  });
+  const filteredClients = clients
+    .filter((c) => {
+      const name = (c.name || "").toLowerCase();
+      const industry = (c.industry || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      const term = searchTerm.toLowerCase();
+      return name.includes(term) || industry.includes(term) || email.includes(term);
+    })
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+    );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
