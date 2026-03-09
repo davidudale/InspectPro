@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { Activity } from "lucide-react";
 import { IntegrityWebView } from "../../AdminFiles/ReportManagement/IntegrityCheck";
+import { VisualWebView } from "../../AdminFiles/ReportManagement/VisualReport";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -29,25 +30,50 @@ const ReportDownloadView = ({
   const [companyLogo, setCompanyLogo] = useState("");
 
   const getTechniqueType = () => {
-    const raw = (
-      report?.general?.selectedTechnique ||
-      report?.technique ||
-      project?.reportTemplate ||
-      project?.selectedTechnique ||
-      report?.general?.inspectionTypeName ||
-      report?.general?.inspectionType ||
-      ""
+    const hasVisualSpecificContent =
+      Array.isArray(report?.checklist) ||
+      (report?.observations || []).some(
+        (obs) => obs?.refSn || obs?.equipmentId || obs?.equipmentDescription,
+      );
+    const explicitType = String(
+      report?.type || project?.report?.type || "",
     ).toLowerCase();
 
-    if (raw.includes("integrity"))
-      return "integrity";
-    if (raw.includes("detailed")) return "detailed";
-    if (raw.includes("aut") ) return "aut";
-    if (raw.includes("mut") ) return "mut";
-    if (raw.includes("visual"))
+    if (hasVisualSpecificContent) return "visual";
+    if (explicitType.includes("visual")) return "visual";
+    if (explicitType.includes("integrity")) return "integrity";
+    if (explicitType.includes("detailed")) return "detailed";
+    if (explicitType.includes("aut")) return "aut";
+    if (explicitType.includes("mut")) return "mut";
+
+    const candidates = [
+      report?.general?.selectedTechnique,
+      report?.technique,
+      project?.reportTemplate,
+      project?.selectedTechnique,
+      report?.general?.inspectionTypeName,
+      report?.general?.inspectionType,
+      project?.inspectionTypeName,
+      project?.inspectionTypeCode,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    if (
+      candidates.some(
+        (value) =>
+          value.includes("visual") ||
+          value.includes("radiography") ||
+          value.includes("rt") ||
+          value.includes("x-ray"),
+      )
+    ) {
       return "visual";
-    if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray"))
-      return "visual";
+    }
+    if (candidates.some((value) => value.includes("integrity"))) return "integrity";
+    if (candidates.some((value) => value.includes("detailed"))) return "detailed";
+    if (candidates.some((value) => value.includes("aut"))) return "aut";
+    if (candidates.some((value) => value.includes("mut"))) return "mut";
     return "visual";
   };
 
@@ -189,6 +215,17 @@ const ReportDownloadView = ({
       signoff: base.signoff || {},
     };
   })();
+
+  if (techniqueType === "visual") {
+    return (
+      <VisualWebView
+        reportData={normalizedReportData}
+        companyLogo={companyLogo}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+      />
+    );
+  }
 
   return (
     <IntegrityWebView

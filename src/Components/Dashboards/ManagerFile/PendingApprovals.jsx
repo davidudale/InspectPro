@@ -56,21 +56,40 @@ const PendingApprovals = () => {
 
   const isPendingReviewStatus = (status = "") =>
     status.startsWith("Pending Confirmation");
-  const canViewAllStatuses = user?.role === "Manager";
+  const canViewAllStatuses = user?.role === "Admin";
 
-   useEffect(() => {
+  const matchesSignedInUser = (project) => {
+    if (user?.role === "Admin") return true;
+    if (user?.role === "Manager") {
+      return project?.managerId === user?.uid;
+    }
+    if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
+      return project?.supervisorId === user?.uid;
+    }
+    return false;
+  };
+
+    useEffect(() => {
     if (!user?.uid) return;
   
     let q;
   
-    // Managers/Admins fetch all, then filter by dynamic pending-confirmation status.
-    if (user?.role === "Manager" || user?.role === "Admin") {
+    // Admins can fetch all.
+    if (user?.role === "Admin") {
       q = query(
         collection(db, "projects"),
         orderBy("startDate", "desc"),
       );
-    } 
-    // Supervisors/other roles: scoped list, then filtered by dynamic pending status.
+    }
+    // Managers only see items assigned to them.
+    else if (user?.role === "Manager") {
+      q = query(
+        collection(db, "projects"),
+        where("managerId", "==", user.uid),
+        orderBy("startDate", "desc"),
+      );
+    }
+    // Supervisors/lead inspectors only see items assigned to them.
     else {
       q = query(
         collection(db, "projects"),
@@ -89,8 +108,10 @@ const PendingApprovals = () => {
         setProjects(
           canViewAllStatuses
             ? projectsData
-            : projectsData.filter((p) =>
-                isPendingReviewStatus(String(p.status || "")),
+            : projectsData.filter(
+                (p) =>
+                  matchesSignedInUser(p) &&
+                  isPendingReviewStatus(String(p.status || "")),
               ),
         );
         setLoading(false);
@@ -101,15 +122,16 @@ const PendingApprovals = () => {
         const fallbackQ = query(collection(db, "projects"));
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          const filteredByStatus = canViewAllStatuses
+          const filteredByStatus = data.filter(
+            (p) =>
+              matchesSignedInUser(p) &&
+              (canViewAllStatuses ||
+                isPendingReviewStatus(String(p.status || ""))),
+          );
+          const scopedData = canViewAllStatuses
             ? data
-            : data.filter((p) => isPendingReviewStatus(String(p.status || "")));
-          // Manual filter for fallback if index isn't ready
-          if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
-            setProjects(filteredByStatus.filter((p) => p.supervisorId === user.uid));
-          } else {
-            setProjects(filteredByStatus);
-          }
+            : filteredByStatus;
+          setProjects(scopedData);
           setLoading(false);
         });
       }

@@ -35,25 +35,50 @@ const ReportDownloadView = ({
   const [projectDocId, setProjectDocId] = useState("");
 
   const getTechniqueType = () => {
-    const raw = (
-      report?.general?.selectedTechnique ||
-      report?.technique ||
-      project?.reportTemplate ||
-      project?.selectedTechnique ||
-      report?.general?.inspectionTypeName ||
-      report?.general?.inspectionType ||
-      ""
+    const hasVisualSpecificContent =
+      Array.isArray(report?.checklist) ||
+      (report?.observations || []).some(
+        (obs) => obs?.refSn || obs?.equipmentId || obs?.equipmentDescription,
+      );
+    const explicitType = String(
+      report?.type || project?.report?.type || "",
     ).toLowerCase();
 
-    if (raw.includes("integrity"))
-      return "integrity";
-    if (raw.includes("detailed")) return "detailed";
-    if (raw.includes("aut") ) return "aut";
-    if (raw.includes("mut") ) return "mut";
-    if (raw.includes("visual"))
+    if (hasVisualSpecificContent) return "visual";
+    if (explicitType.includes("visual")) return "visual";
+    if (explicitType.includes("integrity")) return "integrity";
+    if (explicitType.includes("detailed")) return "detailed";
+    if (explicitType.includes("aut")) return "aut";
+    if (explicitType.includes("mut")) return "mut";
+
+    const candidates = [
+      report?.general?.selectedTechnique,
+      report?.technique,
+      project?.reportTemplate,
+      project?.selectedTechnique,
+      report?.general?.inspectionTypeName,
+      report?.general?.inspectionType,
+      project?.inspectionTypeName,
+      project?.inspectionTypeCode,
+    ]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    if (
+      candidates.some(
+        (value) =>
+          value.includes("visual") ||
+          value.includes("radiography") ||
+          value.includes("rt") ||
+          value.includes("x-ray"),
+      )
+    ) {
       return "visual";
-    if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray"))
-      return "visual";
+    }
+    if (candidates.some((value) => value.includes("integrity"))) return "integrity";
+    if (candidates.some((value) => value.includes("detailed"))) return "detailed";
+    if (candidates.some((value) => value.includes("aut"))) return "aut";
+    if (candidates.some((value) => value.includes("mut"))) return "mut";
     return "visual";
   };
 
@@ -211,7 +236,7 @@ const ReportDownloadView = ({
   if (techniqueType === "visual") {
     return (
       <VisualReport
-        previewData={reportPayload}
+        reportData={reportPayload}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
         companyLogo={companyLogo}
