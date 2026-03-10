@@ -386,7 +386,7 @@ const InspectionDashboard = () => {
                 <div className="w-16 h-16 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-4">
                   <Activity className="text-slate-600" size={32} />
                 </div>
-                <h3 className="text-white font-bold">Analytics Engine</h3>
+                <h3 className="text-white font-bold">Project Chatbox</h3>
                 <p className="text-slate-500 text-sm mt-2 max-w-[250px]">
                   Connect your assistant to view real-time data visualization
                   charts.

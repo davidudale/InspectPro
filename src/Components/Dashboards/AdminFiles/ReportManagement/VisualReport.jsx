@@ -1203,9 +1203,18 @@ const VisualReport = ({
                                 />
                               </div>
                               {obs.photoNote && (
-                                <div className="text-[9px] text-slate-500 uppercase tracking-[0.2em]">
-                                  {obs.photoNote}
-                                </div>
+                                <textarea
+                                  value={obs.photoNote}
+                                  onChange={(e) =>
+                                    updateObservation(
+                                      obs.id,
+                                      "photoNote",
+                                      e.target.value,
+                                    )
+                                  }
+                                  rows={3}
+                                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded-sm text-[9px] text-slate-300 focus:border-orange-500 outline-none transition-all resize-none"
+                                />
                               )}
                             </div>
                             <button
@@ -1874,18 +1883,81 @@ export const VisualWebView = ({
     });
     return out || String(value);
   };
+  const chunkArray = (items, size) => {
+    if (!items.length) return [[]];
+    return Array.from({ length: Math.ceil(items.length / size) }, (_, idx) =>
+      items.slice(idx * size, (idx + 1) * size),
+    );
+  };
+  const splitTextIntoPageChunks = (text, maxChars = 2600) => {
+    const source = String(text || "").trim();
+    if (!source) return [""];
+    const paragraphs = source.split(/\n\s*\n/).filter(Boolean);
+    const chunks = [];
+    let current = "";
+
+    paragraphs.forEach((paragraph) => {
+      const normalized = paragraph.trim();
+      const next = current ? `${current}\n\n${normalized}` : normalized;
+      if (next.length <= maxChars) {
+        current = next;
+        return;
+      }
+
+      if (current) {
+        chunks.push(current);
+        current = "";
+      }
+
+      if (normalized.length <= maxChars) {
+        current = normalized;
+        return;
+      }
+
+      const words = normalized.split(/\s+/);
+      let wordChunk = "";
+      words.forEach((word) => {
+        const candidate = wordChunk ? `${wordChunk} ${word}` : word;
+        if (candidate.length > maxChars) {
+          if (wordChunk) chunks.push(wordChunk);
+          wordChunk = word;
+        } else {
+          wordChunk = candidate;
+        }
+      });
+      if (wordChunk) current = wordChunk;
+    });
+
+    if (current) chunks.push(current);
+    return chunks.length ? chunks : [source];
+  };
   const photosPerPage = 6;
+  const summaryChunks = chunkArray(populatedObservations, 6);
+  const checklistChunks = chunkArray(populatedChecklist, 9);
+  const customSectionPages = (reportData.customSections || []).flatMap(
+    (section, idx) =>
+      splitTextIntoPageChunks(section.content || "").map((content, pageIdx) => ({
+        ...section,
+        pageContent: content,
+        sourceIndex: idx,
+        chunkIndex: pageIdx,
+      })),
+  );
   const photoPages = Math.max(1, Math.ceil(allPhotos.length / photosPerPage));
   const photoChunks = Array.from({ length: photoPages }, (_, idx) =>
     allPhotos.slice(idx * photosPerPage, (idx + 1) * photosPerPage),
   );
   const firstPhotoChunk = photoChunks[0] || [];
   const remainingPhotoChunks = photoChunks.slice(1);
-  const customSections = reportData.customSections || [];
   const summaryPage = 5;
-  const checklistPage = 6;
-  const customStartPage = 7;
-  const basePagesBeforePhotos = 6 + customSections.length;
+  const summaryPageCount = Math.max(1, summaryChunks.length);
+  const checklistPage = summaryPage + summaryPageCount;
+  const checklistPageCount = Math.max(1, checklistChunks.length);
+  const customStartPage = checklistPage + checklistPageCount;
+  const customSections = reportData.customSections || [];
+  const customPageCount = Math.max(0, customSectionPages.length);
+  const basePagesBeforePhotos =
+    customStartPage + customPageCount - 1;
   const photoPageStart = basePagesBeforePhotos + 1;
   const photoPageCount = Math.max(1, photoChunks.length);
   const photoPageEnd = photoPageStart + photoPageCount - 1;
@@ -1897,10 +1969,29 @@ export const VisualWebView = ({
       desc: "Visual Inspection Observations Checklist",
       page: `${checklistPage}`,
     },
-    ...customSections.map((section, idx) => ({
-      desc: section.title || `Additional Section ${idx + 1}`,
-      page: `${customStartPage + idx}`,
-    })),
+    ...customSections.map((section, idx) => {
+      const sectionPages = customSectionPages.filter(
+        (page) => page.sourceIndex === idx,
+      );
+      const firstSectionPageIndex = customSectionPages.findIndex(
+        (page) => page.sourceIndex === idx,
+      );
+      if (!sectionPages.length || firstSectionPageIndex === -1) {
+        return {
+          desc: section.title || `Additional Section ${idx + 1}`,
+          page: `${customStartPage}`,
+        };
+      }
+      const sectionStart = customStartPage + firstSectionPageIndex;
+      const sectionEnd = sectionStart + sectionPages.length - 1;
+      return {
+        desc: section.title || `Additional Section ${idx + 1}`,
+        page:
+          sectionPages.length > 1
+            ? `${sectionStart}-${sectionEnd}`
+            : `${sectionStart}`,
+      };
+    }),
     {
       desc: "Photographic Details",
       page:
@@ -2261,198 +2352,162 @@ export const VisualWebView = ({
 
         
 
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
-            <div className="absolute bottom-12 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
-          </div>
-
-          {reportHeader}
-          
-            <div className="text-center pt-4">
-              <div className="text-sm font-black uppercase tracking-wide text-blue-900">
-                4.0 Visual Inspection Observations Checklist
-              </div>
-            </div>
-           
-
-          <div className="relative flex-1 flex flex-col px-12 pt-8 gap-8">
-            
-            <div className="rounded-sm border w-full border-slate-800 bg-white p-4 space-y-4">
-              <p className="text-[20px] font-bold uppercase underline text-black">
-                1. Summary of Findings
-              </p>
-              <p className="text-[13px] leading-relaxed text-black">
-                FVI was carried out on a total of {reportData.observations.length || 0}{" "}
-                item(s). Details of the anomalies with photographic details are
-                also given.
-              </p>
-
-              {populatedObservations.length ? (
-                <table className="w-full text-[10px] border-collapse bg-blue-200">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-black">
-                      <th className="border-r border-slate-200 p-2 w-[52px] text-center font-bold">
-                        S/N
-                      </th>
-                      <th className="border-r border-slate-200 p-2 w-[70px] text-center font-bold">
-                        Ref. S/N
-                      </th>
-                      <th className="border-r border-slate-200 p-2 w-[120px] text-center font-bold">
-                        Equipment ID
-                      </th>
-                      <th className="border-r border-slate-200 p-2 w-[150px] text-center font-bold leading-tight">
-                        Equipment Description
-                      </th>
-                      <th className="border-r border-slate-200 p-2 text-center font-bold">
-                        Anomaly Description
-                      </th>
-                      <th className="p-2 w-[64px] text-center font-bold">
-                        Page No
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-slate-800">
-                    {populatedObservations.map((item, idx) => (
-                      <tr
-                        key={item.id || idx}
-                        className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
-                      >
-                        <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">
-                          {idx + 1}
-                        </td>
-                        <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">
-                          {item.refSn || item.title || ""}
-                        </td>
-                        <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">
-                          {item.equipmentId || ""}
-                        </td>
-                        <td className="border-r border-slate-200 p-2 align-middle font-bold">
-                          {item.equipmentDescription || ""}
-                        </td>
-                        <td className="border-r border-slate-200 p-2 align-top whitespace-pre-wrap font-bold">
-                          {item.description || ""}
-                        </td>
-                        <td className="p-2 text-center align-middle font-bold">
-                          {item.pageNo || ""}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.3em] text-center">
-                  No observations added
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="relative mt-auto px-12 pb-8">
-            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                Original Document
-              </p>
-            </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-              Page 5 of {totalPages}
-            </div>
-          </div>
-        </div>
-
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
-            <div className="absolute bottom-12 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
-          </div>
-
-          {reportHeader}
-
-          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
-            <div className="text-center">
-              <div className="text-sm font-black uppercase tracking-wide text-blue-900">
-                4.0 Visual Inspection Observations Checklist
-              </div>
-            </div>
-
-            <div className="flex-1 border-2 border-slate-800 p-4 text-[11px] leading-relaxed text-slate-800">
-              {populatedChecklist.length ? (
-                <table className="w-full text-[10px] border-collapse bg-blue-200">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-black">
-                      <th className="border-r border-slate-200 p-2 w-[52px] text-center font-bold">
-                        S/N
-                      </th>
-                      <th className="border-r border-slate-200 p-2 text-center font-bold">
-                        Equipment ID
-                      </th>
-                      <th className="border-r border-slate-200 p-2 text-center font-bold">
-                        Equipment Description
-                      </th>
-                      <th className="border-r border-slate-200 p-2 text-center font-bold leading-tight">
-                        Anomaly
-                        <br />
-                        (No/ Yes)
-                      </th>
-                      <th className="p-2 w-[70px] text-center font-bold">
-                        Page No.
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-slate-800">
-                    {populatedChecklist.map((item, idx) => (
-                      <tr
-                        key={item.id || idx}
-                        className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
-                      >
-                        <td className="border-r border-slate-200 p-2 text-center font-bold">
-                          {idx + 1}.
-                        </td>
-                        <td className="border-r border-slate-200 p-2 text-center font-bold">
-                          {item.equipmentId || ""}
-                        </td>
-                        <td className="border-r border-slate-200 p-2 font-bold">
-                          {item.equipmentDescription || ""}
-                        </td>
-                        <td
-                          className={`border-r border-slate-200 p-2 text-center font-semibold ${
-                            String(item.anomaly || "").toLowerCase() === "yes"
-                              ? "text-red-600"
-                              : "text-black"
-                          }`}
-                        >
-                          {item.anomaly || "No"}
-                        </td>
-                        <td className="p-2 text-center font-bold">
-                          {item.pageNo || "--"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="text-slate-500 text-xs font-semibold uppercase tracking-[0.2em] text-center">
-                  No checklist items added
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="relative mt-auto px-12 pb-8">
-            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                Original Document
-              </p>
-            </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-              Page 6 of {totalPages}
-            </div>
-          </div>
-        </div>
-
-        {customSections.map((section, idx) => (
+        {summaryChunks.map((chunk, pageIdx) => (
           <div
-            key={section.id || idx}
+            key={`summary-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            <div className="absolute inset-0">
+              <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
+              <div className="absolute bottom-12 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
+            </div>
+
+            {reportHeader}
+
+            <div className="relative flex-1 flex flex-col px-12 pt-8 gap-8">
+              <div className="rounded-sm border w-full border-slate-800 bg-white p-4 space-y-4">
+                <p className="text-[20px] font-bold uppercase underline text-blue-900">
+                  1. Summary of Findings
+                </p>
+                {pageIdx === 0 && (
+                  <p className="text-[13px] leading-relaxed text-black">
+                    Full Visual Inspection was carried out on a total of {reportData.observations.length || 0}{" "}
+                    item(s). Details of the anomalies with photographic details are
+                    also given.
+                  </p>
+                )}
+
+                {chunk.length ? (
+                  <table className="w-full table-fixed text-[10px] border-collapse bg-blue-200">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-black">
+                        <th className="border-r border-slate-200 p-2 w-[52px] text-center font-bold">S/N</th>
+                        <th className="border-r border-slate-200 p-2 w-[70px] text-center font-bold">Ref. S/N</th>
+                        <th className="border-r border-slate-200 p-2 w-[120px] text-center font-bold">Equipment ID</th>
+                        <th className="border-r border-slate-200 p-2 w-[150px] text-center font-bold leading-tight">Equipment Description</th>
+                        <th className="border-r border-slate-200 p-2 text-center font-bold">Anomaly Description</th>
+                        <th className="p-2 w-[64px] text-center font-bold">Page No</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-slate-800">
+                      {chunk.map((item, idx) => {
+                        const serial = pageIdx * 6 + idx + 1;
+                        return (
+                          <tr
+                            key={item.id || `${pageIdx}-${idx}`}
+                            className={serial % 2 === 0 ? "bg-white" : "bg-slate-50/70"}
+                          >
+                            <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">{serial}</td>
+                            <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">{item.refSn || item.title || ""}</td>
+                            <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">{item.equipmentId || ""}</td>
+                            <td className="border-r border-slate-200 p-2 align-middle font-bold break-all">{item.equipmentDescription || ""}</td>
+                            <td className="border-r border-slate-200 p-2 align-top whitespace-pre-wrap break-words font-bold">{item.description || ""}</td>
+                            <td className="p-2 text-center align-middle font-bold">{item.pageNo || ""}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.3em] text-center">
+                    No observations added
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="relative mt-auto px-12 pb-8">
+              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">Original Document</p>
+              </div>
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+                Page {summaryPage + pageIdx} of {totalPages}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {checklistChunks.map((chunk, pageIdx) => (
+          <div
+            key={`checklist-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            <div className="absolute inset-0">
+              <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
+              <div className="absolute bottom-12 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
+            </div>
+
+            {reportHeader}
+
+            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
+              <div className="text-center">
+                <div className="text-sm font-black uppercase tracking-wide text-blue-900">
+                  4.0 Visual Inspection Observations Checklist
+                </div>
+              </div>
+
+              <div className="flex-1 border-2 border-slate-800 p-4 text-[11px] leading-relaxed text-slate-800">
+                {chunk.length ? (
+                  <table className="w-full table-fixed text-[10px] border-collapse bg-blue-200">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-black">
+                        <th className="border-r border-slate-200 p-2 w-[52px] text-center font-bold">S/N</th>
+                        <th className="border-r border-slate-200 p-2 text-center font-bold">Equipment ID</th>
+                        <th className="border-r border-slate-200 p-2 text-center font-bold">Equipment Description</th>
+                        <th className="border-r border-slate-200 p-2 text-center font-bold leading-tight">
+                          Anomaly
+                          <br />
+                          (No/ Yes)
+                        </th>
+                        <th className="p-2 w-[70px] text-center font-bold">Page No.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-slate-800">
+                      {chunk.map((item, idx) => {
+                        const serial = pageIdx * 9 + idx + 1;
+                        return (
+                          <tr
+                            key={item.id || `${pageIdx}-${idx}`}
+                            className={serial % 2 === 0 ? "bg-white" : "bg-slate-50/70"}
+                          >
+                            <td className="border-r border-slate-200 p-2 text-center font-bold">{serial}.</td>
+                            <td className="border-r border-slate-200 p-2 text-center font-bold">{item.equipmentId || ""}</td>
+                            <td className="border-r border-slate-200 p-2 font-bold break-all">{item.equipmentDescription || ""}</td>
+                            <td
+                              className={`border-r border-slate-200 p-2 text-center font-semibold ${
+                                String(item.anomaly || "").toLowerCase() === "yes" ? "text-red-600" : "text-black"
+                              }`}
+                            >
+                              {item.anomaly || "No"}
+                            </td>
+                            <td className="p-2 text-center font-bold">{item.pageNo || "--"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-slate-500 text-xs font-semibold uppercase tracking-[0.2em] text-center">
+                    No checklist items added
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="relative mt-auto px-12 pb-8">
+              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">Original Document</p>
+              </div>
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+                Page {checklistPage + pageIdx} of {totalPages}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {customSectionPages.map((section, idx) => (
+          <div
+            key={`${section.id || section.sourceIndex}-${section.chunkIndex}`}
             className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
           >
             <div className="absolute inset-0">
@@ -2469,8 +2524,8 @@ export const VisualWebView = ({
                   {section.title || "Additional Notes"}
                 </p>
               </div>
-              <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6 text-[11px] leading-relaxed text-black whitespace-pre-wrap">
-                {section.content || "No content provided."}
+              <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6 text-[11px] leading-relaxed text-black whitespace-pre-wrap break-words">
+                {section.pageContent || "No content provided."}
               </div>
             </div>
 
@@ -2521,7 +2576,7 @@ export const VisualWebView = ({
                         {/*  {o.title || `Evidence ${idx + 1}`} */}
                       </div>
                       {o.photoNote && (
-                        <div className="text-[9px] text-black text-center uppercase tracking-[0.2em]">
+                        <div className="text-[9px] text-black text-center uppercase tracking-[0.2em] break-all whitespace-pre-wrap">
                           {o.photoNote}
                         </div>
                       )}
@@ -2587,7 +2642,7 @@ export const VisualWebView = ({
                             {o.title || `Evidence ${idx + 1}`}
                           </div>
                           {o.photoNote && (
-                            <div className="text-[9px] text-slate-500 text-center uppercase tracking-[0.2em]">
+                            <div className="text-[9px] text-slate-500 text-center uppercase tracking-[0.2em] break-all whitespace-pre-wrap">
                               {o.photoNote}
                             </div>
                           )}
@@ -2625,9 +2680,8 @@ export const VisualWebView = ({
           {reportHeader}
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-            <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
-              <table className="w-full text-[10px] border-collapse bg-blue-200 table-fixed">
-                <thead>
+            <div className="rounded-sm border border-slate-800 bg-white overflow-hidden">
+              <table className="w-full border-collapse table-fixed"> <thead>
                   <tr className="border-b border-slate-200 text-[11px] font-bold text-black leading-tight uppercase">
                     <th className="w-1/3 border-r border-slate-200 p-2 text-left">
                       Prepared By

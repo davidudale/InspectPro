@@ -186,13 +186,13 @@ const ReviewForApproval = () => {
                     Return
                   </button>
                 )}
-                <button
+                {/*<button
                   onClick={handleModifyReport}
                   disabled={isSaving || !isEditableView}
                   className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
                   Modify
-                </button>
+                </button>*/}
                 <button
                   onClick={handleConfirmProject}
                   disabled={isSaving || !isEditableView}

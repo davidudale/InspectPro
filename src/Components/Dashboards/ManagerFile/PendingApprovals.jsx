@@ -56,89 +56,40 @@ const PendingApprovals = () => {
 
   const isPendingReviewStatus = (status = "") =>
     status.startsWith("Pending Confirmation");
-  const canViewAllStatuses = user?.role === "Admin";
 
-  const matchesSignedInUser = (project) => {
-    if (user?.role === "Admin") return true;
-    if (user?.role === "Manager") {
-      return project?.managerId === user?.uid;
-    }
-    if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
-      return project?.supervisorId === user?.uid;
-    }
-    return false;
-  };
-
-    useEffect(() => {
+  useEffect(() => {
     if (!user?.uid) return;
-  
-    let q;
-  
-    // Admins can fetch all.
-    if (user?.role === "Admin") {
-      q = query(
-        collection(db, "projects"),
-        orderBy("startDate", "desc"),
-      );
-    }
-    // Managers only see items assigned to them.
-    else if (user?.role === "Manager") {
-      q = query(
-        collection(db, "projects"),
-        where("managerId", "==", user.uid),
-        orderBy("startDate", "desc"),
-      );
-    }
-    // Supervisors/lead inspectors only see items assigned to them.
-    else {
-      q = query(
-        collection(db, "projects"),
-        where("supervisorId", "==", user.uid),
-        orderBy("startDate", "desc")
-      );
-    }
-  
+
+    const projectsQuery = query(
+      collection(db, "projects"),
+      orderBy("startDate", "desc"),
+    );
     const unsubscribe = onSnapshot(
-      q,
+      projectsQuery,
       (snapshot) => {
-        const projectsData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
+        const projectsData = snapshot.docs.map((projectDoc) => ({
+          id: projectDoc.id,
+          ...projectDoc.data(),
         }));
-        setProjects(
-          canViewAllStatuses
-            ? projectsData
-            : projectsData.filter(
-                (p) =>
-                  matchesSignedInUser(p) &&
-                  isPendingReviewStatus(String(p.status || "")),
-              ),
-        );
+        setProjects(projectsData);
         setLoading(false);
       },
       (error) => {
         console.error("Firestore Error:", error);
-        // Simplified fallback to avoid index issues during role transition
-        const fallbackQ = query(collection(db, "projects"));
-        onSnapshot(fallbackQ, (snap) => {
-          const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-          const filteredByStatus = data.filter(
-            (p) =>
-              matchesSignedInUser(p) &&
-              (canViewAllStatuses ||
-                isPendingReviewStatus(String(p.status || ""))),
-          );
-          const scopedData = canViewAllStatuses
-            ? data
-            : filteredByStatus;
-          setProjects(scopedData);
+        const fallbackQuery = query(collection(db, "projects"));
+        onSnapshot(fallbackQuery, (snapshot) => {
+          const fallbackData = snapshot.docs.map((projectDoc) => ({
+            id: projectDoc.id,
+            ...projectDoc.data(),
+          }));
+          setProjects(fallbackData);
           setLoading(false);
         });
-      }
+      },
     );
-  
+
     return () => unsubscribe();
-  }, [user, canViewAllStatuses]);
+  }, [user]);
 
   // --- NEW: Function to return manifest to Inspector ---
   const handleReturnToInspector = async (
