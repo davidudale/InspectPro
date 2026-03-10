@@ -210,6 +210,7 @@ const ReportDownloadView = ({
       },
       inspection: base.inspection || {},
       observations,
+      checklist: Array.isArray(base.checklist) ? base.checklist : [],
       utm: base.utm || [],
       signoff: base.signoff || {},
     };
