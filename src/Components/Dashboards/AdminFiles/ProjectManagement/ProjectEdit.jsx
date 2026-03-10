@@ -50,6 +50,7 @@ const ProjectEdit = () => {
   const [masterEquipment, setMasterEquipment] = useState([]);
   const [inspectors, setInspectors] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
+  const [managers, setManagers] = useState([]);
 
   const [setupData, setSetupData] = useState({
     projectId: "",
@@ -74,6 +75,8 @@ const ProjectEdit = () => {
     inspectorName: "",
     supervisorId: "",
     supervisorName: "",
+    managerId: "",
+    managerName: "",
     startDate: "",
     status: "Not started- Report With Inspector",
   });
@@ -107,6 +110,10 @@ const ProjectEdit = () => {
       (snap) =>
         setSupervisors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
+    const unsubManagers = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "Manager")),
+      (snap) => setManagers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
 
     return () => {
       unsubClients();
@@ -115,6 +122,7 @@ const ProjectEdit = () => {
       unsubEquip();
       unsubInspectors();
       unsubSupervisors();
+      unsubManagers();
     };
   }, []);
 
@@ -179,6 +187,25 @@ const ProjectEdit = () => {
   );
   const authorizedTechniques = selectedProtocol?.requiredTechniques || [];
   const isTechniqueRequired = authorizedTechniques.length > 0;
+  const inspectorStatusName = setupData.inspectorName || "Inspector";
+  const supervisorStatusName = setupData.supervisorName || "Lead Inspector";
+  const managerStatusName = setupData.managerName || "Manager";
+  const statusOptions = useMemo(
+    () => [
+      `Not started- Report With ${inspectorStatusName}`,
+      "Planned",
+      `In Progress - Report With ${inspectorStatusName}`,
+      `Pending Confirmation- Report With ${supervisorStatusName}`,
+      `Passed and Forwarded to ${managerStatusName}`,
+      "On-Hold",
+      "Completed",
+      "Approved",
+    ],
+    [inspectorStatusName, supervisorStatusName, managerStatusName],
+  );
+  const resolvedStatusOptions = statusOptions.includes(setupData.status)
+    ? statusOptions
+    : [...statusOptions, setupData.status].filter(Boolean);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -499,6 +526,37 @@ const ProjectEdit = () => {
                         ))}
                       </select>
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Assign Manager
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.managerId}
+                        onChange={(e) => {
+                          const selected = managers.find(
+                            (mgr) => mgr.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            managerId: selected?.id || "",
+                            managerName:
+                              selected?.displayName ||
+                              selected?.name ||
+                              selected?.fullName ||
+                              "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select manager</option>
+                        {managers.map((mgr) => (
+                          <option key={mgr.id} value={mgr.id}>
+                            {mgr.displayName || mgr.name || mgr.fullName || mgr.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -568,15 +626,11 @@ const ProjectEdit = () => {
                           }))
                         }
                       >
-                        <option value="Not started- Report With Inspector">
-                          Not started- Report With Inspector
-                        </option>
-                        <option value="Planned">Planned</option>
-                        <option value="In Progress - Report With Inspector">
-                          In Progress - Report With Inspector
-                        </option>
-                        <option value="On-Hold">On-Hold</option>
-                        <option value="Completed">Completed</option>
+                        {resolvedStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
