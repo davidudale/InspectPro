@@ -74,7 +74,7 @@ const SubInspectionsList = () => {
         onSnapshot(fallbackQ, (snap) => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           // Manual role filter for fallback if index isn't ready
-          if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
+          if (user?.role === "Lead Inspector" || user?.role === "External_Reviewer") {
             setProjects(data.filter((p) => p.supervisorId === user.uid));
           } else {
             setProjects(data);
@@ -132,7 +132,7 @@ const SubInspectionsList = () => {
 
       if (isPendingConfirmation) {
         const assignedSupervisorName =
-          project?.supervisorName || user?.displayName || "Supervisor";
+          project?.supervisorName || user?.displayName || "External_Reviewer";
         nextStatus = `In Lead Review - ${assignedSupervisorName}`;
         const projectRef = doc(db, "projects", project.id);
         await updateDoc(projectRef, {

@@ -78,7 +78,7 @@ const Aut = ({
     },
   });
   const isSupervisorRole =
-    user?.role === "Supervisor" || user?.role === "Lead Inspector";
+    user?.role === "External_Reviewer" || user?.role === "Lead Inspector";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
@@ -484,7 +484,7 @@ const Aut = ({
                       </div>
                     </div>
                   )}
-                  {(user?.role === "Supervisor" || user?.role === "Admin") && (
+                  {(user?.role === "External_Reviewer" || user?.role === "Admin") && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         Reviewer Signature

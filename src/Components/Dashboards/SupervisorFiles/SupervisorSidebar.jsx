@@ -16,12 +16,13 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../Auth/firebase"; // Ensure auth is exported from your firebase config
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "../../Auth/AuthContext";
 
-const sidebarLinks = [
+const getSidebarLinks = (dashboardHref) => [
   {
     name: "Dashboard",
     icon: <LayoutDashboard size={20} />,
-    href: "/SupervisorDashboard",
+    href: dashboardHref,
   },
   {
     name: "Pending Inspections",
@@ -94,6 +95,7 @@ const sidebarLinks = [
 ];
 
 const SupervisorSidebar = () => {
+  const { user } = useAuth();
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
   const navigate = useNavigate();
   const location = useLocation();
@@ -130,6 +132,12 @@ const SupervisorSidebar = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const dashboardHref =
+    user?.role === "External_Reviewer"
+      ? "/external-reviewer-dashboard"
+      : "/SupervisorDashboard";
+  const sidebarLinks = getSidebarLinks(dashboardHref);
 
   return (
     <aside

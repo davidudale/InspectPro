@@ -361,7 +361,7 @@ const ReviewForConfirmation = () => {
                 >
                   <RotateCcw size={16} /> {isReturning ? "Returning..." : "Return Report"}
                 </button>
-                {/*{(user?.role === "Supervisor" ||
+                {/*{(user?.role === "External_Reviewer" ||
                   user?.role === "Lead Inspector" ||
                   user?.role === "Manager") && (
                   <button

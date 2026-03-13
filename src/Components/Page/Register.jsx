@@ -94,10 +94,11 @@ const Register = () => {
               onChange={(e) => setRole(e.target.value)}
               className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
             >
-              <option value="Inspector">Inspector</option>
-              <option value="Lead Inspector">Lead Inspector</option>
-              <option value="Manager">Manager</option>
               <option value="Admin">Admin</option>
+              <option value="Lead Inspector">Lead Inspector</option>
+              <option value="Inspector">Inspector</option>
+              <option value="Manager">Manager</option>
+              <option value="External_Reviewer">External_Reviewer</option>
             </select>
           </div>
           <div>

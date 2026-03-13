@@ -144,7 +144,7 @@ const ReviewForApproval = () => {
         updatedAt: serverTimestamp(),
       });
 
-      toast.warning("Report returned to Supervisor successfully");
+      toast.warning("Report returned to External_Reviewer successfully");
       setShowReturnModal(false);
       setReturnFeedback("");
       navigate("/Pending_approval");

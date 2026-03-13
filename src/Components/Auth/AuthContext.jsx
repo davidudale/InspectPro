@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              role: 'Guest'
+              role: null
             });
           }
         } catch (error) {

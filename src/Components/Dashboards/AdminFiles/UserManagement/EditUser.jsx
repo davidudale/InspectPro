@@ -102,10 +102,11 @@ const EditUser = () => {
                     onChange={(e) => setFormData({...formData, role: e.target.value})}
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
                   >
-                    <option value="Inspector">Inspector</option>
-                    <option value="Lead Inspector">Lead Inspector</option>
-                    <option value="Manager">Manager</option>
                     <option value="Admin">Admin</option>
+                    <option value="Lead Inspector">Lead Inspector</option>
+                    <option value="Inspector">Inspector</option>
+                    <option value="Manager">Manager</option>
+                    <option value="External_Reviewer">External_Reviewer</option>
                   </select>
                 </div>
 

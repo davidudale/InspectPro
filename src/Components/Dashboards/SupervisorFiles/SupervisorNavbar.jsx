@@ -1,12 +1,14 @@
 import { React, useState, useEffect } from "react";
 import { Menu, X, FileText, LogOut, User } from "lucide-react";
-import { auth, db } from "../../Auth/firebase";
+import { auth } from "../../Auth/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../Auth/AuthContext";
 
 const SupervisorNavbar = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("Guest");
   const [userFname, setUserFname] = useState("");
@@ -15,13 +17,17 @@ const SupervisorNavbar = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-    
-        setUserEmail(user.email);
-        setUserFname(user.fname);
+        setUserEmail(user.email || "Guest");
+        setUserFname(
+          user.displayName || user.email?.split("@")[0] || "Reviewer",
+        );
       }
     });
     return () => unsubscribe();
   }, []);
+
+  const roleLabel =
+    user?.role === "External_Reviewer" ? "External Reviewer" : "Lead Inspector";
 
   const handleLogout = async () => {
     try {
@@ -72,7 +78,7 @@ const SupervisorNavbar = () => {
       {isMenuOpen && (
         <div className="md:hidden border-t border-slate-800 bg-slate-900 p-4 space-y-4 flex flex-col">
           <button className="w-full text-left px-2 py-2 text-sm text-slate-300">
-            Lead Inspector
+            {roleLabel}
           </button>
           <button className="w-full bg-orange-600 text-white p-2 rounded-sm text-xs font-bold uppercase">
             Start Inspection

@@ -27,7 +27,8 @@ const Login = () => {
         const role = docSnap.data().role;
         if (role === "Admin") navigate("/admin-dashboard");
         else if (role === "Manager") navigate("/ManagerDashboard");
-        else if (role === "Lead Inspector" || role === "Supervisor") navigate("/SupervisorDashboard");
+        else if (role === "External_Reviewer") navigate("/external-reviewer-dashboard");
+        else if (role === "Lead Inspector") navigate("/SupervisorDashboard");
         else navigate("/inspectionDashboard");
       }
     } catch (error) {

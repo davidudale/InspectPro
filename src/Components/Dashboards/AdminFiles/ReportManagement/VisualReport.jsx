@@ -162,17 +162,17 @@ const VisualReport = ({
     })),
   ];
   const isSupervisorRole =
-    user?.role === "Supervisor" || user?.role === "Lead Inspector";
+    user?.role === "External_Reviewer" || user?.role === "Lead Inspector";
   const canSaveReport =
     user?.role === "Inspector" ||
     user?.role === "Lead Inspector" ||
-    user?.role === "Supervisor" ||
+    user?.role === "External_Reviewer" ||
     user?.role === "Manager";
   const canSendForConfirmation = canSaveReport;
   const canViewInspectorSignature = [
     "Inspector",
     "Lead Inspector",
-    "Supervisor",
+    "External_Reviewer",
     "Manager",
     "Admin",
   ].includes(user?.role);
@@ -180,13 +180,13 @@ const VisualReport = ({
     user?.role === "Inspector" || user?.role === "Admin";
   const canViewLeadSignature = [
     "Lead Inspector",
-    "Supervisor",
+    "External_Reviewer",
     "Manager",
     "Admin",
   ].includes(user?.role);
   const canEditLeadSignature =
     user?.role === "Lead Inspector" ||
-    user?.role === "Supervisor" ||
+    user?.role === "External_Reviewer" ||
     user?.role === "Admin";
   const canViewManagerSignature =
     user?.role === "Manager" || user?.role === "Admin";

@@ -106,7 +106,7 @@ const ProjectEdit = () => {
         setInspectors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
     const unsubSupervisors = onSnapshot(
-      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "Supervisor"])),
+      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "External_Reviewer"])),
       (snap) =>
         setSupervisors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
@@ -500,7 +500,7 @@ const ProjectEdit = () => {
                     </div>
                     <div className="space-y-2">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
-                        Assign Supervisor
+                        Assign Reviewer
                       </label>
                       <select
                         required
@@ -518,7 +518,7 @@ const ProjectEdit = () => {
                           }));
                         }}
                       >
-                        <option value="">Select supervisor</option>
+                        <option value="">Select Lead Inspector / External_Reviewer</option>
                         {supervisors.map((sup) => (
                           <option key={sup.id} value={sup.id}>
                             {sup.displayName || sup.name || sup.email}

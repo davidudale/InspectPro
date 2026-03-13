@@ -4,14 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAsMXCIkG1N4yWWQp0QKpkLhf23_eOednU",
-  authDomain: "inspectionapp-f5d54.firebaseapp.com",
-  projectId: "inspectionapp-f5d54",
-  storageBucket: "inspectionapp-f5d54.firebasestorage.app",
-  messagingSenderId: "494949815374",
-  appId: "1:494949815374:web:c70da823340a29057a9f1f"
-}; 
-
+  apiKey: "AIzaSyAFD-VFAivkpk2aTV84q2sSZm-SEz_PfRc",
+  authDomain: "inspectpro-715dc.firebaseapp.com",
+  projectId: "inspectpro-715dc",
+  storageBucket: "inspectpro-715dc.firebasestorage.app",
+  messagingSenderId: "332746707581",
+  appId: "1:332746707581:web:0f66c04ecf630bc99a1714",
+};
 
 // Main App Instance (for Admin login session)
 const app = initializeApp(firebaseConfig);

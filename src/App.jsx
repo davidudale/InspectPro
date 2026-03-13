@@ -7,7 +7,6 @@ import Register from "./Components/Page/Register.jsx";
 import { ToastContainer } from "react-toastify";
 import { ProtectedRoute } from "./Components/Auth/ProtectedRoute.jsx";
 import AdminDashboard from "./Components/Page/AdminDashboard.jsx";
-import Supervisor from "./Components/Page/SupervisorDashboard.jsx";
 import Unauthorized from "./Components/Page/UnauthorizedPage.jsx";
 import InspectionDashboard from "./Components/Page/InspectionDashboard.jsx";
 import UserPage from "./Components/Dashboards/AdminFiles/UserManagement/UserPage.jsx";
@@ -34,6 +33,7 @@ import IntegrityCheck from "./Components/Dashboards/AdminFiles/ReportManagement/
 import ViewInspectionsList from "./Components/Dashboards/InspectorsFile/ViewInspectionsList.jsx";
 import UserPreferences from "./Components/Dashboards/InspectorsFile/UserPreferences.jsx";
 import SupervisorDashboard from "./Components/Page/SupervisorDashboard.jsx";
+import ExternalReviewer from "./Components/Dashboards/ExternalDashboard/ExternalReviewer.jsx";
 import SubInspectionsList from "./Components/Dashboards/SupervisorFiles/SubInspectionsList.jsx";
 import PendingApproval from "./Components/Dashboards/ManagerFile/PendingApprovals.jsx";
 import ReviewForConfirmation from "./Components/Dashboards/SupervisorFiles/ReviewForConfirmation.jsx";
@@ -78,7 +78,7 @@ function App() {
           path="/inspectionDashboard"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <InspectionDashboard />
             </ProtectedRoute>
@@ -88,7 +88,7 @@ function App() {
           path="/Inspection_view"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <ViewInspectionsList />
             </ProtectedRoute>
@@ -98,7 +98,7 @@ function App() {
           path="/inspector/visual-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <VisualReport />
             </ProtectedRoute>
@@ -108,7 +108,7 @@ function App() {
           path="/inspector/integrity-check"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <IntegrityCheck />
             </ProtectedRoute>
@@ -118,7 +118,7 @@ function App() {
           path="/inspector/aut-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <Aut />
             </ProtectedRoute>
@@ -128,7 +128,7 @@ function App() {
           path="/inspector/Detailed-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <DetailedReport />
             </ProtectedRoute>
@@ -139,7 +139,7 @@ function App() {
           path="/inspector/settings"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <UserPreferences />
             </ProtectedRoute>
@@ -148,9 +148,17 @@ function App() {
 
         {/* Lead Inspector & Above */}
         <Route
+          path="/external-reviewer-dashboard"
+          element={
+            <ProtectedRoute allowedRoles={["External_Reviewer"]}>
+              <ExternalReviewer />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/SupervisorDashboard"
           element={
-            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "Admin"]}>
               <SupervisorDashboard />
             </ProtectedRoute>
           }
@@ -159,7 +167,7 @@ function App() {
           path="/SubInspection_view"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <SubInspectionsList />
             </ProtectedRoute>
@@ -170,7 +178,7 @@ function App() {
           path="/pendinginspections"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <ReviewForConfirmation />
             </ProtectedRoute>
@@ -181,7 +189,7 @@ function App() {
           path="/review/:id"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector","Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Inspector","Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <ReviewReport />
             </ProtectedRoute>
@@ -191,7 +199,7 @@ function App() {
           path="/ConfirmedInspection"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}
+              allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <ConfirmedInspection />
             </ProtectedRoute>
@@ -201,7 +209,7 @@ function App() {
         <Route
           path="/ManagerDashboard"
           element={
-            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}>
               <ManagerDashboard />
             </ProtectedRoute>
           }
@@ -209,7 +217,7 @@ function App() {
         <Route
           path="/Pending_approval"
           element={
-            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}>
               <PendingApproval />
             </ProtectedRoute>
           }
@@ -217,7 +225,7 @@ function App() {
         <Route
           path="/ReviewForApproval"
           element={
-            <ProtectedRoute allowedRoles={["Lead Inspector", "Supervisor", "Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}>
               <ReviewForApproval />
             </ProtectedRoute>
           }
@@ -428,7 +436,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -444,7 +452,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -460,7 +468,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -476,7 +484,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -492,7 +500,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -508,7 +516,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -524,7 +532,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -540,7 +548,7 @@ function App() {
               allowedRoles={[
                 "Inspector",
                 "Lead Inspector",
-                "Supervisor",
+                "External_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -567,4 +575,3 @@ function App() {
   );
 }
 export default App;
-

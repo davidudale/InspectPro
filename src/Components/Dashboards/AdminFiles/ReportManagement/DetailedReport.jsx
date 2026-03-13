@@ -220,7 +220,7 @@ const DetailedReport = ({
     images: [],
   });
   const isSupervisorRole =
-    user?.role === "Supervisor" || user?.role === "Lead Inspector";
+    user?.role === "External_Reviewer" || user?.role === "Lead Inspector";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
@@ -453,7 +453,7 @@ const DetailedReport = ({
         workflowStatus = `Pending Confirmation- Report With ${assignedSupervisorName}`;
       }
       // When Lead Inspector submits, it moves to "Authorized"
-      else if (user?.role === "Lead Inspector" || user?.role === "Supervisor") {
+      else if (user?.role === "Lead Inspector" || user?.role === "External_Reviewer") {
         workflowStatus = "Completed";
       }
       // Admin or other roles move to "Completed"

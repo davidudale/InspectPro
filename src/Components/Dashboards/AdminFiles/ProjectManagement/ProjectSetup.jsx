@@ -115,7 +115,7 @@ const ProjectSetup = () => {
 
     // Sync qualified Lead Inspectors from Users Management
     const unsubSupervisor = onSnapshot(
-      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "Supervisor"])),
+      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "External_Reviewer"])),
       (snap) =>
         setSupervisor(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
@@ -476,7 +476,7 @@ const ProjectSetup = () => {
                 </div>
                 <div className="bg-slate-900/40 border w-full border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <UserCheck size={14} /> 3. Assign Lead Inspector
+                    <UserCheck size={14} /> 3. Assign Reviewer
                   </h2>
                   <select
                     required
@@ -497,7 +497,7 @@ const ProjectSetup = () => {
                       });
                     }}
                   >
-                    <option value="">Choose Lead Inspector...</option>
+                    <option value="">Choose Lead Inspector / External_Reviewer...</option>
                     {supervisor.map((ins) => (
                       <option key={ins.id} value={ins.id}>
                         {ins.name || ins.displayName}

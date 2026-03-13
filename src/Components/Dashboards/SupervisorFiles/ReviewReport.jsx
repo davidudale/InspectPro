@@ -20,7 +20,7 @@ const ReviewReport = () => {
     id || location.state?.preFill?.id || location.state?.preFill?.projectId || "";
 
   const isSupervisorRole =
-    user?.role === "Lead Inspector" || user?.role === "Supervisor";
+    user?.role === "Lead Inspector" || user?.role === "External_Reviewer";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
