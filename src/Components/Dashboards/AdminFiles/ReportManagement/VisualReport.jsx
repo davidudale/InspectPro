@@ -58,6 +58,28 @@ const SPECIAL_CONSIDERATION_OPTIONS = [
   "Safety Valve and Associated piping",
 ];
 const ADD_SPECIAL_CONSIDERATION_OPTION = "+ Add Special Consideration";
+const normalizePhotoEntries = (item) => {
+  const list = Array.isArray(item?.photos) ? item.photos : [];
+  const normalizedList = list
+    .map((entry, idx) => ({
+      id: String(entry?.id || `${Date.now()}-${idx}`),
+      url: String(entry?.url || entry?.photo || "").trim(),
+      note: String(entry?.note || "").trim(),
+    }))
+    .filter((entry) => entry.url);
+
+  if (normalizedList.length) return normalizedList;
+  if (item?.photo) {
+    return [
+      {
+        id: `${Date.now()}-legacy`,
+        url: String(item.photo || "").trim(),
+        note: String(item.photoNote || "").trim(),
+      },
+    ].filter((entry) => entry.url);
+  }
+  return [];
+};
 
 const VisualReport = ({
   reportData: reportDataProp,
@@ -95,6 +117,7 @@ const VisualReport = ({
       customPipeSupports: [],
       customSpecialConsiderations: [],
       diagramImage: "",
+      pidImage: "",
       projectId: "",
       inspectionType: "",
     },
@@ -106,6 +129,10 @@ const VisualReport = ({
       defects: "",
       recommendations: "",
       conclusion: "",
+      schematicTitle: "",
+      schematicSubtitle: "",
+      schematicNotes: "",
+      pidTitle: "",
     },
     observations: [
       {
@@ -129,6 +156,7 @@ const VisualReport = ({
         pageNo: "",
         photo: "",
         photoNote: "",
+        photos: [],
       },
     ],
     pipeSupports: [
@@ -137,6 +165,9 @@ const VisualReport = ({
         equipmentDescription: "",
         anomaly: "N/A.",
         pageNo: "",
+        photo: "",
+        photoNote: "",
+        photos: [],
       },
     ],
     specialConsiderations: [
@@ -145,6 +176,9 @@ const VisualReport = ({
         equipmentDescription: "",
         anomaly: "N/A.",
         pageNo: "NA",
+        photo: "",
+        photoNote: "",
+        photos: [],
       },
     ],
     utm: [
@@ -530,11 +564,252 @@ const VisualReport = ({
     }
   };
 
+  const appendPhotosToChecklistItem = (itemId, urls) => {
+    setReportData((prev) => ({
+      ...prev,
+      checklist: (prev.checklist || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const existing = normalizePhotoEntries(item);
+        const additions = urls.map((url, idx) => ({
+          id: `${Date.now()}-checklist-photo-${idx}`,
+          url,
+          note: "",
+        }));
+        return {
+          ...item,
+          photos: [...existing, ...additions],
+          photo: existing[0]?.url || additions[0]?.url || "",
+          photoNote: existing[0]?.note || additions[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const updateChecklistPhotoEntry = (itemId, photoId, field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      checklist: (prev.checklist || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPhotos = normalizePhotoEntries(item).map((entry) =>
+          entry.id === photoId ? { ...entry, [field]: value } : entry,
+        );
+        return {
+          ...item,
+          photos: nextPhotos,
+          photo: nextPhotos[0]?.url || "",
+          photoNote: nextPhotos[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const removeChecklistPhotoEntry = (itemId, photoId) => {
+    setReportData((prev) => ({
+      ...prev,
+      checklist: (prev.checklist || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPhotos = normalizePhotoEntries(item).filter(
+          (entry) => entry.id !== photoId,
+        );
+        return {
+          ...item,
+          photos: nextPhotos,
+          photo: nextPhotos[0]?.url || "",
+          photoNote: nextPhotos[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const appendPhotosToPipeSupportItem = (itemId, urls) => {
+    setReportData((prev) => ({
+      ...prev,
+      pipeSupports: (prev.pipeSupports || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const existing = normalizePhotoEntries(item);
+        const additions = urls.map((url, idx) => ({
+          id: `${Date.now()}-support-photo-${idx}`,
+          url,
+          note: "",
+        }));
+        return {
+          ...item,
+          photos: [...existing, ...additions],
+          photo: existing[0]?.url || additions[0]?.url || "",
+          photoNote: existing[0]?.note || additions[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const updatePipeSupportPhotoEntry = (itemId, photoId, field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      pipeSupports: (prev.pipeSupports || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPhotos = normalizePhotoEntries(item).map((entry) =>
+          entry.id === photoId ? { ...entry, [field]: value } : entry,
+        );
+        return {
+          ...item,
+          photos: nextPhotos,
+          photo: nextPhotos[0]?.url || "",
+          photoNote: nextPhotos[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const removePipeSupportPhotoEntry = (itemId, photoId) => {
+    setReportData((prev) => ({
+      ...prev,
+      pipeSupports: (prev.pipeSupports || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPhotos = normalizePhotoEntries(item).filter(
+          (entry) => entry.id !== photoId,
+        );
+        return {
+          ...item,
+          photos: nextPhotos,
+          photo: nextPhotos[0]?.url || "",
+          photoNote: nextPhotos[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const appendPhotosToSpecialConsiderationItem = (itemId, urls) => {
+    setReportData((prev) => ({
+      ...prev,
+      specialConsiderations: (prev.specialConsiderations || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const existing = normalizePhotoEntries(item);
+        const additions = urls.map((url, idx) => ({
+          id: `${Date.now()}-special-photo-${idx}`,
+          url,
+          note: "",
+        }));
+        return {
+          ...item,
+          photos: [...existing, ...additions],
+          photo: existing[0]?.url || additions[0]?.url || "",
+          photoNote: existing[0]?.note || additions[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const updateSpecialConsiderationPhotoEntry = (
+    itemId,
+    photoId,
+    field,
+    value,
+  ) => {
+    setReportData((prev) => ({
+      ...prev,
+      specialConsiderations: (prev.specialConsiderations || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPhotos = normalizePhotoEntries(item).map((entry) =>
+          entry.id === photoId ? { ...entry, [field]: value } : entry,
+        );
+        return {
+          ...item,
+          photos: nextPhotos,
+          photo: nextPhotos[0]?.url || "",
+          photoNote: nextPhotos[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
+  const removeSpecialConsiderationPhotoEntry = (itemId, photoId) => {
+    setReportData((prev) => ({
+      ...prev,
+      specialConsiderations: (prev.specialConsiderations || []).map((item) => {
+        if (item.id !== itemId) return item;
+        const nextPhotos = normalizePhotoEntries(item).filter(
+          (entry) => entry.id !== photoId,
+        );
+        return {
+          ...item,
+          photos: nextPhotos,
+          photo: nextPhotos[0]?.url || "",
+          photoNote: nextPhotos[0]?.note || "",
+        };
+      }),
+    }));
+  };
+
   const handleChecklistPhotoUpload = async (itemId, file) => {
     try {
       const url = await uploadImageToCloudinary(file, "checklist photo");
-      updateChecklistItem(itemId, "photo", url);
+      appendPhotosToChecklistItem(itemId, [url]);
       toast.success("Checklist photo uploaded.");
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handleChecklistPhotosUpload = async (itemId, files) => {
+    try {
+      const urls = await Promise.all(
+        Array.from(files || []).map((file) =>
+          uploadImageToCloudinary(file, "checklist photo"),
+        ),
+      );
+      appendPhotosToChecklistItem(itemId, urls);
+      toast.success("Checklist photos uploaded.");
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handlePipeSupportPhotoUpload = async (itemId, file) => {
+    try {
+      const url = await uploadImageToCloudinary(file, "pipe support photo");
+      appendPhotosToPipeSupportItem(itemId, [url]);
+      toast.success("Pipe support photo uploaded.");
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handlePipeSupportPhotosUpload = async (itemId, files) => {
+    try {
+      const urls = await Promise.all(
+        Array.from(files || []).map((file) =>
+          uploadImageToCloudinary(file, "pipe support photo"),
+        ),
+      );
+      appendPhotosToPipeSupportItem(itemId, urls);
+      toast.success("Pipe support photos uploaded.");
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handleSpecialConsiderationPhotoUpload = async (itemId, file) => {
+    try {
+      const url = await uploadImageToCloudinary(
+        file,
+        "special consideration photo",
+      );
+      appendPhotosToSpecialConsiderationItem(itemId, [url]);
+      toast.success("Special consideration photo uploaded.");
+    } catch (error) {
+      toast.error(`Upload failed: ${error.message}`);
+    }
+  };
+
+  const handleSpecialConsiderationPhotosUpload = async (itemId, files) => {
+    try {
+      const urls = await Promise.all(
+        Array.from(files || []).map((file) =>
+          uploadImageToCloudinary(file, "special consideration photo"),
+        ),
+      );
+      appendPhotosToSpecialConsiderationItem(itemId, urls);
+      toast.success("Special consideration photos uploaded.");
     } catch (error) {
       toast.error(`Upload failed: ${error.message}`);
     }
@@ -601,6 +876,7 @@ const VisualReport = ({
           pageNo: "",
           photo: "",
           photoNote: "",
+          photos: [],
         },
       ],
     }));
@@ -657,6 +933,9 @@ const VisualReport = ({
           equipmentDescription: "",
           anomaly: "N/A.",
           pageNo: "",
+          photo: "",
+          photoNote: "",
+          photos: [],
         },
       ],
     }));
@@ -712,6 +991,9 @@ const VisualReport = ({
           equipmentDescription: "",
           anomaly: "N/A.",
           pageNo: "NA",
+          photo: "",
+          photoNote: "",
+          photos: [],
         },
       ],
     }));
@@ -928,6 +1210,13 @@ const VisualReport = ({
           pageNo: asText(item?.pageNo),
           photo: asText(item?.photo),
           photoNote: asText(item?.photoNote),
+          photos: Array.isArray(item?.photos)
+            ? item.photos.map((entry, photoIdx) => ({
+                id: asText(entry?.id || `${Date.now()}-checklist-photo-${photoIdx}`),
+                url: asText(entry?.url || entry?.photo),
+                note: asText(entry?.note),
+              }))
+            : [],
         }))
       : [];
     const pipeSupports = Array.isArray(reportData?.pipeSupports)
@@ -936,6 +1225,15 @@ const VisualReport = ({
           equipmentDescription: asText(item?.equipmentDescription),
           anomaly: asText(item?.anomaly || "N/A."),
           pageNo: asText(item?.pageNo),
+          photo: asText(item?.photo),
+          photoNote: asText(item?.photoNote),
+          photos: Array.isArray(item?.photos)
+            ? item.photos.map((entry, photoIdx) => ({
+                id: asText(entry?.id || `${Date.now()}-support-photo-${photoIdx}`),
+                url: asText(entry?.url || entry?.photo),
+                note: asText(entry?.note),
+              }))
+            : [],
         }))
       : [];
     const specialConsiderations = Array.isArray(reportData?.specialConsiderations)
@@ -944,6 +1242,15 @@ const VisualReport = ({
           equipmentDescription: asText(item?.equipmentDescription),
           anomaly: asText(item?.anomaly || "N/A."),
           pageNo: asText(item?.pageNo || "NA"),
+          photo: asText(item?.photo),
+          photoNote: asText(item?.photoNote),
+          photos: Array.isArray(item?.photos)
+            ? item.photos.map((entry, photoIdx) => ({
+                id: asText(entry?.id || `${Date.now()}-special-photo-${photoIdx}`),
+                url: asText(entry?.url || entry?.photo),
+                note: asText(entry?.note),
+              }))
+            : [],
         }))
       : [];
     const utm = Array.isArray(reportData?.utm)
@@ -1002,6 +1309,7 @@ const VisualReport = ({
               .filter(Boolean)
           : [],
         diagramImage: asText(g.diagramImage),
+        pidImage: asText(g.pidImage),
         projectId: asText(projectDocId || g.projectId || ""),
         projectDocId: asText(g.projectDocId || projectDocId || ""),
         inspectionType: asText(g.inspectionType),
@@ -1037,6 +1345,10 @@ const VisualReport = ({
         defects: asText(i.defects),
         recommendations: asText(i.recommendations),
         conclusion: asText(i.conclusion),
+        schematicTitle: asText(i.schematicTitle),
+        schematicSubtitle: asText(i.schematicSubtitle),
+        schematicNotes: asText(i.schematicNotes),
+        pidTitle: asText(i.pidTitle),
       },
       observations,
       checklist,
@@ -1402,6 +1714,75 @@ const VisualReport = ({
                         onChange={(v) => updateChecklistItem(item.id, "anomaly", v)}
                         required
                       />
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Finding Photo
+                          </label>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                              <Camera size={14} /> Upload Photos
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (!files?.length) return;
+                                  handleChecklistPhotosUpload(item.id, files);
+                                }}
+                              />
+                            </label>
+                            {normalizePhotoEntries(item).length ? (
+                              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                                {normalizePhotoEntries(item).length} photo(s) attached
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                No photo uploaded
+                              </span>
+                            )}
+                          </div>
+                          {normalizePhotoEntries(item).length ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {normalizePhotoEntries(item).map((entry, photoIdx) => (
+                                <div
+                                  key={entry.id}
+                                  className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-3"
+                                >
+                                  <img
+                                    src={entry.url}
+                                    alt={`Checklist ${photoIdx + 1}`}
+                                    className="h-40 w-full rounded-lg object-cover bg-white"
+                                  />
+                                  <TextArea
+                                    label={`Photo Note ${photoIdx + 1}`}
+                                    value={entry.note || ""}
+                                    onChange={(v) =>
+                                      updateChecklistPhotoEntry(
+                                        item.id,
+                                        entry.id,
+                                        "note",
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeChecklistPhotoEntry(item.id, entry.id)
+                                    }
+                                    className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                                  >
+                                    Remove Photo
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1480,6 +1861,75 @@ const VisualReport = ({
                         onChange={(v) => updatePipeSupportItem(item.id, "anomaly", v)}
                         required
                       />
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Pipe Support Photo
+                          </label>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                              <Camera size={14} /> Upload Photos
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (!files?.length) return;
+                                  handlePipeSupportPhotosUpload(item.id, files);
+                                }}
+                              />
+                            </label>
+                            {normalizePhotoEntries(item).length ? (
+                              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                                {normalizePhotoEntries(item).length} photo(s) attached
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                No photo uploaded
+                              </span>
+                            )}
+                          </div>
+                          {normalizePhotoEntries(item).length ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {normalizePhotoEntries(item).map((entry, photoIdx) => (
+                                <div
+                                  key={entry.id}
+                                  className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-3"
+                                >
+                                  <img
+                                    src={entry.url}
+                                    alt={`Pipe support ${photoIdx + 1}`}
+                                    className="h-40 w-full rounded-lg object-cover bg-white"
+                                  />
+                                  <TextArea
+                                    label={`Photo Note ${photoIdx + 1}`}
+                                    value={entry.note || ""}
+                                    onChange={(v) =>
+                                      updatePipeSupportPhotoEntry(
+                                        item.id,
+                                        entry.id,
+                                        "note",
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removePipeSupportPhotoEntry(item.id, entry.id)
+                                    }
+                                    className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                                  >
+                                    Remove Photo
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1564,8 +2014,232 @@ const VisualReport = ({
                         }
                         required
                       />
+                      <div className="grid grid-cols-1 gap-4">
+                        <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Special Consideration Photo
+                          </label>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                              <Camera size={14} /> Upload Photos
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                  const files = e.target.files;
+                                  if (!files?.length) return;
+                                  handleSpecialConsiderationPhotosUpload(
+                                    item.id,
+                                    files,
+                                  );
+                                }}
+                              />
+                            </label>
+                            {normalizePhotoEntries(item).length ? (
+                              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                                {normalizePhotoEntries(item).length} photo(s) attached
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                No photo uploaded
+                              </span>
+                            )}
+                          </div>
+                          {normalizePhotoEntries(item).length ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {normalizePhotoEntries(item).map((entry, photoIdx) => (
+                                <div
+                                  key={entry.id}
+                                  className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-3"
+                                >
+                                  <img
+                                    src={entry.url}
+                                    alt={`Special consideration ${photoIdx + 1}`}
+                                    className="h-40 w-full rounded-lg object-cover bg-white"
+                                  />
+                                  <TextArea
+                                    label={`Photo Note ${photoIdx + 1}`}
+                                    value={entry.note || ""}
+                                    onChange={(v) =>
+                                      updateSpecialConsiderationPhotoEntry(
+                                        item.id,
+                                        entry.id,
+                                        "note",
+                                        v,
+                                      )
+                                    }
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      removeSpecialConsiderationPhotoEntry(
+                                        item.id,
+                                        entry.id,
+                                      )
+                                    }
+                                    className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                                  >
+                                    Remove Photo
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   ))}
+                </div>
+              </section>
+
+              <section className="space-y-4" id="toc-schematics">
+                <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
+                  4.0 Schematics of Anomaly
+                </h2>
+                <div className="grid grid-cols-1 gap-6">
+                  <InputField
+                    label="Schematic Heading"
+                    value={reportData.inspection.schematicTitle || ""}
+                    onChange={(v) =>
+                      handleChange("inspection", "schematicTitle", v)
+                    }
+                    placeholder={'2" x 3" Fuel Gas Line ...'}
+                  />
+                  <TextArea
+                    label="Schematic Subheading"
+                    value={reportData.inspection.schematicSubtitle || ""}
+                    onChange={(v) =>
+                      handleChange("inspection", "schematicSubtitle", v)
+                    }
+                  />
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      Schematic Anomaly Photo
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                        <Camera size={14} /> Upload Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            handleGeneralImageUpload(
+                              "diagramImage",
+                              file,
+                              "schematic anomaly photo",
+                            );
+                          }}
+                        />
+                      </label>
+                      {reportData.general.diagramImage ? (
+                        <>
+                          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                            Photo attached
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleChange("general", "diagramImage", "")
+                            }
+                            className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 uppercase tracking-widest">
+                          No photo uploaded
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <TextArea
+                    label="Notes"
+                    value={reportData.inspection.schematicNotes || ""}
+                    onChange={(v) =>
+                      handleChange("inspection", "schematicNotes", v)
+                    }
+                  />
+                  {reportData.general.diagramImage ? (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                        Schematic Preview
+                      </p>
+                      <img
+                        src={reportData.general.diagramImage}
+                        alt="Schematic preview"
+                        className="mt-3 max-h-80 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+
+              <section className="space-y-4" id="toc-pid-anomaly">
+                <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
+                  5.0 P&amp; ID of Anomaly
+                </h2>
+                <div className="grid grid-cols-1 gap-6">
+                  <InputField
+                    label="P& ID Heading"
+                    value={reportData.inspection.pidTitle || ""}
+                    onChange={(v) => handleChange("inspection", "pidTitle", v)}
+                    placeholder="P& ID of Anomaly"
+                  />
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-3">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      P&amp; ID Anomaly Photo
+                    </label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                        <Camera size={14} /> Upload Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            handleGeneralImageUpload(
+                              "pidImage",
+                              file,
+                              "p&id anomaly photo",
+                            );
+                          }}
+                        />
+                      </label>
+                      {reportData.general.pidImage ? (
+                        <>
+                          <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                            Photo attached
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleChange("general", "pidImage", "")}
+                            className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                          >
+                            Remove
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-slate-500 uppercase tracking-widest">
+                          No photo uploaded
+                        </span>
+                      )}
+                    </div>
+                    {reportData.general.pidImage ? (
+                      <img
+                        src={reportData.general.pidImage}
+                        alt="P&ID preview"
+                        className="max-h-96 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
+                      />
+                    ) : null}
+                  </div>
                 </div>
               </section>
 
@@ -1793,6 +2467,7 @@ const InputField = ({
   onChange,
   type = "text",
   required = false,
+  placeholder = "",
 }) => (
   <div className="flex flex-col gap-2">
     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -1803,6 +2478,7 @@ const InputField = ({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       required={required}
+      placeholder={placeholder}
       className="bg-slate-950 border border-slate-800 p-3 rounded-sm text-sm text-white focus:border-orange-500 outline-none transition-all"
     />
   </div>
@@ -1973,21 +2649,59 @@ export const VisualWebView = ({
       item.photoNote,
     ].some((value) => String(value || "").trim()),
   );
+  const populatedPipeSupportPhotos = (reportData?.pipeSupports || []).filter((item) =>
+    [
+      item.equipmentDescription,
+      item.anomaly,
+      item.pageNo,
+      item.photo,
+      item.photoNote,
+    ].some((value) => String(value || "").trim()),
+  );
+  const populatedSpecialConsiderationPhotos = (
+    reportData?.specialConsiderations || []
+  ).filter((item) =>
+    [
+      item.equipmentDescription,
+      item.anomaly,
+      item.pageNo,
+      item.photo,
+      item.photoNote,
+    ].some((value) => String(value || "").trim()),
+  );
   const allPhotos = [
-    ...populatedObservations
-      .filter((o) => o.photo)
-      .map((o) => ({
-        ...o,
-        galleryTitle: o.equipmentId || o.title || "Observation",
-      })),
     ...populatedChecklist
-      .filter((item) => item.photo)
-      .map((item) => ({
-        ...item,
-        galleryTitle:
-          item.equipmentId || item.equipmentDescription || "Checklist Item",
-        title: item.equipmentId || item.equipmentDescription || "Checklist Item",
-      })),
+      .flatMap((item) =>
+        normalizePhotoEntries(item).map((entry) => ({
+          ...item,
+          photo: entry.url,
+          galleryTitle:
+            item.equipmentId || item.equipmentDescription || "Checklist Item",
+          title:
+            item.equipmentId || item.equipmentDescription || "Checklist Item",
+          galleryNote: entry.note || item.photoNote || item.anomaly || "",
+        })),
+      ),
+    ...populatedPipeSupportPhotos
+      .flatMap((item) =>
+        normalizePhotoEntries(item).map((entry) => ({
+          ...item,
+          photo: entry.url,
+          galleryTitle: item.equipmentDescription || "Pipe Support",
+          title: item.equipmentDescription || "Pipe Support",
+          galleryNote: entry.note || item.photoNote || item.anomaly || "",
+        })),
+      ),
+    ...populatedSpecialConsiderationPhotos
+      .flatMap((item) =>
+        normalizePhotoEntries(item).map((entry) => ({
+          ...item,
+          photo: entry.url,
+          galleryTitle: item.equipmentDescription || "Special Consideration",
+          title: item.equipmentDescription || "Special Consideration",
+          galleryNote: entry.note || item.photoNote || item.anomaly || "",
+        })),
+      ),
   ];
   const findingLines = (reportData?.inspection?.findings || "")
     .split(/\r?\n/)
@@ -2218,7 +2932,7 @@ export const VisualWebView = ({
     });
     return acc;
   }, {});
-  const photosPerPage = 6;
+  const photosPerPage = 9;
   const summaryChunks = chunkArray(populatedObservations, 6);
   const checklistChunks = checklistPages;
   const customSectionPages = (reportData.customSections || []).flatMap(
@@ -2247,7 +2961,10 @@ export const VisualWebView = ({
     1,
     specialConsiderationPages.length,
   );
-  const customStartPage = specialConsiderationPage + specialConsiderationPageCount;
+  const schematicPage =
+    specialConsiderationPage + specialConsiderationPageCount;
+  const schematicPageCount = 1;
+  const customStartPage = schematicPage + schematicPageCount;
   const customSections = reportData.customSections || [];
   const customPageCount = Math.max(0, customSectionPages.length);
   const basePagesBeforePhotos =
@@ -2272,7 +2989,7 @@ export const VisualWebView = ({
     {
       sn: "4.0",
       description: "SCHEMATICS OF ANOMALY",
-      page: `${checklistPage}`,
+      page: `${schematicPage}`,
     },
     {
       sn: "5.0",
@@ -3055,6 +3772,176 @@ export const VisualWebView = ({
               </div>
               <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
                 Page {narrativePageCount + checklistPageCount + pipeSupportPageCount + 3 + pageIdx} of {totalPages}
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+          {reportHeader}
+
+          <div className="relative flex-1 px-8 pt-8 pb-8">
+            <div className="mx-auto flex h-full max-w-[190mm] flex-col">
+              <h2 className="text-[18px] font-black uppercase underline text-black">
+                4.0 Schematics of Anomaly
+              </h2>
+
+              <div className="mt-6 px-8 text-center text-black">
+                <p className="text-[17px] font-semibold italic leading-6">
+                  {reportData?.inspection?.schematicTitle ||
+                    '2" x 3" Fuel Gas Line from 4" Fuel Gas Line to AGC'}
+                </p>
+                <p className="mt-1 text-[15px] font-semibold italic leading-6">
+                  {reportData?.inspection?.schematicSubtitle ||
+                    "Corrosion Details"}
+                </p>
+                <div className="mx-auto mt-3 h-[3px] w-36 bg-cyan-400" />
+              </div>
+
+              <div className="mt-6 flex-1 rounded-sm border border-slate-300 bg-white p-4">
+                {reportData?.general?.diagramImage ? (
+                  <img
+                    src={reportData.general.diagramImage}
+                    alt="Schematic of anomaly"
+                    className="h-full max-h-[148mm] w-full object-contain"
+                  />
+                ) : (
+                  <div className="flex h-full min-h-[148mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    Upload schematic anomaly photo in the form view
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 border border-dashed border-slate-500 px-3 py-3 text-[#0a58b5]">
+                <p className="text-[11px] font-bold italic underline">Notes:</p>
+                <div className="mt-2 space-y-1 text-[11px] leading-5">
+                  {(String(reportData?.inspection?.schematicNotes || "")
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean).length
+                    ? String(reportData?.inspection?.schematicNotes || "")
+                        .split(/\r?\n/)
+                        .map((line) => line.trim())
+                        .filter(Boolean)
+                    : [
+                        "1. Add the anomaly notes from the form view to display them here.",
+                      ]).map((line, idx) => (
+                    <p key={`schematic-note-${idx}`}>{line}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mt-auto px-12 pb-8">
+            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+                ORIGINAL
+              </p>
+            </div>
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+              Page {schematicPage} of {totalPages}
+            </div>
+          </div>
+        </div>
+
+        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+          {reportHeader}
+
+            <div className="relative flex-1 px-8 pt-8 pb-8">
+              <div className="mx-auto flex h-full max-w-[190mm] flex-col">
+                <h2 className="text-center text-[18px] font-black uppercase underline text-black">
+                  {reportData?.inspection?.pidTitle || "5.0 P& ID of Anomaly"}
+                </h2>
+
+              <div className="mt-6 flex-1 rounded-sm border border-slate-300 bg-white p-5">
+                {reportData?.general?.pidImage ? (
+                  <img
+                    src={reportData.general.pidImage}
+                    alt="P&ID of anomaly"
+                    className="h-full max-h-[225mm] w-full object-contain"
+                  />
+                ) : (
+                  <div className="flex h-full min-h-[225mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    Upload P&amp; ID anomaly photo in the form view
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mt-auto px-12 pb-8">
+            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+                ORIGINAL
+              </p>
+            </div>
+            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+              Page {customStartPage} of {totalPages}
+            </div>
+          </div>
+        </div>
+
+        {photoChunks.map((pageItems, pageIdx) => (
+          <div
+            key={`photo-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            {reportHeader}
+
+            <div className="relative flex-1 px-6 pt-8 pb-8">
+              <div className="mx-auto max-w-[196mm]">
+                <h2 className="text-center text-[18px] font-black uppercase underline text-black">
+                  6.0 Photographic Details
+                </h2>
+
+                {pageItems.length ? (
+                  <div className="mt-6 grid grid-cols-3 gap-3">
+                    {pageItems.map((item, idx) => {
+                      const globalIdx = pageIdx * photosPerPage + idx;
+                      return (
+                        <div
+                          key={item.id || `photo-card-${globalIdx}`}
+                          className="border border-black bg-white"
+                        >
+                          <div className="flex h-[72mm] items-center justify-center border-b border-black bg-slate-50 p-1">
+                            <img
+                              src={item.photo}
+                              alt={item.galleryTitle || `Photo ${globalIdx + 1}`}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="space-y-1 px-2 py-2 text-center">
+                            <p className="min-h-[28px] text-[9px] leading-4 text-black">
+                              {item.galleryNote ||
+                                item.galleryTitle ||
+                                "Uploaded inspection photo"}
+                            </p>
+                            <p className="text-[9px] font-black text-blue-700">
+                              {`(Photo # ${String(globalIdx + 1).padStart(2, "0")})`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-8 flex min-h-[210mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                    Upload photos from inspection findings, pipe supports, or
+                    special considerations to populate this page
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="relative mt-auto px-12 pb-8">
+              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+                  ORIGINAL
+                </p>
+              </div>
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+                Page {photoPageStart + pageIdx} of {totalPages}
               </div>
             </div>
           </div>
