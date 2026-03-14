@@ -32,6 +32,33 @@ import { toast } from "react-toastify";
 import { useAuth } from "../../../Auth/AuthContext";
 import html2pdf from "html2pdf.js";
 
+const PIPE_COMPONENT_OPTIONS = [
+  "Straight Pipe Runs, Expansion Joints, including where Pipe Rests on Supports",
+  "Branch Connections, Including Reinforcement Pads",
+  "Elbows, Reducer & Tees",
+  "Small Piping Takeoffs (Valves and Piping) Including Gussets",
+  "In-line Valves (Block, Check, Control) etc.",
+  "Dead Leg(s)",
+  "Filter, Strainer, etc",
+  "Thermowells & Temperature Indicating Instruments",
+  "Orifice Taps",
+  "Insulation/Weatherproofing/Jacketing",
+  "Temporary Repair Clamps/Enclosures",
+];
+const ADD_PIPE_COMPONENT_OPTION = "+ Add Pipe Component";
+const PIPE_SUPPORT_OPTIONS = [
+  "Base Supports / Tee Slides / 'H' Slides",
+  "Spring hangers / Support Rods Including Pipe Clamps",
+  "Dummy Legs",
+  "Anchors/Restraints/Guides",
+];
+const ADD_PIPE_SUPPORT_OPTION = "+ Add Pipe Support";
+const SPECIAL_CONSIDERATION_OPTIONS = [
+  "Injection Points",
+  "Safety Valve and Associated piping",
+];
+const ADD_SPECIAL_CONSIDERATION_OPTION = "+ Add Special Consideration";
+
 const VisualReport = ({
   reportData: reportDataProp,
   companyLogo: companyLogoProp,
@@ -64,6 +91,9 @@ const VisualReport = ({
       reportNum: createReportNumber(),
       date: "",
       equipment: "",
+      customPipeComponents: [],
+      customPipeSupports: [],
+      customSpecialConsiderations: [],
       diagramImage: "",
       projectId: "",
       inspectionType: "",
@@ -99,6 +129,22 @@ const VisualReport = ({
         pageNo: "",
         photo: "",
         photoNote: "",
+      },
+    ],
+    pipeSupports: [
+      {
+        id: `${Date.now()}-support`,
+        equipmentDescription: "",
+        anomaly: "N/A.",
+        pageNo: "",
+      },
+    ],
+    specialConsiderations: [
+      {
+        id: `${Date.now()}-special`,
+        equipmentDescription: "",
+        anomaly: "N/A.",
+        pageNo: "NA",
       },
     ],
     utm: [
@@ -140,6 +186,15 @@ const VisualReport = ({
         reportDataProp.checklist && reportDataProp.checklist.length
           ? reportDataProp.checklist
           : prev.checklist,
+      pipeSupports:
+        reportDataProp.pipeSupports && reportDataProp.pipeSupports.length
+          ? reportDataProp.pipeSupports
+          : prev.pipeSupports,
+      specialConsiderations:
+        reportDataProp.specialConsiderations &&
+        reportDataProp.specialConsiderations.length
+          ? reportDataProp.specialConsiderations
+          : prev.specialConsiderations,
       signoff: { ...prev.signoff, ...(reportDataProp.signoff || {}) },
       customSections:
         reportDataProp.customSections || prev.customSections || [],
@@ -557,6 +612,173 @@ const VisualReport = ({
       checklist: (prev.checklist || []).filter((item) => item.id !== id),
     }));
   };
+  const addCustomPipeComponent = (itemId) => {
+    const customLabel = window.prompt("Enter the new pipe component");
+    const normalized = String(customLabel || "").trim();
+    if (!normalized) return;
+
+    setReportData((prev) => {
+      const existingCustom = Array.isArray(prev.general?.customPipeComponents)
+        ? prev.general.customPipeComponents
+        : [];
+      const nextCustom = existingCustom.includes(normalized)
+        ? existingCustom
+        : [...existingCustom, normalized];
+
+      return {
+        ...prev,
+        general: {
+          ...prev.general,
+          customPipeComponents: nextCustom,
+        },
+        checklist: (prev.checklist || []).map((item) =>
+          item.id === itemId
+            ? { ...item, equipmentDescription: normalized }
+            : item,
+        ),
+      };
+    });
+  };
+  const updatePipeSupportItem = (id, field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      pipeSupports: (prev.pipeSupports || []).map((item) =>
+        item.id === id ? { ...item, [field]: value } : item,
+      ),
+    }));
+  };
+  const addPipeSupportItem = () => {
+    setReportData((prev) => ({
+      ...prev,
+      pipeSupports: [
+        ...(prev.pipeSupports || []),
+        {
+          id: `${Date.now()}-support`,
+          equipmentDescription: "",
+          anomaly: "N/A.",
+          pageNo: "",
+        },
+      ],
+    }));
+  };
+  const removePipeSupportItem = (id) => {
+    setReportData((prev) => ({
+      ...prev,
+      pipeSupports: (prev.pipeSupports || []).filter((item) => item.id !== id),
+    }));
+  };
+  const addCustomPipeSupport = (itemId) => {
+    const customLabel = window.prompt("Enter the new pipe support");
+    const normalized = String(customLabel || "").trim();
+    if (!normalized) return;
+
+    setReportData((prev) => {
+      const existingCustom = Array.isArray(prev.general?.customPipeSupports)
+        ? prev.general.customPipeSupports
+        : [];
+      const nextCustom = existingCustom.includes(normalized)
+        ? existingCustom
+        : [...existingCustom, normalized];
+
+      return {
+        ...prev,
+        general: {
+          ...prev.general,
+          customPipeSupports: nextCustom,
+        },
+        pipeSupports: (prev.pipeSupports || []).map((item) =>
+          item.id === itemId
+            ? { ...item, equipmentDescription: normalized }
+            : item,
+        ),
+      };
+    });
+  };
+  const updateSpecialConsiderationItem = (id, field, value) => {
+    setReportData((prev) => ({
+      ...prev,
+      specialConsiderations: (prev.specialConsiderations || []).map((item) =>
+        item.id === id ? { ...item, [field]: value } : item,
+      ),
+    }));
+  };
+  const addSpecialConsiderationItem = () => {
+    setReportData((prev) => ({
+      ...prev,
+      specialConsiderations: [
+        ...(prev.specialConsiderations || []),
+        {
+          id: `${Date.now()}-special`,
+          equipmentDescription: "",
+          anomaly: "N/A.",
+          pageNo: "NA",
+        },
+      ],
+    }));
+  };
+  const removeSpecialConsiderationItem = (id) => {
+    setReportData((prev) => ({
+      ...prev,
+      specialConsiderations: (prev.specialConsiderations || []).filter(
+        (item) => item.id !== id,
+      ),
+    }));
+  };
+  const addCustomSpecialConsideration = (itemId) => {
+    const customLabel = window.prompt("Enter the new special consideration");
+    const normalized = String(customLabel || "").trim();
+    if (!normalized) return;
+
+    setReportData((prev) => {
+      const existingCustom = Array.isArray(
+        prev.general?.customSpecialConsiderations,
+      )
+        ? prev.general.customSpecialConsiderations
+        : [];
+      const nextCustom = existingCustom.includes(normalized)
+        ? existingCustom
+        : [...existingCustom, normalized];
+
+      return {
+        ...prev,
+        general: {
+          ...prev.general,
+          customSpecialConsiderations: nextCustom,
+        },
+        specialConsiderations: (prev.specialConsiderations || []).map((item) =>
+          item.id === itemId
+            ? { ...item, equipmentDescription: normalized }
+            : item,
+        ),
+      };
+    });
+  };
+  const pipeComponentOptions = [
+    ...PIPE_COMPONENT_OPTIONS,
+    ...((Array.isArray(reportData?.general?.customPipeComponents)
+      ? reportData.general.customPipeComponents
+      : []
+    ).filter((option) => option && !PIPE_COMPONENT_OPTIONS.includes(option))),
+    ADD_PIPE_COMPONENT_OPTION,
+  ];
+  const pipeSupportOptions = [
+    ...PIPE_SUPPORT_OPTIONS,
+    ...((Array.isArray(reportData?.general?.customPipeSupports)
+      ? reportData.general.customPipeSupports
+      : []
+    ).filter((option) => option && !PIPE_SUPPORT_OPTIONS.includes(option))),
+    ADD_PIPE_SUPPORT_OPTION,
+  ];
+  const specialConsiderationOptions = [
+    ...SPECIAL_CONSIDERATION_OPTIONS,
+    ...((Array.isArray(reportData?.general?.customSpecialConsiderations)
+      ? reportData.general.customSpecialConsiderations
+      : []
+    ).filter(
+      (option) => option && !SPECIAL_CONSIDERATION_OPTIONS.includes(option),
+    )),
+    ADD_SPECIAL_CONSIDERATION_OPTION,
+  ];
 
   const removeObservation = (id) => {
     setReportData((prev) => ({
@@ -708,6 +930,22 @@ const VisualReport = ({
           photoNote: asText(item?.photoNote),
         }))
       : [];
+    const pipeSupports = Array.isArray(reportData?.pipeSupports)
+      ? reportData.pipeSupports.map((item, idx) => ({
+          id: asText(item?.id || `${Date.now()}-support-${idx}`),
+          equipmentDescription: asText(item?.equipmentDescription),
+          anomaly: asText(item?.anomaly || "N/A."),
+          pageNo: asText(item?.pageNo),
+        }))
+      : [];
+    const specialConsiderations = Array.isArray(reportData?.specialConsiderations)
+      ? reportData.specialConsiderations.map((item, idx) => ({
+          id: asText(item?.id || `${Date.now()}-special-${idx}`),
+          equipmentDescription: asText(item?.equipmentDescription),
+          anomaly: asText(item?.anomaly || "N/A."),
+          pageNo: asText(item?.pageNo || "NA"),
+        }))
+      : [];
     const utm = Array.isArray(reportData?.utm)
       ? reportData.utm.map((group, gIdx) => ({
           id: asText(group?.id || `G-${gIdx + 1}`),
@@ -746,6 +984,23 @@ const VisualReport = ({
         reportNum: asText(g.reportNum),
         date: asText(g.date),
         equipment: asText(g.equipment),
+        customPipeComponents: Array.isArray(g.customPipeComponents)
+          ? g.customPipeComponents
+              .map((item) => asText(item))
+              .filter(Boolean)
+          : [],
+        customPipeSupports: Array.isArray(g.customPipeSupports)
+          ? g.customPipeSupports
+              .map((item) => asText(item))
+              .filter(Boolean)
+          : [],
+        customSpecialConsiderations: Array.isArray(
+          g.customSpecialConsiderations,
+        )
+          ? g.customSpecialConsiderations
+              .map((item) => asText(item))
+              .filter(Boolean)
+          : [],
         diagramImage: asText(g.diagramImage),
         projectId: asText(projectDocId || g.projectId || ""),
         projectDocId: asText(g.projectDocId || projectDocId || ""),
@@ -785,6 +1040,8 @@ const VisualReport = ({
       },
       observations,
       checklist,
+      pipeSupports,
+      specialConsiderations,
       utm,
       signoff: {
         inspector: asText(s.inspector || user?.displayName || ""),
@@ -1042,403 +1299,276 @@ const VisualReport = ({
                     required
                   />
                 </div>
-
-                <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                    Table of Contents (Quick View)
-                  </label>
-                  <select
-                    className="mt-3 w-full bg-slate-950 border border-slate-800 p-3 rounded-sm text-xs text-white focus:border-orange-500 outline-none transition-all"
-                    value={tocSelection}
-                    onChange={(e) => {
-                      const target = e.target.value;
-                      setTocSelection(target);
-                      if (!target) return;
-                      const el = document.getElementById(target);
-                      if (el) {
-                        el.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
-                      }
-                    }}
-                  >
-                    <option value="" disabled>
-                      Select a section...
-                    </option>
-                    {tocOptions.map((section) => (
-                      <option key={section.target} value={section.target}>
-                        {section.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
               </section>
-              {/*SUMMARY OF INSPECTION FINDINGS */}
-              <section className="space-y-4" id="toc-summary">
-                <div id="toc-photos" className="scroll-mt-24" />
 
+              <section className="space-y-4" id="toc-summary">
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
-                  SUMMARY OF INSPECTION FINDINGS
+                  Report Narrative
                 </h2>
-                <div className="rounded-sm border border-slate-800 bg-slate-950/60 p-4 space-y-4">
-                  <p className="text-sm font-bold uppercase underline text-white">
-                    1. Summary of Findings
-                  </p>
-                  <p className="text-sm text-slate-300 leading-relaxed">
-                    FVI was carried out on a total of{" "}
-                    <span className="font-bold text-white">
-                      {reportData.observations.length || 0}
-                    </span>{" "}
-                    item(s). Details of the anomalies with photographic details are
-                    tabulated below.
-                  </p>
+                <div className="grid grid-cols-1 gap-6">
+                  <TextArea
+                    label="1.0 Introduction"
+                    value={reportData.inspection.scope}
+                    onChange={(v) => handleChange("inspection", "scope", v)}
+                    required
+                  />
+                  <TextArea
+                    label="2.0 Executive Summary"
+                    value={reportData.inspection.findings}
+                    onChange={(v) => handleChange("inspection", "findings", v)}
+                    required
+                  />
+                  <TextArea
+                    label="2.1.1 Recommendation"
+                    value={reportData.inspection.recommendations}
+                    onChange={(v) =>
+                      handleChange("inspection", "recommendations", v)
+                    }
+                    required
+                  />
+                </div>
+              </section>
+
+              <section className="space-y-4" id="toc-checklist">
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
+                    3.0 Inspection Findings
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={addChecklistItem}
+                    className="rounded-sm border border-orange-500 bg-orange-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-orange-700"
+                  >
+                    Add More
+                  </button>
                 </div>
                 <div className="space-y-4">
-                  {reportData.observations.map((obs, idx) => (
+                  {(reportData.checklist || []).map((item, idx) => (
                     <div
-                      key={obs.id}
-                      className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3"
+                      key={item.id}
+                      className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-4"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-3">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                          Summary {idx + 1}
+                          Pipe Component {idx + 1}
                         </p>
-                        {reportData.observations.length > 1 && (
+                        {(reportData.checklist || []).length > 1 && (
                           <button
                             type="button"
-                            onClick={() => removeObservation(obs.id)}
+                            onClick={() => removeChecklistItem(item.id)}
                             className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
                           >
                             Remove
                           </button>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        <InlineField
-                          placeholder="Ref. S/N"
-                          value={obs.refSn || ""}
-                          onChange={(v) =>
-                            updateObservation(obs.id, "refSn", v)
-                          }
-                        />
-                        <InlineField
-                          placeholder="Equipment ID"
-                          value={obs.equipmentId || ""}
-                          onChange={(v) =>
-                            updateObservation(obs.id, "equipmentId", v)
-                          }
-                        />
-                        <InlineField
-                          placeholder="Equipment Description"
-                          value={obs.equipmentDescription || ""}
-                          onChange={(v) =>
-                            updateObservation(
-                              obs.id,
-                              "equipmentDescription",
-                              v,
-                            )
-                          }
-                        />
-                        <InlineField
-                          placeholder="Page No."
-                          value={obs.pageNo || ""}
-                          onChange={(v) =>
-                            updateObservation(obs.id, "pageNo", v)
-                          }
-                        />
-                        <InlineField
-                          placeholder="Title"
-                          value={obs.title}
-                          onChange={(v) => updateObservation(obs.id, "title", v)}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Pipe Components
+                          </label>
+                          <select
+                            value={item.equipmentDescription || ""}
+                            onChange={(e) => {
+                              if (e.target.value === ADD_PIPE_COMPONENT_OPTION) {
+                                addCustomPipeComponent(item.id);
+                                return;
+                              }
+                              updateChecklistItem(
+                                item.id,
+                                "equipmentDescription",
+                                e.target.value,
+                              );
+                            }}
+                            className="bg-slate-950 border border-slate-800 p-3 rounded-sm text-sm text-white focus:border-orange-500 outline-none transition-all"
+                          >
+                            <option value="">Select pipe component</option>
+                            {pipeComponentOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <InputField
+                          label="Photo/Page Ref"
+                          value={item.pageNo || ""}
+                          onChange={(v) => updateChecklistItem(item.id, "pageNo", v)}
                         />
                       </div>
                       <TextArea
-                        label="Anomaly Description"
-                        value={obs.description}
-                        onChange={(v) =>
-                          updateObservation(obs.id, "description", v)
-                        }
+                        label="Observation"
+                        value={item.anomaly || ""}
+                        onChange={(v) => updateChecklistItem(item.id, "anomaly", v)}
                         required
                       />
-                      <div className="flex items-center gap-3">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                          <Camera size={14} /> Attach related Image
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              handleObservationPhotoUpload(obs.id, file);
-                            }}
-                          />
-                        </label>
-                        <input
-                          type="text"
-                          value={obs.photoNote || ""}
-                          onChange={(e) =>
-                            updateObservation(
-                              obs.id,
-                              "photoNote",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Photo note"
-                          className="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-sm text-[10px] text-white focus:border-orange-500 outline-none transition-all uppercase tracking-widest"
-                        />
-                        {obs.photo && (
-                          <>
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                              Photo attached
-                            </span>
-                            <div className="flex flex-col gap-2">
-                              <div className="h-20 w-28 border border-slate-800 bg-slate-950 rounded-sm flex items-center justify-center overflow-hidden">
-                                <img
-                                  src={obs.photo}
-                                  alt={obs.title || "Observation photo"}
-                                  className="max-h-full max-w-full object-contain"
-                                />
-                              </div>
-                              {obs.photoNote && (
-                                <textarea
-                                  value={obs.photoNote}
-                                  onChange={(e) =>
-                                    updateObservation(
-                                      obs.id,
-                                      "photoNote",
-                                      e.target.value,
-                                    )
-                                  }
-                                  rows={3}
-                                  className="w-full bg-slate-950 border border-slate-800 p-2 rounded-sm text-[9px] text-slate-300 focus:border-orange-500 outline-none transition-all resize-none"
-                                />
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateObservation(obs.id, "photo", "")
-                              }
-                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                            >
-                              Remove
-                            </button>
-                          </>
-                        )}
-                      </div>
                     </div>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={addObservation}
-                  className="px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors"
-                >
-                  + Add More Summary
-                </button>
+              </section>
 
-                <section className="space-y-4" id="toc-overview">
-                  <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12">
-                    Visual Inspection Observations Checklist
+              <section className="space-y-4" id="toc-pipe-supports">
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
+                    4.0 Pipe Supports
                   </h2>
-                  <div className="overflow-x-auto rounded-sm border border-slate-800">
-                    <table className="w-full border-collapse text-[11px] text-white">
-                      <thead className="bg-slate-900">
-                        <tr>
-                          <th className="border border-slate-700 p-2 w-14">S/N</th>
-                          <th className="border border-slate-700 p-2">
-                            Equipment ID
-                          </th>
-                          <th className="border border-slate-700 p-2">
-                            Equipment Description
-                          </th>
-                          <th className="border border-slate-700 p-2">
-                            Anomaly (No/Yes)
-                          </th>
-                          <th className="border border-slate-700 p-2 w-24">
-                            Page No.
-                          </th>
-                          <th className="border border-slate-700 p-2 w-28">
-                            Upload
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(reportData.checklist || []).map((item, idx) => (
-                          <tr key={item.id} className="bg-slate-950/60 align-top">
-                            <td className="border border-slate-800 p-2 text-center">
-                              {idx + 1}
-                            </td>
-                            <td className="border border-slate-800 p-2">
-                              <InlineField
-                                placeholder="Equipment ID"
-                                value={item.equipmentId || ""}
-                                onChange={(v) =>
-                                  updateChecklistItem(item.id, "equipmentId", v)
-                                }
-                              />
-                            </td>
-                            <td className="border border-slate-800 p-2">
-                              <InlineField
-                                placeholder="Equipment Description"
-                                value={item.equipmentDescription || ""}
-                                onChange={(v) =>
-                                  updateChecklistItem(
-                                    item.id,
-                                    "equipmentDescription",
-                                    v,
-                                  )
-                                }
-                              />
-                            </td>
-                            <td className="border border-slate-800 p-2">
-                              <select
-                                value={item.anomaly || "No"}
-                                onChange={(e) =>
-                                  updateChecklistItem(
-                                    item.id,
-                                    "anomaly",
-                                    e.target.value,
-                                  )
-                                }
-                                className="w-full bg-slate-950 border border-slate-800 p-2 rounded-sm text-[10px] text-white focus:border-orange-500 outline-none transition-all"
-                              >
-                                <option value="No">No</option>
-                                <option value="Yes">Yes</option>
-                              </select>
-                            </td>
-                            <td className="border border-slate-800 p-2">
-                              <InlineField
-                                placeholder="Page No."
-                                value={item.pageNo || ""}
-                                onChange={(v) =>
-                                  updateChecklistItem(item.id, "pageNo", v)
-                                }
-                              />
-                            </td>
-                            <td className="border border-slate-800 p-2 space-y-2">
-                              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-sm bg-slate-900 border border-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                                <Camera size={12} /> Upload
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    handleChecklistPhotoUpload(item.id, file);
-                                  }}
-                                />
-                              </label>
-                              <input
-                                type="text"
-                                value={item.photoNote || ""}
-                                onChange={(e) =>
-                                  updateChecklistItem(
-                                    item.id,
-                                    "photoNote",
-                                    e.target.value,
-                                  )
-                                }
-                                placeholder="Photo note"
-                                className="w-full bg-slate-950 border border-slate-800 p-2 rounded-sm text-[10px] text-white focus:border-orange-500 outline-none transition-all uppercase tracking-widest"
-                              />
-                              {item.photo && (
-                                <div className="space-y-2">
-                                  <div className="h-20 w-full border border-slate-800 bg-slate-950 rounded-sm flex items-center justify-center overflow-hidden">
-                                    <img
-                                      src={item.photo}
-                                      alt={item.equipmentId || "Checklist photo"}
-                                      className="max-h-full max-w-full object-contain"
-                                    />
-                                  </div>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      updateChecklistItem(item.id, "photo", "")
-                                    }
-                                    className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              )}
-                              {(reportData.checklist || []).length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeChecklistItem(item.id)}
-                                  className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                                >
-                                  Remove Row
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
                   <button
                     type="button"
-                    onClick={addChecklistItem}
-                    className="px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors"
+                    onClick={addPipeSupportItem}
+                    className="rounded-sm border border-orange-500 bg-orange-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-orange-700"
                   >
-                    + Add Checklist Row
+                    Add More
                   </button>
-                </section>
-              </section>
-
-              <section className="space-y-4">
-                <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12 bg-slate-900">
-                  Additional Sections
-                </h2>
+                </div>
                 <div className="space-y-4">
-                  {(reportData.customSections || []).map((section, idx) => (
+                  {(reportData.pipeSupports || []).map((item, idx) => (
                     <div
-                      key={section.id}
-                      id={`toc-custom-${section.id}`}
-                      className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3"
+                      key={item.id}
+                      className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-4"
                     >
-                      <div className="flex items-center justify-between">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400"></p>
-                        <button
-                          type="button"
-                          onClick={() => removeCustomSection(section.id)}
-                          className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                        >
-                          Remove
-                        </button>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          Pipe Support {idx + 1}
+                        </p>
+                        {(reportData.pipeSupports || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removePipeSupportItem(item.id)}
+                            className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
-                      <InputField
-                        label="Section Title"
-                        value={section.title}
-                        onChange={(v) =>
-                          updateCustomSection(section.id, "title", v)
-                        }
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Pipe Supports
+                          </label>
+                          <select
+                            value={item.equipmentDescription || ""}
+                            onChange={(e) => {
+                              if (e.target.value === ADD_PIPE_SUPPORT_OPTION) {
+                                addCustomPipeSupport(item.id);
+                                return;
+                              }
+                              updatePipeSupportItem(
+                                item.id,
+                                "equipmentDescription",
+                                e.target.value,
+                              );
+                            }}
+                            className="bg-slate-950 border border-slate-800 p-3 rounded-sm text-sm text-white focus:border-orange-500 outline-none transition-all"
+                          >
+                            <option value="">Select pipe support</option>
+                            {pipeSupportOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <InputField
+                          label="Photo/Page Ref"
+                          value={item.pageNo || ""}
+                          onChange={(v) => updatePipeSupportItem(item.id, "pageNo", v)}
+                        />
+                      </div>
+                      <TextArea
+                        label="Observation"
+                        value={item.anomaly || ""}
+                        onChange={(v) => updatePipeSupportItem(item.id, "anomaly", v)}
                         required
                       />
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="space-y-4" id="toc-special-considerations">
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
+                    5.0 Special Considerations
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={addSpecialConsiderationItem}
+                    className="rounded-sm border border-orange-500 bg-orange-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-orange-700"
+                  >
+                    Add More
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  {(reportData.specialConsiderations || []).map((item, idx) => (
+                    <div
+                      key={item.id}
+                      className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                          Special Consideration {idx + 1}
+                        </p>
+                        {(reportData.specialConsiderations || []).length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeSpecialConsiderationItem(item.id)}
+                            className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            Special Considerations
+                          </label>
+                          <select
+                            value={item.equipmentDescription || ""}
+                            onChange={(e) => {
+                              if (
+                                e.target.value === ADD_SPECIAL_CONSIDERATION_OPTION
+                              ) {
+                                addCustomSpecialConsideration(item.id);
+                                return;
+                              }
+                              updateSpecialConsiderationItem(
+                                item.id,
+                                "equipmentDescription",
+                                e.target.value,
+                              );
+                            }}
+                            className="bg-slate-950 border border-slate-800 p-3 rounded-sm text-sm text-white focus:border-orange-500 outline-none transition-all"
+                          >
+                            <option value="">Select special consideration</option>
+                            {specialConsiderationOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <InputField
+                          label="Photo/Page Ref"
+                          value={item.pageNo || ""}
+                          onChange={(v) =>
+                            updateSpecialConsiderationItem(item.id, "pageNo", v)
+                          }
+                        />
+                      </div>
                       <TextArea
-                        label="Section Content"
-                        value={section.content}
+                        label="Observation"
+                        value={item.anomaly || ""}
                         onChange={(v) =>
-                          updateCustomSection(section.id, "content", v)
+                          updateSpecialConsiderationItem(item.id, "anomaly", v)
                         }
                         required
                       />
                     </div>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={addCustomSection}
-                  className="px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors"
-                >
-                  + Add New Section
-                </button>
               </section>
+
               <section className="space-y-4" id="toc-signature">
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12 bg-slate-900">
                   Signature
@@ -1759,24 +1889,6 @@ export const VisualWebView = ({
       setIsDownloadingPdf(false);
     }
   };
-  const companyMark = (
-    <div className="flex items-center gap-3">
-      {resolvedCompanyLogo ? (
-        <img
-          src={resolvedCompanyLogo}
-          alt="Company logo"
-          className="h-10 w-auto object-contain"
-        />
-      ) : (
-        <>
-          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/30" />
-          <div className="text-blue-900 font-black text-xl tracking-wide">
-            INSPECTPRO
-          </div>
-        </>
-      )}
-    </div>
-  );
   const reportHeader = (
     <div className="relative px-10 py-4 border-b border-slate-200/80 backdrop-blur-md">
       <div className="border border-slate-400 bg-white/90 p-[2px]">
@@ -1822,6 +1934,22 @@ export const VisualWebView = ({
     if (Number.isNaN(parsed.getTime())) return "";
     return parsed.toLocaleString("en-US", { month: "long", year: "numeric" });
   })();
+  const formattedPageTwoDate = formattedMonthYear
+    ? formattedMonthYear.toUpperCase()
+    : "";
+  const pageTwoRevision = reportData?.general?.revision || "";
+  const pageTwoContractNumber = reportData?.general?.contract || "";
+  const pageTwoTestCode = reportData?.general?.testCode || "";
+  const pageTwoInspectors =
+    reportData?.general?.inspectorName ||
+    reportData?.signoff?.inspector ||
+    "";
+  const pageTwoAcceptanceCriteria =
+    reportData?.general?.acceptanceCriteria || "";
+  const pageTwoProcedure =
+    reportData?.general?.procedure ||
+    reportData?.general?.inspectionProcedure ||
+    "";
   const reportNumber = reportData?.general?.reportNum || "N/A";
   const populatedObservations = (reportData?.observations || []).filter((obs) =>
     [
@@ -1865,6 +1993,79 @@ export const VisualWebView = ({
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
+  const introductionParagraphs = (reportData?.inspection?.scope || "")
+    .split(/\r?\n\r?\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const recommendationLines = (reportData?.inspection?.recommendations || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const checklistDisplayItems = populatedChecklist.length
+    ? populatedChecklist
+    : [
+        {
+          equipmentDescription:
+            "Straight Pipe Runs, Expansion Joints, including where Pipe Rests on Supports",
+          anomaly:
+            "1. Light corrosion observed on 2nd flange weld and adjacent horizontal line.",
+          pageNo: "06",
+        },
+      ];
+  const populatedPipeSupports = (reportData?.pipeSupports || []).filter((item) =>
+    [item.equipmentDescription, item.anomaly, item.pageNo].some((value) =>
+      String(value || "").trim(),
+    ),
+  );
+  const supportDisplayItems = populatedPipeSupports.length
+      ? populatedPipeSupports
+      : [
+          {
+            equipmentDescription: "Base Supports / Tee Slides / 'H' Slides",
+            anomaly:
+              "1. Light corrosion with corrosion stain noticed on 1st pipe support.",
+            pageNo: "03",
+          },
+        ];
+  const populatedSpecialConsiderations = (
+    reportData?.specialConsiderations || []
+  ).filter((item) =>
+    [item.equipmentDescription, item.anomaly, item.pageNo].some((value) =>
+      String(value || "").trim(),
+    ),
+  );
+  const specialConsiderationDisplayItems = populatedSpecialConsiderations.length
+    ? populatedSpecialConsiderations
+    : [
+        {
+          equipmentDescription: "Injection Points",
+          anomaly: "N/A.",
+          pageNo: "NA",
+        },
+        {
+          equipmentDescription: "Safety Valve and Associated piping",
+          anomaly: "N/A.",
+          pageNo: "NA",
+        },
+      ];
+  const checklistPages = Array.from(
+    { length: Math.max(1, Math.ceil(checklistDisplayItems.length / 8)) },
+    (_, idx) => checklistDisplayItems.slice(idx * 8, (idx + 1) * 8),
+  );
+  const pipeSupportPages = Array.from(
+    { length: Math.max(1, Math.ceil(supportDisplayItems.length / 8)) },
+    (_, idx) => supportDisplayItems.slice(idx * 8, (idx + 1) * 8),
+  );
+  const specialConsiderationPages = Array.from(
+    {
+      length: Math.max(
+        1,
+        Math.ceil(specialConsiderationDisplayItems.length / 8),
+      ),
+    },
+    (_, idx) =>
+      specialConsiderationDisplayItems.slice(idx * 8, (idx + 1) * 8),
+  );
   const toRoman = (value) => {
     const map = [
       [10, "X"],
@@ -1931,9 +2132,95 @@ export const VisualWebView = ({
     if (current) chunks.push(current);
     return chunks.length ? chunks : [source];
   };
+  const defaultIntroductionParagraphs = [
+    "We conducted rigorous Full Visual Inspection on the 2inch piping at the starboard process area at Module P4 of Usan FPSO.",
+  ];
+  const defaultExecutiveSummaryLines = [
+    "1.0 Heavy corrosion with scale build up was observed on 4th support weld attached to platform structure.",
+    "2.0 Moderate corrosion noticed on 2nd pipe support.",
+  ];
+  const defaultRecommendationLines = [
+    "1. It is recommended that level 2 inspection like corrosion mapping be conducted on areas with severe corrosion.",
+    "2. The moderate to heavily corroded areas to be coated to arrest further degradation.",
+  ];
+  const narrativeSections = [
+    {
+      key: "introduction",
+      title: "1. Introduction",
+      items: introductionParagraphs.length
+        ? introductionParagraphs
+        : defaultIntroductionParagraphs,
+      separator: "\n\n",
+      chunkSize: 1250,
+      spacingClass: "",
+      underline: false,
+    },
+    {
+      key: "executive-summary",
+      title: "2. Executive Summary",
+      items: findingLines.length ? findingLines : defaultExecutiveSummaryLines,
+      separator: "\n",
+      chunkSize: 1200,
+      spacingClass: "mt-24",
+      underline: false,
+    },
+    {
+      key: "recommendation",
+      title: "2.1.1 Recommendation",
+      items: recommendationLines.length
+        ? recommendationLines
+        : defaultRecommendationLines,
+      separator: "\n",
+      chunkSize: 1200,
+      spacingClass: "mt-12",
+      underline: true,
+    },
+  ];
+  const narrativeBlocks = narrativeSections.flatMap((section) =>
+    splitTextIntoPageChunks(
+      section.items.join(section.separator),
+      section.chunkSize,
+    ).map((chunk, idx) => ({
+      ...section,
+      chunk,
+      isContinuation: idx > 0,
+    })),
+  );
+  const buildNarrativePages = (blocks, maxCharsPerPage = 2500) => {
+    if (!blocks.length) return [[]];
+    const pages = [];
+    let currentPage = [];
+    let currentSize = 0;
+
+    blocks.forEach((block) => {
+      const estimatedSize = block.chunk.length + 220;
+      if (
+        currentPage.length > 0 &&
+        currentSize + estimatedSize > maxCharsPerPage
+      ) {
+        pages.push(currentPage);
+        currentPage = [];
+        currentSize = 0;
+      }
+      currentPage.push(block);
+      currentSize += estimatedSize;
+    });
+
+    if (currentPage.length) pages.push(currentPage);
+    return pages.length ? pages : [[]];
+  };
+  const narrativePages = buildNarrativePages(narrativeBlocks);
+  const narrativePageCount = Math.max(1, narrativePages.length);
+  const narrativeExtraPages = narrativePageCount - 1;
+  const sectionStartPages = narrativePages.reduce((acc, pageBlocks, pageIdx) => {
+    pageBlocks.forEach((block) => {
+      if (!acc[block.key]) acc[block.key] = pageIdx + 3;
+    });
+    return acc;
+  }, {});
   const photosPerPage = 6;
   const summaryChunks = chunkArray(populatedObservations, 6);
-  const checklistChunks = chunkArray(populatedChecklist, 9);
+  const checklistChunks = checklistPages;
   const customSectionPages = (reportData.customSections || []).flatMap(
     (section, idx) =>
       splitTextIntoPageChunks(section.content || "").map((content, pageIdx) => ({
@@ -1949,11 +2236,18 @@ export const VisualWebView = ({
   );
   const firstPhotoChunk = photoChunks[0] || [];
   const remainingPhotoChunks = photoChunks.slice(1);
-  const summaryPage = 5;
+  const summaryPage = 5 + narrativeExtraPages;
   const summaryPageCount = Math.max(1, summaryChunks.length);
-  const checklistPage = summaryPage + summaryPageCount;
-  const checklistPageCount = Math.max(1, checklistChunks.length);
-  const customStartPage = checklistPage + checklistPageCount;
+  const checklistPage = 3 + narrativePageCount;
+  const checklistPageCount = Math.max(1, checklistPages.length);
+  const pipeSupportPage = checklistPage + checklistPageCount;
+  const pipeSupportPageCount = Math.max(1, pipeSupportPages.length);
+  const specialConsiderationPage = pipeSupportPage + pipeSupportPageCount;
+  const specialConsiderationPageCount = Math.max(
+    1,
+    specialConsiderationPages.length,
+  );
+  const customStartPage = specialConsiderationPage + specialConsiderationPageCount;
   const customSections = reportData.customSections || [];
   const customPageCount = Math.max(0, customSectionPages.length);
   const basePagesBeforePhotos =
@@ -1963,6 +2257,48 @@ export const VisualWebView = ({
   const photoPageEnd = photoPageStart + photoPageCount - 1;
   const signaturePage = photoPageEnd + 1;
   const totalPages = signaturePage;
+  const pageTwoTocRows = [
+    {
+      sn: "1.0",
+      description: "INTRODUCTION",
+      page: `${sectionStartPages["introduction"] || 3}`,
+    },
+    {
+      sn: "2.0",
+      description: "EXECUTIVE SUMMARY",
+      page: `${sectionStartPages["executive-summary"] || 3}`,
+    },
+    { sn: "3.0", description: "INSPECTION FINDINGS", page: `${summaryPage}` },
+    {
+      sn: "4.0",
+      description: "SCHEMATICS OF ANOMALY",
+      page: `${checklistPage}`,
+    },
+    {
+      sn: "5.0",
+      description: "PIPE SUPPORTS",
+      page: `${pipeSupportPage}`,
+    },
+    {
+      sn: "6.0",
+      description: "SPECIAL CONSIDERATIONS",
+      page: `${specialConsiderationPage}`,
+    },
+    {
+      sn: "7.0",
+      description: "P& ID OF ANOMALY",
+      page: `${customStartPage}`,
+    },
+    {
+      sn: "8.0",
+      description: "PHOTOGRAPHIC DETAIL",
+      page:
+        photoPageCount > 1
+          ? `${photoPageStart}-${photoPageEnd}`
+          : `${photoPageStart}`,
+    },
+    { sn: "9.0", description: "APPROVALS", page: `${signaturePage}` },
+  ];
   const tocRows = [
     { desc: "Summary Of Findings", page: `${summaryPage}` },
     {
@@ -2085,83 +2421,248 @@ export const VisualWebView = ({
             ) : (
               <div className="h-10 w-24 rounded-lg bg-slate-200/70" />
             )}
-            {companyMark}
-          </div>
-
-          <div className="relative flex-1 flex flex-col items-center justify-center text-center px-10">
-            <div className="mb-6 text-[11px] font-black uppercase tracking-[0.4em] text-slate-500">
-              Technical Inspection Report
-            </div>
-            <h1 className="text-5xl md:text-6xl font-extrabold text-blue-700 tracking-tight drop-shadow-sm">
-              Full Visual Inspection
-            </h1>
-            <h2 className="mt-3 text-4xl md:text-5xl font-extrabold text-blue-600 tracking-tight">
-              Report
-            </h2>
-            <div className="mt-8 h-1 w-40 rounded-full bg-gradient-to-r from-blue-600 via-cyan-400 to-indigo-500" />
-            <div className="mt-10 text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">
-              {reportData?.general?.equipment || "Equipment Name"}
-            </div>
-          </div>
-
-          <div className="relative px-12 pb-10 flex items-end justify-between text-[10px] font-semibold uppercase tracking-widest text-slate-500">
-            <div>{reportData?.general?.client || "Client"}</div>
-            <div>{reportData?.general?.reportNum || "Report No."}</div>
-          </div>
-        </div>
-
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-24 -left-20 h-64 w-64 rounded-full bg-blue-100/70 blur-2xl" />
-            <div className="absolute top-24 -right-20 h-72 w-72 rounded-full bg-cyan-100/70 blur-2xl" />
-            <div className="absolute bottom-16 left-1/3 h-64 w-64 rounded-full bg-indigo-100/60 blur-2xl" />
-          </div>
-
-          <div className="relative flex items-center justify-between px-12 py-6 border-b border-slate-200/80 backdrop-blur-md">
-            {reportData.general.clientLogo ? (
+            {resolvedCompanyLogo ? (
               <img
-                src={reportData.general.clientLogo}
-                alt="Client"
+                src={resolvedCompanyLogo}
+                alt="Company logo"
                 className="h-12 w-auto object-contain"
               />
             ) : (
               <div className="h-10 w-24 rounded-lg bg-slate-200/70" />
             )}
-            {companyMark}
           </div>
 
-          <div className="relative flex-1 flex flex-col items-center text-center px-12 pt-42 gap-12">
-            <div className="space-y-4">
-              <p className="text-3xl md:text-4xl font-extrabold text-red-600 mb-12 underline uppercase tracking-wide">
-                {reportData?.general?.equipment || "Equipment Name"}
-              </p>
-              <div className="text-xl font-bold uppercase tracking-[0.28em] text-slate-800 leading-loose">
-                {reportData?.general?.inspectionTypeName ||
-                  reportData?.general?.inspectionTypeCode ||
-                  reportData?.general?.inspectionType ||
-                  "Visuals for Existing Piping and Structural Tie-In Locations"}
+          <div className="relative flex-1 px-8 pt-10 pb-12">
+            <div className="mx-auto flex h-full max-w-[190mm] flex-col items-center text-center">
+              <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.45em] text-slate-500">
+                Technical Inspection Report
               </div>
-              <div className="text-[11px] font-semibold italic text-slate-600">
-                ({reportData?.general?.reportNum || "Report Number"})
+              <div className="mt-16 text-[58px] font-extrabold leading-[1.08] tracking-tight text-blue-700">
+                Full Visual Inspection
               </div>
-            </div>
+              <div className="mt-4 text-[50px] font-extrabold leading-none tracking-tight text-blue-600">
+                Report
+              </div>
+              <div className="mt-8 h-[3px] w-32 rounded-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+              <div className="mt-8 mb-20 text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-600">
+                {reportData?.general?.equipment || "Storage Tank (T)"}
+              </div>
 
-            <div className="space-y-6 text-slate-900">
-              <div className="text-base font-extrabold uppercase tracking-wide">
-                Inspection Report
-              </div>
-              <div className="text-sm font-bold uppercase tracking-widest text-slate-500">
-                On
-              </div>
-              <div className="text-base font-extrabold uppercase tracking-[0.18em] leading-loose">
-                {reportData?.general?.projectName ||
-                  reportData?.general?.inspectionTypeName ||
-                  "inspectionTypeName"}
-              </div>
-            </div>
+            <div className="mt-auto w-full px-2 ">
+              <table className="w-full text-[10px] border-collapse mt-20">
+                <tbody>
+                  <tr className="border-b border-slate-200 text-black" >
+                    <td
+                      colSpan={4}
+                      className="border border-black px-3 py-2 text-center text-[13px] font-extrabold uppercase bg-blue-200"
+                    >
+                      {reportData?.general?.client || "Standard Client"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="w-[24%] border border-black px-3 py-1 text-right text-[10px] font-semibold">
+                      Location:
+                    </td>
+                    <td className="w-[26%] border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
+                      {reportData?.general?.platform || "Module P4"}
+                    </td>
+                    <td className="w-[24%] border border-black px-3 py-1 text-right text-[10px] font-semibold">
+                      Report No:
+                    </td>
+                    <td className="w-[26%] border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
+                      {reportData?.general?.reportNum || "VI-5422"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
+                      Inspection Date:
+                    </td>
+                    <td className="border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
+                      {formattedPageTwoDate || "March 2026"}
+                    </td>
+                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
+                      Revision:
+                    </td>
+                    <td className="border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
+                      {pageTwoRevision || ""}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
+                      Equipment Description:
+                    </td>
+                    <td
+                      colSpan={3}
+                      className="border border-black px-3 py-1 text-center text-[10px] font-medium"
+                    >
+                      {reportData?.general?.equipment || "Storage Tank (T)"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
+                      Inspection Procedure #
+                    </td>
+                    <td
+                      colSpan={3}
+                      className="border border-black px-3 py-1 text-center text-[10px] font-medium"
+                    >
+                      {pageTwoProcedure || ""}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="h-16 border border-black px-3 py-3 text-center text-[13px] font-extrabold uppercase"
+                    >
+                      {reportData?.general?.inspectionTypeName ||
+                        reportData?.general?.inspectionTypeCode ||
+                        reportData?.general?.inspectionType ||
+                        "FPSO Integrity Inspection"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
 
-            <div className="text-sm font-semibold uppercase tracking-wide text-black">
-              {formattedMonthYear || "Inspection Date"}
+            </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+          {reportHeader}
+
+          
+
+          <div className="relative flex-1 px-12 pt-12">
+            <div className="mt-auto w-full px-2">
+              <table className="w-full table-fixed border-collapse bg-white text-[10px] text-black">
+                <tbody>
+                  <tr>
+                    <td className="w-[15%] border border-black px-3 py-1 text-[10px] font-semibold">
+                      Client:
+                    </td>
+                    <td className="w-[30%] border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {reportData?.general?.client || "ESSO"}
+                    </td>
+                    <td className="w-[21%] border border-black px-3 py-1 text-[10px] font-semibold">
+                      Report Number
+                    </td>
+                    <td className="w-[19%] border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {reportData?.general?.reportNum || "XXXXXX"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Location:
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {reportData?.general?.platform || "USAN FPSO"}
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Contract Number
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {pageTwoContractNumber || "XXXXX"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 align-top text-[10px] font-semibold">
+                      P &amp; ID
+                      <br />
+                      Number/DWG
+                      <br />
+                      No.
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {reportData?.general?.tag || "XXXXXXX"}
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Date of Inspection
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {formattedPageTwoDate || "XXXXXX"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Test Code
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {pageTwoTestCode || "XXXXX"}
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Name of Inspectors
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {pageTwoInspectors || "XXXXXX"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Equipment Description
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {reportData?.general?.equipment || "Storage Tank (T)"}
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Operating Procedures
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {pageTwoProcedure || "XXXX"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Revision
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {pageTwoRevision || "XXXX"}
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] font-semibold">
+                      Acceptance Criteria
+                    </td>
+                    <td className="border border-black px-3 py-1 text-[10px] text-blue-700">
+                      {pageTwoAcceptanceCriteria || "XXXXXXX"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+            </div>
+            <div className="mx-auto max-w-[160mm] mt-32">
+              <h2 className="text-center text-[18px] font-black uppercase underline text-black">
+                Table of Contents
+              </h2>
+              <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                <thead>
+                  <tr>
+                    <th className="w-[15%] border border-black bg-slate-200 px-2 py-2 text-center text-[11px] font-bold">
+                      S/N
+                    </th>
+                    <th className="w-[66%] border border-black bg-slate-200 px-2 py-2 text-center text-[11px] font-bold">
+                      Description
+                    </th>
+                    <th className="w-[19%] border border-black bg-slate-200 px-2 py-2 text-center text-[11px] font-bold">
+                      Page No.
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageTwoTocRows.map((row) => (
+                    <tr key={row.sn}>
+                      <td className="border border-black px-2 py-3 text-center text-[11px] font-bold">
+                        {row.sn}
+                      </td>
+                      <td className="border border-black px-2 py-3 text-center text-[11px] font-bold uppercase">
+                        {row.description}
+                      </td>
+                      <td className="border border-black px-2 py-3 text-center text-[11px] font-bold text-blue-700">
+                        {row.page}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -2177,605 +2678,388 @@ export const VisualWebView = ({
           </div>
         </div>
 
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-20 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
-            <div className="absolute bottom-16 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
-          </div>
+        {narrativePages.map((pageBlocks, pageIdx) => (
+          <div
+            key={`narrative-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            {reportHeader}
 
-          {reportHeader}
+            <div className="relative flex-1 px-10 pt-14 pb-10">
+              <div className="mx-auto flex h-full max-w-[185mm] flex-col text-[#0a58b5]">
+                {pageBlocks.map((block, blockIdx) => {
+                  const blockLines = block.chunk
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean);
 
-          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-            <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 overflow-hidden">
-              <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
-                <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-[13px] text-black ">
-                    Client
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.client || "N/A"}
-                  </div>
-                </div>
-                <div className="p-3 space-y-1">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="font-bold uppercase text-[13px] text-black">
-                      Report Number
-                    </div>
-                    <div className="font-bold text-blue-900 text-[12px]">
-                      {reportData?.general?.reportNum || "N/A"}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="font-bold uppercase text-[13px] text-black">
-                      Contract Number
-                    </div>
-                    <div className="font-bold text-blue-900 text-[12px]">
-                      {reportData?.general?.contract || "N/A"}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="font-bold uppercase text-[13px] text-black">
-                      Date of Inspection
-                    </div>
-                    <div className="font-bold text-blue-900 text-[12px]">
-                      {reportData?.general?.date || "N/A"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
-                <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-[13px] text-black">
-                    Location
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.platform || "N/A"}
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="font-bold uppercase text-[13px] text-black">
-                    Inspection Coordinator
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.coordinator || "N/A"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 border-b border-slate-200 text-[10px]">
-                <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-[13px] text-black">
-                    P & ID Number / DWG No.
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.pidNumber || "N/A"}
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="font-bold uppercase text-[13px] text-black">
-                    Operating Procedure
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.procedure || "N/A"}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 text-[10px]">
-                <div className="border-r border-slate-200 p-3">
-                  <div className="font-bold uppercase text-[13px] text-black">
-                    Test Code
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.testCode || "N/A"}
-                  </div>
-                </div>
-                <div className="p-3">
-                  <div className="font-bold uppercase text-[13px] text-black">
-                    Acceptance Criteria
-                  </div>
-                  <div className="font-bold text-blue-900 text-[12px]">
-                    {reportData?.general?.criteria || "N/A"}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="text-sm font-black uppercase tracking-wide text-blue-900">
-              1.0 Introduction
-            </div>
-            <p className="text-[13px] text-black  leading-relaxed">
-              As requested by{" "}
-              <span className="text-md font-bold text-blue-900">
-                {reportData?.general?.client || "the Client"}
-              </span>
-              , Full Visual Inspection was carried out on Module P4 of .
-             &nbsp;
-              <span className="text-xs font-bold text-blue-900">
-                {reportData?.general?.projectName ||
-                  reportData?.general?.inspectionTypeName ||
-                  "inspectionTypeName"}
-              </span>
-            </p>
-
-            <div className="mt-[40px] px-2">
-              <p className="mb-4 text-center text-[16px] font-bold uppercase text-black underline">
-                Contents
-              </p>
-              <table className="w-full text-[10px] border-collapse bg-blue-200">
-                <thead>
-                  <tr className="border-b border-slate-200 text-black ">
-                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">
-                      S/N
-                    </th>
-                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">
-                      Description
-                    </th>
-                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">
-                      Page No.
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="text-slate-800">
-                  {tocRows.map((row, idx) => (
-                    <tr
-                      key={`${row.desc}-${idx}`}
-                      className={idx % 2 === 0 ? "bg-slate-50/70" : "bg-white"}
+                  return (
+                    <section
+                      key={`${block.key}-${pageIdx}-${blockIdx}`}
+                      className={
+                        block.isContinuation
+                          ? ""
+                          : blockIdx === 0
+                            ? ""
+                            : block.spacingClass
+                      }
                     >
-                      <td className="border-r border-slate-200 p-2 text-center font-bold">
-                        {idx + 1}
-                      </td>
-                      <td className="border-r border-slate-200 p-2 font-bold uppercase text-center">
-                        {row.desc}
-                      </td>
-                      <td className="p-2 text-center font-bold">
-                        {row.page}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="relative mt-auto px-12 pb-8">
-            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                Original Document
-              </p>
-            </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-              Page 3 of {totalPages}
-            </div>
-          </div>
-        </div>
-
-        
-
-        {summaryChunks.map((chunk, pageIdx) => (
-          <div
-            key={`summary-page-${pageIdx}`}
-            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
-          >
-            <div className="absolute inset-0">
-              <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
-              <div className="absolute bottom-12 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
-            </div>
-
-            {reportHeader}
-
-            <div className="relative flex-1 flex flex-col px-12 pt-8 gap-8">
-              <div className="rounded-sm border w-full border-slate-800 bg-white p-4 space-y-4">
-                <p className="text-[20px] font-bold uppercase underline text-blue-900">
-                  1. Summary of Findings
-                </p>
-                {pageIdx === 0 && (
-                  <p className="text-[13px] leading-relaxed text-black">
-                    Full Visual Inspection was carried out on a total of {reportData.observations.length || 0}{" "}
-                    item(s). Details of the anomalies with photographic details are
-                    also given.
-                  </p>
-                )}
-
-                {chunk.length ? (
-                  <table className="w-full table-fixed text-[10px] border-collapse bg-blue-200">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-black">
-                        <th className="border-r border-slate-200 p-2 w-[52px] text-center font-bold">S/N</th>
-                        <th className="border-r border-slate-200 p-2 w-[70px] text-center font-bold">Ref. S/N</th>
-                        <th className="border-r border-slate-200 p-2 w-[120px] text-center font-bold">Equipment ID</th>
-                        <th className="border-r border-slate-200 p-2 w-[150px] text-center font-bold leading-tight">Equipment Description</th>
-                        <th className="border-r border-slate-200 p-2 text-center font-bold">Anomaly Description</th>
-                        <th className="p-2 w-[64px] text-center font-bold">Page No</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-slate-800">
-                      {chunk.map((item, idx) => {
-                        const serial = pageIdx * 6 + idx + 1;
-                        return (
-                          <tr
-                            key={item.id || `${pageIdx}-${idx}`}
-                            className={serial % 2 === 0 ? "bg-white" : "bg-slate-50/70"}
+                      {!block.isContinuation && (
+                        <h2
+                          className={`text-center text-[18px] font-black uppercase text-black ${
+                            block.underline ? "underline" : ""
+                          }`}
+                        >
+                          {block.title}
+                        </h2>
+                      )}
+                      <div
+                        className={`text-[14px] leading-7 ${
+                          block.isContinuation ? "" : "mt-8"
+                        } ${
+                          block.key === "introduction"
+                            ? "space-y-6"
+                            : block.key === "recommendation"
+                              ? "space-y-4 pl-5"
+                              : "space-y-2 pl-5"
+                        }`}
+                      >
+                        {blockLines.map((line, idx) => (
+                          <p
+                            key={`${block.key}-line-${pageIdx}-${idx}`}
+                            className="text-left"
                           >
-                            <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">{serial}</td>
-                            <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">{item.refSn || item.title || ""}</td>
-                            <td className="border-r border-slate-200 p-2 text-center align-middle font-bold">{item.equipmentId || ""}</td>
-                            <td className="border-r border-slate-200 p-2 align-middle font-bold break-all">{item.equipmentDescription || ""}</td>
-                            <td className="border-r border-slate-200 p-2 align-top whitespace-pre-wrap break-words font-bold">{item.description || ""}</td>
-                            <td className="p-2 text-center align-middle font-bold">{item.pageNo || ""}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-xs text-slate-500 font-bold uppercase tracking-[0.3em] text-center">
-                    No observations added
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="relative mt-auto px-12 pb-8">
-              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">Original Document</p>
-              </div>
-              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-                Page {summaryPage + pageIdx} of {totalPages}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {checklistChunks.map((chunk, pageIdx) => (
-          <div
-            key={`checklist-page-${pageIdx}`}
-            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
-          >
-            <div className="absolute inset-0">
-              <div className="absolute -top-24 -right-16 h-64 w-64 rounded-full bg-cyan-100/60 blur-2xl" />
-              <div className="absolute bottom-12 -left-20 h-72 w-72 rounded-full bg-blue-100/60 blur-2xl" />
-            </div>
-
-            {reportHeader}
-
-            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
-              <div className="text-center">
-                <div className="text-sm font-black uppercase tracking-wide text-blue-900">
-                  4.0 Visual Inspection Observations Checklist
-                </div>
-              </div>
-
-              <div className="flex-1 border-2 border-slate-800 p-4 text-[11px] leading-relaxed text-slate-800">
-                {chunk.length ? (
-                  <table className="w-full table-fixed text-[10px] border-collapse bg-blue-200">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-black">
-                        <th className="border-r border-slate-200 p-2 w-[52px] text-center font-bold">S/N</th>
-                        <th className="border-r border-slate-200 p-2 text-center font-bold">Equipment ID</th>
-                        <th className="border-r border-slate-200 p-2 text-center font-bold">Equipment Description</th>
-                        <th className="border-r border-slate-200 p-2 text-center font-bold leading-tight">
-                          Anomaly
-                          <br />
-                          (No/ Yes)
-                        </th>
-                        <th className="p-2 w-[70px] text-center font-bold">Page No.</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-slate-800">
-                      {chunk.map((item, idx) => {
-                        const serial = pageIdx * 9 + idx + 1;
-                        return (
-                          <tr
-                            key={item.id || `${pageIdx}-${idx}`}
-                            className={serial % 2 === 0 ? "bg-white" : "bg-slate-50/70"}
-                          >
-                            <td className="border-r border-slate-200 p-2 text-center font-bold">{serial}.</td>
-                            <td className="border-r border-slate-200 p-2 text-center font-bold">{item.equipmentId || ""}</td>
-                            <td className="border-r border-slate-200 p-2 font-bold break-all">{item.equipmentDescription || ""}</td>
-                            <td
-                              className={`border-r border-slate-200 p-2 text-center font-semibold ${
-                                String(item.anomaly || "").toLowerCase() === "yes" ? "text-red-600" : "text-black"
-                              }`}
-                            >
-                              {item.anomaly || "No"}
-                            </td>
-                            <td className="p-2 text-center font-bold">{item.pageNo || "--"}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="text-slate-500 text-xs font-semibold uppercase tracking-[0.2em] text-center">
-                    No checklist items added
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="relative mt-auto px-12 pb-8">
-              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">Original Document</p>
-              </div>
-              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-                Page {checklistPage + pageIdx} of {totalPages}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {customSectionPages.map((section, idx) => (
-          <div
-            key={`${section.id || section.sourceIndex}-${section.chunkIndex}`}
-            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
-          >
-            <div className="absolute inset-0">
-              <div className="absolute -top-24 -left-16 h-64 w-64 rounded-full bg-blue-100/60 blur-2xl" />
-              <div className="absolute bottom-12 -right-20 h-72 w-72 rounded-full bg-cyan-100/60 blur-2xl" />
-            </div>
-
-            {reportHeader}
-
-            <div className="relative flex-1 flex flex-col px-12 pt-10 gap-6">
-              <div className="text-center space-y-2">
-                <div className="text-sm font-black uppercase tracking-wide text-black"></div>
-                <p className="text-sm font-black uppercase tracking-wide text-blue-900">
-                  {section.title || "Additional Notes"}
-                </p>
-              </div>
-              <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6 text-[11px] leading-relaxed text-black whitespace-pre-wrap break-words">
-                {section.pageContent || "No content provided."}
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
             </div>
 
             <div className="relative mt-auto px-12 pb-8">
               <div className="pt-6 border-t-2 border-slate-900/80 text-center">
                 <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                  Original Document
+                  ORIGINAL
                 </p>
               </div>
               <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-                Page {customStartPage + idx} of {totalPages}
+                Page {pageIdx + 3} of {totalPages}
               </div>
             </div>
           </div>
         ))}
 
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-24 -left-16 h-64 w-64 rounded-full bg-blue-100/60 blur-2xl" />
-            <div className="absolute bottom-12 -right-20 h-72 w-72 rounded-full bg-cyan-100/60 blur-2xl" />
-          </div>
+        {checklistPages.map((pageItems, pageIdx) => (
+          <div
+            key={`checklist-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            {reportHeader}
 
-          {reportHeader}
+            <div className="relative flex-1 px-8 pt-10 pb-8">
+              <div className="mx-auto max-w-[190mm]">
+                <h2 className="text-center text-[18px] font-black uppercase underline text-black">
+                  3. Inspection Findings
+                </h2>
+                <h3 className="mt-10 text-[16px] font-black uppercase text-black">
+                  1. Pipe Components &amp; Insulated Systems
+                </h3>
 
-          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-            <div className="text-center space-y-2">
-              <div className="text-sm font-black uppercase tracking-wide text-blue-900">
-                5.0 Photographic Details
+                <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                  <thead>
+                    <tr>
+                      <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        S/N
+                      </th>
+                      <th className="w-[31%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Pipe Components
+                      </th>
+                      <th className="w-[53%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Observation
+                      </th>
+                      <th className="w-[9%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Photo
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((item, idx) => {
+                      const globalIdx = pageIdx * 8 + idx;
+                      const observationLines = String(item.anomaly || "")
+                        .split(/\r?\n/)
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+                      const photoRefs = String(item.pageNo || "")
+                        .split(/[\n,]+/)
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+
+                      return (
+                        <tr key={item.id || `checklist-row-${globalIdx}`}>
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                            {`1.${globalIdx + 1}`}
+                          </td>
+                          <td className="align-top border border-black px-2 py-2 text-[10px] font-bold leading-4">
+                            {item.equipmentDescription || "Pipe component"}
+                          </td>
+                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4 text-[#0a58b5]">
+                            {(observationLines.length
+                              ? observationLines
+                              : ["No observation added."]
+                            ).map((line, lineIdx) => (
+                              <p
+                                key={`obs-${globalIdx}-${lineIdx}`}
+                                className={lineIdx ? "mt-1" : ""}
+                              >
+                                {line}
+                              </p>
+                            ))}
+                          </td>
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] text-[#0a58b5]">
+                            {(photoRefs.length ? photoRefs : ["-"]).map((ref, refIdx) => (
+                              <p
+                                key={`photo-${globalIdx}-${refIdx}`}
+                                className={refIdx ? "mt-1" : ""}
+                              >
+                                {ref}
+                              </p>
+                            ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
-                Evidence Gallery
-              </p>
             </div>
 
-            <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
-              {firstPhotoChunk.length ? (
-                <div className="grid grid-cols-2 gap-4">
-                  {firstPhotoChunk.map((o, idx) => (
-                    <div key={o.id || idx} className="space-y-2">
-                      <div className="border border-slate-200 rounded-2xl bg-white p-2 flex items-center justify-center">
-                        <img
-                          src={o.photo}
-                          alt={o.title || `Evidence ${idx + 1}`}
-                          className="h-[180px] w-auto object-contain"
-                        />
-                      </div>
-                      <div className="text-[10px] text-black text-center font-semibold">
-                        {/*  {o.title || `Evidence ${idx + 1}`} */}
-                      </div>
-                      {o.photoNote && (
-                        <div className="text-[9px] text-black text-center uppercase tracking-[0.2em] break-all whitespace-pre-wrap">
-                          {o.photoNote}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-[360px] border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-slate-400 text-xs font-bold uppercase tracking-[0.3em] text-center px-6">
-                  No photographic evidence uploaded
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="relative mt-auto px-12 pb-8">
-            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                Original Document
-              </p>
-            </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-              Page {photoPageStart} of {totalPages}
-            </div>
-          </div>
-        </div>
-
-        {remainingPhotoChunks.map((chunk, pageIdx) => {
-          return (
-            <div
-              key={`photo-page-extra-${pageIdx}`}
-              className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
-            >
-              <div className="absolute inset-0">
-                <div className="absolute -top-24 -left-16 h-64 w-64 rounded-full bg-blue-100/60 blur-2xl" />
-                <div className="absolute bottom-12 -right-20 h-72 w-72 rounded-full bg-cyan-100/60 blur-2xl" />
+            <div className="relative mt-auto px-12 pb-8">
+              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+                  ORIGINAL
+                </p>
               </div>
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+                Page {narrativePageCount + 3 + pageIdx} of {totalPages}
+              </div>
+            </div>
+          </div>
+        ))}
 
-              {reportHeader}
+        {pipeSupportPages.map((pageItems, pageIdx) => (
+          <div
+            key={`pipe-support-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            {reportHeader}
 
-              <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-                <div className="text-center space-y-2">
-                  <div className="text-sm font-black uppercase tracking-wide text-blue-900">
-                    5.0 Photographic Details
+            <div className="relative flex-1 px-8 pt-10 pb-8">
+              <div className="mx-auto max-w-[190mm]">
+                <h2 className="text-[18px] font-black uppercase text-black">
+                  2. Pipe Supports:
+                </h2>
+
+                <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                  <thead>
+                    <tr>
+                      <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        S/N
+                      </th>
+                      <th className="w-[31%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Pipe Components
+                      </th>
+                      <th className="w-[53%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Observation
+                      </th>
+                      <th className="w-[9%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Photo
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((item, idx) => {
+                      const globalIdx = pageIdx * 8 + idx;
+                      const observationLines = String(item.anomaly || "")
+                        .split(/\r?\n/)
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+                      const photoRefs = String(item.pageNo || "")
+                        .split(/[\n,]+/)
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+
+                      return (
+                        <tr key={item.id || `support-row-${globalIdx}`}>
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                            {`2.${globalIdx + 1}`}
+                          </td>
+                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4">
+                            {item.equipmentDescription || "Pipe support"}
+                          </td>
+                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4 text-[#0a58b5]">
+                            {(observationLines.length
+                              ? observationLines
+                              : ["N/A."]
+                            ).map((line, lineIdx) => (
+                              <p
+                                key={`support-obs-${globalIdx}-${lineIdx}`}
+                                className={lineIdx ? "mt-1" : ""}
+                              >
+                                {line}
+                              </p>
+                            ))}
+                          </td>
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] text-[#0a58b5]">
+                            {(photoRefs.length ? photoRefs : ["-"]).map((ref, refIdx) => (
+                              <p
+                                key={`support-photo-${globalIdx}-${refIdx}`}
+                                className={refIdx ? "mt-1" : ""}
+                              >
+                                {ref}
+                              </p>
+                            ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {pageIdx === pipeSupportPages.length - 1 && (
+                  <div className="mt-2 border border-t-0 border-black px-2 py-1 text-[10px] leading-5 text-black">
+                    <p className="font-bold underline">Notes:</p>
+                    <p>
+                      Inspected for mechanical damage, sagging, distortion,
+                      coating failure, corrosion, pitting, cracks in welds,
+                      vibration, corrosion under pipe supports, etc. as
+                      applicable.
+                    </p>
                   </div>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-[0.3em]">
-                    Evidence Gallery
-                  </p>
-                </div>
-
-                <div className="rounded-sm border border-slate-200 bg-white/80 backdrop-blur-sm shadow-xl shadow-blue-200/40 p-6">
-                  {chunk.length ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      {chunk.map((o, idx) => (
-                        <div key={o.id || idx} className="space-y-2">
-                          <div className="border border-slate-200 rounded-2xl bg-white p-2 flex items-center justify-center">
-                            <img
-                              src={o.photo}
-                              alt={o.title || `Evidence ${idx + 1}`}
-                              className="h-[180px] w-auto object-contain"
-                            />
-                          </div>
-                          <div className="text-[10px] text-black text-center font-semibold">
-                            {o.title || `Evidence ${idx + 1}`}
-                          </div>
-                          {o.photoNote && (
-                            <div className="text-[9px] text-slate-500 text-center uppercase tracking-[0.2em] break-all whitespace-pre-wrap">
-                              {o.photoNote}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="h-[360px] border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center text-slate-400 text-xs font-bold uppercase tracking-[0.3em] text-center px-6">
-                      No photographic evidence uploaded
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="relative mt-auto px-12 pb-8">
-                <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-                  <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                    Original Document
-                  </p>
-                </div>
-                <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-                  Page {photoPageStart + pageIdx + 1} of {totalPages}
-                </div>
+                )}
               </div>
             </div>
-          );
-        })}
 
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
-          <div className="absolute inset-0">
-            <div className="absolute -top-24 -left-16 h-64 w-64 rounded-full bg-blue-100/60 blur-2xl" />
-            <div className="absolute bottom-12 -right-20 h-72 w-72 rounded-full bg-cyan-100/60 blur-2xl" />
-          </div>
-
-          {reportHeader}
-
-          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
-            <div className="rounded-sm border border-slate-800 bg-white overflow-hidden">
-              <table className="w-full border-collapse table-fixed"> <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-bold text-black leading-tight uppercase">
-                    <th className="w-1/3 border-r border-slate-200 p-2 text-left">
-                      Prepared By
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
-                        Inspector
-                      </div>
-                    </th>
-                    <th className="w-1/3 border-r border-slate-200 p-2 text-left">
-                      Reviewed by
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
-                        Lead Inspector
-                      </div>
-                    </th>
-                    <th className="w-1/3 p-2 text-left">
-                      Verified By
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
-                        NDE Advisor
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="text-slate-800">
-                  <tr className="bg-slate-50/70 text-[10px]">
-                    <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
-                      <div className="flex h-full flex-col justify-end">
-                        {reportData.signoff.inspectorSignature ? (
-                          <img
-                            src={reportData.signoff.inspectorSignature}
-                            alt="Prepared by signature"
-                            className="h-14 w-auto object-contain mb-2"
-                          />
-                        ) : null}
-                        <div className="h-6 border-b border-slate-400 mb-2" />
-                        <div className="font-semibold uppercase text-black text-[9px]">
-                          {reportData.signoff.inspector ||
-                            reportData.general?.inspectorName ||
-                            "Inspector"}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
-                      <div className="flex h-full flex-col justify-end">
-                        {reportData.signoff.reviewerSignature ? (
-                          <img
-                            src={reportData.signoff.reviewerSignature}
-                            alt="Lead inspector signature"
-                            className="h-14 w-auto object-contain mb-2"
-                          />
-                        ) : null}
-                        <div className="h-6 border-b border-slate-400 mb-2" />
-                        <div className="font-semibold uppercase text-black text-[9px]">
-                          {reportData.signoff.reviewer ||
-                            reportData.general?.assignedSupervisorName ||
-                            reportData.general?.supervisorName ||
-                            reportData?.assignedSupervisorName ||
-                            reportData?.supervisorName ||
-                            "Lead Inspector"}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="h-[220px] p-3 align-bottom">
-                      <div className="flex h-full flex-col justify-end">
-                        {reportData.signoff.managerSignature ? (
-                          <img
-                            src={reportData.signoff.managerSignature}
-                            alt="NDE advisor signature"
-                            className="h-14 w-auto object-contain mb-2"
-                          />
-                        ) : null}
-                        <div className="h-6 border-b border-slate-400 mb-2" />
-                        <div className="font-semibold uppercase text-black text-[9px]">
-                          {reportData.signoff.manager ||
-                            reportData.general?.managerName ||
-                            "NDT Advisor"}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div className="relative mt-auto px-12 pb-8">
+              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+                  ORIGINAL
+                </p>
+              </div>
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+                Page {narrativePageCount + checklistPageCount + 3 + pageIdx} of {totalPages}
+              </div>
             </div>
           </div>
+        ))}
 
-          <div className="relative mt-auto px-12 pb-8">
-            <div className="pt-6 border-t-2 border-slate-900/80 text-center">
-              <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
-                Original Document
-              </p>
+        {specialConsiderationPages.map((pageItems, pageIdx) => (
+          <div
+            key={`special-consideration-page-${pageIdx}`}
+            className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
+          >
+            {reportHeader}
+
+            <div className="relative flex-1 px-8 pt-10 pb-8">
+              <div className="mx-auto max-w-[190mm]">
+                <h2 className="text-[18px] font-black uppercase underline text-black">
+                  3. Special Considerations
+                </h2>
+
+                <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                  <thead>
+                    <tr>
+                      <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        S/N
+                      </th>
+                      <th className="w-[31%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Pipe Components
+                      </th>
+                      <th className="w-[53%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Observation
+                      </th>
+                      <th className="w-[9%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                        Photo
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((item, idx) => {
+                      const globalIdx = pageIdx * 8 + idx;
+                      const observationLines = String(item.anomaly || "")
+                        .split(/\r?\n/)
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+                      const photoRefs = String(item.pageNo || "")
+                        .split(/[\n,]+/)
+                        .map((line) => line.trim())
+                        .filter(Boolean);
+
+                      return (
+                        <tr key={item.id || `special-row-${globalIdx}`}>
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                            {`3.${globalIdx + 1}`}
+                          </td>
+                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4">
+                            {item.equipmentDescription || "Special consideration"}
+                          </td>
+                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4 text-[#0a58b5]">
+                            {(observationLines.length
+                              ? observationLines
+                              : ["N/A."]
+                            ).map((line, lineIdx) => (
+                              <p
+                                key={`special-obs-${globalIdx}-${lineIdx}`}
+                                className={lineIdx ? "mt-1" : ""}
+                              >
+                                {line}
+                              </p>
+                            ))}
+                          </td>
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] text-[#0a58b5]">
+                            {(photoRefs.length ? photoRefs : ["NA"]).map((ref, refIdx) => (
+                              <p
+                                key={`special-photo-${globalIdx}-${refIdx}`}
+                                className={refIdx ? "mt-1" : ""}
+                              >
+                                {ref}
+                              </p>
+                            ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {pageIdx === specialConsiderationPages.length - 1 && (
+                  <div className="mt-2 border border-t-0 border-black px-2 py-1 text-[10px] leading-5 text-black">
+                    <p className="font-bold underline">Notes:</p>
+                    <p>
+                      Inspected for signs of leakage, mechanical damage,
+                      coating failure, corrosion, pitting, cracks in welds,
+                      vibration, etc. as applicable.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
-              Page {signaturePage} of {totalPages}
+
+            <div className="relative mt-auto px-12 pb-8">
+              <div className="pt-6 border-t-2 border-slate-900/80 text-center">
+                <p className="text-[10px] font-black text-red-600 tracking-[0.4em]">
+                  ORIGINAL
+                </p>
+              </div>
+              <div className="pt-4 text-[10px] font-bold uppercase tracking-widest text-black text-right">
+                Page {narrativePageCount + checklistPageCount + pipeSupportPageCount + 3 + pageIdx} of {totalPages}
+              </div>
             </div>
           </div>
-        </div>
+        ))}
+
       </div>
     </div>
   );
@@ -2811,3 +3095,4 @@ const SignatureBlock = ({ label, name }) => (
 );
 
 export default VisualReport;
+

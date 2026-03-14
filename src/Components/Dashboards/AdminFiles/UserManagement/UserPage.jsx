@@ -229,7 +229,7 @@ const UserPage = () => {
                           Authorization
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
-                          Timestamp
+                          Date Created
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500 text-right">
                           Actions

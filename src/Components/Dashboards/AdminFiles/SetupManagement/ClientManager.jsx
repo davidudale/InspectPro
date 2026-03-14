@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { db } from "../../../Auth/firebase";
 import { 
-  collection, onSnapshot, query, addDoc, 
-  serverTimestamp, updateDoc, deleteDoc, doc 
+  collection, onSnapshot, query, addDoc, getDocs,
+  serverTimestamp, updateDoc, deleteDoc, doc, where, orderBy
 } from "firebase/firestore";
 import { 
-  Building2, Mail, Globe, Phone, Plus, Camera,
+  Building2, Mail, Phone, Plus, Camera,
   Search, Edit2, Trash2, X, MapPin
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
@@ -15,6 +15,15 @@ import { useAuth } from "../../../Auth/AuthContext";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const ClientManager = () => {
+  const EMPTY_CLIENT = {
+    name: "",
+    industry: "Oil & Gas",
+    email: "",
+    phone: "",
+    website: "",
+    logo: "",
+    address: "",
+  };
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -30,21 +39,21 @@ const ClientManager = () => {
     row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const { user } = useAuth();
   const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState(null); 
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
   
-  // Updated state structure to include address
-  const [newClient, setNewClient] = useState({ 
-    name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "", address: "" 
-  });
+  const [newClient, setNewClient] = useState(EMPTY_CLIENT);
 
   useEffect(() => {
-    const q = query(collection(db, "clients"));
+    const q = query(collection(db, "clients"), orderBy("name", "asc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -69,7 +78,7 @@ const ClientManager = () => {
       setNewClient({ ...newClient, logo: data.secure_url });
       toast.success("Client Logo Added");
     } catch (err) {
-      toast.error("Cloudinary Link Failed");
+      toast.error(`Cloudinary upload failed: ${err.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -77,11 +86,37 @@ const ClientManager = () => {
 
   const handleEditOpen = (client) => {
     setEditingId(client.id);
-    setNewClient({ ...client });
+    setNewClient({
+      name: client.name || "",
+      industry: client.industry || "Oil & Gas",
+      email: client.email || "",
+      phone: client.phone || "",
+      website: client.website || "",
+      logo: client.logo || "",
+      address: client.address || "",
+    });
     setIsModalOpen(true);
   };
 
   const handleDelete = async (clientId, name) => {
+    try {
+      const [linkedLocations, linkedProjects] = await Promise.all([
+        getDocs(query(collection(db, "locations"), where("clientId", "==", clientId))),
+        getDocs(query(collection(db, "projects"), where("clientId", "==", clientId))),
+      ]);
+
+      if (!linkedLocations.empty || !linkedProjects.empty) {
+        const blockers = [];
+        if (!linkedLocations.empty) blockers.push(`${linkedLocations.size} linked location(s)`);
+        if (!linkedProjects.empty) blockers.push(`${linkedProjects.size} linked project(s)`);
+        toast.error(`Delete blocked: ${blockers.join(" and ")} still reference this client.`);
+        return;
+      }
+    } catch (err) {
+      toast.error(`Reference check failed: ${err.message}`);
+      return;
+    }
+
     const confirmed = await openConfirm({
       title: "Delete Client",
       message: `CRITICAL: Delete ${name} from Enterprise Portfolio?`,
@@ -92,46 +127,73 @@ const ClientManager = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "clients", clientId));
+      await addDoc(collection(db, "activity_logs"), {
+        message: `Client Deleted: ${name}`,
+        target: clientId,
+        userEmail: user?.email || "system@local",
+        type: "warning",
+        timestamp: serverTimestamp(),
+      });
       toast.success("Client record Deleted");
     } catch (err) {
-      toast.error("De-authorization failed");
+      toast.error(`Deletion failed: ${err.message}`);
     }
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     try {
+      const clientPayload = {
+        name: newClient.name.trim(),
+        industry: newClient.industry,
+        email: newClient.email.trim(),
+        phone: newClient.phone.trim(),
+        website: newClient.website.trim(),
+        logo: newClient.logo,
+        address: newClient.address.trim(),
+      };
+
       if (editingId) {
-        const { id, createdAt, ...clientPayload } = newClient;
         await updateDoc(doc(db, "clients", editingId), {
           ...clientPayload,
           updatedAt: serverTimestamp()
         });
+        await addDoc(collection(db, "activity_logs"), {
+          message: `Client Updated: ${clientPayload.name}`,
+          target: editingId,
+          userEmail: user?.email || "system@local",
+          type: "info",
+          timestamp: serverTimestamp(),
+        });
         toast.success("Client Profile Updated");
       } else {
         await addDoc(collection(db, "clients"), {
-          ...newClient,
+          ...clientPayload,
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
         await addDoc(collection(db, "activity_logs"), {
-                        message: `Client Added: ${newClient.name}`,
-                        target: "",
-                        userEmail: user?.email || "system@local",
-                        type: "info",
-                        timestamp: serverTimestamp(),
-                      });
+          message: `Client Added: ${clientPayload.name}`,
+          target: "",
+          userEmail: user?.email || "system@local",
+          type: "info",
+          timestamp: serverTimestamp(),
+        });
         toast.success("Client Authorized: Proceed to Location Mapping");
       }
       closeModal();
     } catch (err) {
-      toast.error("Database Transaction Failed");
+      toast.error(`Database transaction failed: ${err.message}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    setNewClient({ name: "", industry: "Oil & Gas", email: "", phone: "", website: "", logo: "", address: "" });
+    setNewClient(EMPTY_CLIENT);
   };
 
   const filteredClients = clients
@@ -139,8 +201,18 @@ const ClientManager = () => {
       const name = (c.name || "").toLowerCase();
       const industry = (c.industry || "").toLowerCase();
       const email = (c.email || "").toLowerCase();
+      const phone = (c.phone || "").toLowerCase();
+      const address = (c.address || "").toLowerCase();
+      const website = (c.website || "").toLowerCase();
       const term = searchTerm.toLowerCase();
-      return name.includes(term) || industry.includes(term) || email.includes(term);
+      return (
+        name.includes(term) ||
+        industry.includes(term) ||
+        email.includes(term) ||
+        phone.includes(term) ||
+        address.includes(term) ||
+        website.includes(term)
+      );
     })
     .sort(
       (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
@@ -187,10 +259,25 @@ const ClientManager = () => {
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Industry Context</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Corporate Address</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact Details</th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Timestamp</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="6" className="p-10 text-center text-sm text-slate-500">
+                          Loading client portfolio...
+                        </td>
+                      </tr>
+                    ) : filteredClients.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-10 text-center text-sm text-slate-500">
+                          No clients found for the current search.
+                        </td>
+                      </tr>
+                    ) : (
+                    <>
                     {filteredClients.map((client) => (
                       <tr key={client.id} className="group hover:bg-white/5 transition-colors">
                         <td className="p-6">
@@ -226,10 +313,18 @@ const ClientManager = () => {
                               <Phone size={12} className="text-slate-600" />
                               <span className="text-[10px] font-mono">{client.phone || "---"}</span>
                             </div>
+                            {client.website && (
+                              <div className="text-[10px] text-slate-500 truncate">{client.website}</div>
+                            )}
                           </div>
                         </td>
+                        <td className="p-6 text-xs text-slate-400 whitespace-nowrap">
+                          {toMillis(getRowTimestamp(client))
+                            ? new Date(toMillis(getRowTimestamp(client))).toLocaleString()
+                            : "---"}
+                        </td>
                         <td className="p-6 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                             <button onClick={() => handleEditOpen(client)} title="Edit Client" aria-label={`Edit ${client.name}`} className="p-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-400 hover:text-blue-500 hover:border-blue-500/50 transition-all shadow-inner">
                               <Edit2 size={14}/>
                             </button>
@@ -240,6 +335,8 @@ const ClientManager = () => {
                         </td>
                       </tr>
                     ))}
+                    </>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -266,7 +363,7 @@ const ClientManager = () => {
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Client Name</label>
                   <input required className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all" value={newClient.name} onChange={(e) => setNewClient({...newClient, name: e.target.value})} />
@@ -292,12 +389,23 @@ const ClientManager = () => {
                  <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Contact Number</label>
                     <input className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all" value={newClient.phone} onChange={(e) => setNewClient({...newClient, phone: e.target.value})} placeholder="+234..." />
-                 </div>
+                  </div>
+               </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Website</label>
+                <input
+                  type="url"
+                  className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white focus:border-orange-500 outline-none transition-all"
+                  value={newClient.website}
+                  onChange={(e) => setNewClient({...newClient, website: e.target.value})}
+                  placeholder="https://client-site.com"
+                />
               </div>
-              
+               
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={closeModal} className="flex-1 py-4 text-[10px] font-bold uppercase text-slate-500">Cancel</button>
-                <button type="submit" disabled={isUploading} className="flex-1 bg-orange-600 py-4 rounded-2xl text-[10px] font-bold uppercase text-white shadow-lg">{isUploading ? "Uploading..." : editingId ? "Update Data" : "Authorize Client"}</button>
+                <button type="submit" disabled={isUploading || isSaving} className="flex-1 bg-orange-600 py-4 rounded-2xl text-[10px] font-bold uppercase text-white shadow-lg disabled:opacity-50">{isUploading ? "Uploading..." : isSaving ? "Saving..." : editingId ? "Update Data" : "Authorize Client"}</button>
               </div>
             </form>
           </div>

@@ -14,6 +14,7 @@ import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import SupervisorNavbar from "../SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../SupervisorFiles/SupervisorSidebar";
+import ExternalSideBar from "./ExternalSideBar";
 
 const ExternalReviewer = () => {
   const { user } = useAuth();
@@ -87,7 +88,7 @@ const ExternalReviewer = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <SupervisorSidebar />
+      <ExternalSideBar />
       <div className="flex-1 ml-16 lg:ml-64">
         <SupervisorNavbar />
         <main className="p-4 sm:p-6 lg:p-8 space-y-6">

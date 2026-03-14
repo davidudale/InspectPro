@@ -16,7 +16,7 @@ const InspectorNavbar = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUserEmail(user.email || "Guest");
-        setUserFname(user.displayName || "Inspector");
+        setUserFname(user.userFname || "Inspector");
       } else {
         setUserEmail("Guest");
         setUserFname("");
@@ -52,7 +52,7 @@ const InspectorNavbar = () => {
         <div className="hidden md:flex items-center space-x-4">
           <div className="flex flex-col items-end mr-2">
              {/* Displaying the actual user email instead of a hardcoded string */}
-            <span className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">{userFname}</span>
+            <span className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">Inspector</span>
             <span className="text-white text-xs font-medium">{userEmail}</span>
           </div>
          

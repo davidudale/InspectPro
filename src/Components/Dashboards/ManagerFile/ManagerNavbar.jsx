@@ -17,7 +17,8 @@ const ManagerNavbar = () => {
       if (user) {
     
         setUserEmail(user.email);
-        setUserFname(user.fname);
+        setUserFname(user.displayName || "NDT Reviewer");
+        user.displayName
       }
     });
     return () => unsubscribe();
