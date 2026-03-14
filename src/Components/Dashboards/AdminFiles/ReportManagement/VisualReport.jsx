@@ -2518,6 +2518,7 @@ export const VisualWebView = ({
 }) => {
   const reportRootRef = useRef(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isPdfExportMode, setIsPdfExportMode] = useState(false);
   const resolvedCompanyLogo =
     companyLogo ||
     reportData?.general?.companyLogo ||
@@ -2531,6 +2532,10 @@ export const VisualWebView = ({
 
     setIsDownloadingPdf(true);
     try {
+      setIsPdfExportMode(true);
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise((resolve) => setTimeout(resolve, 80));
+
       const fileBase =
         reportData?.general?.projectId ||
         reportData?.general?.reportNum ||
@@ -2554,7 +2559,17 @@ export const VisualWebView = ({
             scrollY: 0,
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-          pagebreak: { mode: ["css", "legacy"] },
+          pagebreak: {
+            mode: ["avoid-all", "css", "legacy"],
+            avoid: [
+              ".report-page",
+              ".split-block",
+              ".pdf-avoid-break",
+              "table",
+              "tr",
+              "img",
+            ],
+          },
         })
         .from(reportRootRef.current)
         .save();
@@ -2562,6 +2577,7 @@ export const VisualWebView = ({
       console.error("PDF export failed:", error);
       toast.error("Failed to download PDF.");
     } finally {
+      setIsPdfExportMode(false);
       setIsDownloadingPdf(false);
     }
   };
@@ -2766,9 +2782,16 @@ export const VisualWebView = ({
     { length: Math.max(1, Math.ceil(checklistDisplayItems.length / 8)) },
     (_, idx) => checklistDisplayItems.slice(idx * 8, (idx + 1) * 8),
   );
-  const pipeSupportPages = Array.from(
-    { length: Math.max(1, Math.ceil(supportDisplayItems.length / 8)) },
-    (_, idx) => supportDisplayItems.slice(idx * 8, (idx + 1) * 8),
+  const pipeSupportPages = paginateTableRowsByContent(
+    supportDisplayItems,
+    {
+      pageCapacity: 33,
+      baseUnits: 2.8,
+      noteReserve: 4,
+      descriptionDivisor: 36,
+      observationDivisor: 105,
+      pageRefDivisor: 14,
+    },
   );
   const specialConsiderationPages = Array.from(
     {
@@ -2804,6 +2827,70 @@ export const VisualWebView = ({
       items.slice(idx * size, (idx + 1) * size),
     );
   };
+  function paginateTableRowsByContent(
+    items,
+    {
+      pageCapacity = 34,
+      baseUnits = 2.6,
+      noteReserve = 0,
+      descriptionDivisor = 42,
+      observationDivisor = 120,
+      pageRefDivisor = 18,
+    } = {},
+  ) {
+    if (!items.length) return [[]];
+
+    const estimateUnits = (item) => {
+      const descriptionLength = String(
+        item?.equipmentDescription || "",
+      ).trim().length;
+      const observationLength = String(item?.anomaly || "").trim().length;
+      const photoRefLength = String(item?.pageNo || "").trim().length;
+      return (
+        baseUnits +
+        Math.ceil(descriptionLength / descriptionDivisor) +
+        Math.ceil(observationLength / observationDivisor) +
+        Math.ceil(photoRefLength / pageRefDivisor)
+      );
+    };
+
+    const pages = [];
+    let currentPage = [];
+    let currentUnits = 0;
+
+    items.forEach((item) => {
+      const itemUnits = estimateUnits(item);
+      if (currentPage.length && currentUnits + itemUnits > pageCapacity) {
+        pages.push(currentPage);
+        currentPage = [];
+        currentUnits = 0;
+      }
+      currentPage.push(item);
+      currentUnits += itemUnits;
+    });
+
+    if (currentPage.length) pages.push(currentPage);
+    if (!pages.length) return [[]];
+
+    if (noteReserve > 0) {
+      const lastPage = pages[pages.length - 1];
+      let lastPageUnits = lastPage.reduce(
+        (sum, item) => sum + estimateUnits(item),
+        0,
+      );
+
+      while (lastPage.length > 1 && lastPageUnits + noteReserve > pageCapacity) {
+        const movedItem = lastPage.pop();
+        lastPageUnits = lastPage.reduce(
+          (sum, item) => sum + estimateUnits(item),
+          0,
+        );
+        pages.push([movedItem]);
+      }
+    }
+
+    return pages;
+  }
   const splitTextIntoPageChunks = (text, maxChars = 2600) => {
     const source = String(text || "").trim();
     if (!source) return [""];
@@ -3055,15 +3142,18 @@ export const VisualWebView = ({
     { desc: "Signature", page: `${signaturePage}` },
   ];
   return (
-    <div className="min-h-screen bg-slate-900 p-4 md:p-8 pb-20 print:p-0 print:bg-white">
+    <div
+      className={`min-h-screen bg-slate-900 p-4 md:p-8 pb-20 print:p-0 print:bg-white ${
+        isPdfExportMode ? "pdf-export" : ""
+      }`}
+    >
       <style>{`
         @media print {
           .report-page {
             break-after: page;
             page-break-after: always;
-            border: 2px solid #94a3b8;
-            outline: 1px solid #cbd5f5;
-            outline-offset: -6px;
+            border: none;
+            outline: none;
           }
           .report-page:last-child {
             break-after: auto;
@@ -3084,6 +3174,9 @@ export const VisualWebView = ({
             right: 20mm;
             bottom: 12mm;
           }
+          .pdf-placeholder {
+            display: none !important;
+          }
         }
         .repeat-footer {
           display: none;
@@ -3092,6 +3185,22 @@ export const VisualWebView = ({
           border: 2px solid #94a3b8;
           outline: 1px solid #cbd5f5;
           outline-offset: -6px;
+        }
+        .pdf-export .report-page {
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
+        }
+        .pdf-export .pdf-placeholder {
+          display: none !important;
+        }
+        .pdf-export table,
+        .pdf-export tr,
+        .pdf-export img,
+        .pdf-export .split-block,
+        .pdf-export .pdf-avoid-break {
+          break-inside: avoid !important;
+          page-break-inside: avoid !important;
         }
       `}</style>
       {!hideControls && (
@@ -3165,82 +3274,7 @@ export const VisualWebView = ({
                 {reportData?.general?.equipment || "Storage Tank (T)"}
               </div>
 
-            <div className="mt-auto w-full px-2 ">
-              <table className="w-full text-[10px] border-collapse mt-20">
-                <tbody>
-                  <tr className="border-b border-slate-200 text-black" >
-                    <td
-                      colSpan={4}
-                      className="border border-black px-3 py-2 text-center text-[13px] font-extrabold uppercase bg-blue-200"
-                    >
-                      {reportData?.general?.client || "Standard Client"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="w-[24%] border border-black px-3 py-1 text-right text-[10px] font-semibold">
-                      Location:
-                    </td>
-                    <td className="w-[26%] border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
-                      {reportData?.general?.platform || "Module P4"}
-                    </td>
-                    <td className="w-[24%] border border-black px-3 py-1 text-right text-[10px] font-semibold">
-                      Report No:
-                    </td>
-                    <td className="w-[26%] border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
-                      {reportData?.general?.reportNum || "VI-5422"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
-                      Inspection Date:
-                    </td>
-                    <td className="border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
-                      {formattedPageTwoDate || "March 2026"}
-                    </td>
-                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
-                      Revision:
-                    </td>
-                    <td className="border border-black px-3 py-1 text-center text-[10px] font-bold uppercase">
-                      {pageTwoRevision || ""}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
-                      Equipment Description:
-                    </td>
-                    <td
-                      colSpan={3}
-                      className="border border-black px-3 py-1 text-center text-[10px] font-medium"
-                    >
-                      {reportData?.general?.equipment || "Storage Tank (T)"}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="border border-black px-3 py-1 text-right text-[10px] font-semibold">
-                      Inspection Procedure #
-                    </td>
-                    <td
-                      colSpan={3}
-                      className="border border-black px-3 py-1 text-center text-[10px] font-medium"
-                    >
-                      {pageTwoProcedure || ""}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="h-16 border border-black px-3 py-3 text-center text-[13px] font-extrabold uppercase"
-                    >
-                      {reportData?.general?.inspectionTypeName ||
-                        reportData?.general?.inspectionTypeCode ||
-                        reportData?.general?.inspectionType ||
-                        "FPSO Integrity Inspection"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-            </div>
+            
             </div>
           </div>
         </div>
@@ -3350,7 +3384,7 @@ export const VisualWebView = ({
               <h2 className="text-center text-[18px] font-black uppercase underline text-black">
                 Table of Contents
               </h2>
-              <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                <table className="pdf-avoid-break mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
                 <thead>
                   <tr>
                     <th className="w-[15%] border border-black bg-slate-200 px-2 py-2 text-center text-[11px] font-bold">
@@ -3485,7 +3519,7 @@ export const VisualWebView = ({
                   1. Pipe Components &amp; Insulated Systems
                 </h3>
 
-                <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                <table className="pdf-avoid-break mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
                   <thead>
                     <tr>
                       <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
@@ -3579,7 +3613,7 @@ export const VisualWebView = ({
                   2. Pipe Supports:
                 </h2>
 
-                <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                <table className="pdf-avoid-break mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
                   <thead>
                     <tr>
                       <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
@@ -3685,7 +3719,7 @@ export const VisualWebView = ({
                   3. Special Considerations
                 </h2>
 
-                <table className="mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
+                <table className="pdf-avoid-break mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
                   <thead>
                     <tr>
                       <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
@@ -3806,13 +3840,13 @@ export const VisualWebView = ({
                     className="h-full max-h-[148mm] w-full object-contain"
                   />
                 ) : (
-                  <div className="flex h-full min-h-[148mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  <div className="pdf-placeholder flex h-full min-h-[148mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload schematic anomaly photo in the form view
                   </div>
                 )}
               </div>
 
-              <div className="mt-6 border border-dashed border-slate-500 px-3 py-3 text-[#0a58b5]">
+              <div className="pdf-avoid-break mt-6 border border-dashed border-slate-500 px-3 py-3 text-[#0a58b5]">
                 <p className="text-[11px] font-bold italic underline">Notes:</p>
                 <div className="mt-2 space-y-1 text-[11px] leading-5">
                   {(String(reportData?.inspection?.schematicNotes || "")
@@ -3862,7 +3896,7 @@ export const VisualWebView = ({
                     className="h-full max-h-[225mm] w-full object-contain"
                   />
                 ) : (
-                  <div className="flex h-full min-h-[225mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  <div className="pdf-placeholder flex h-full min-h-[225mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload P&amp; ID anomaly photo in the form view
                   </div>
                 )}
@@ -3902,7 +3936,7 @@ export const VisualWebView = ({
                       return (
                         <div
                           key={item.id || `photo-card-${globalIdx}`}
-                          className="border border-black bg-white"
+                          className="pdf-avoid-break border border-black bg-white"
                         >
                           <div className="flex h-[72mm] items-center justify-center border-b border-black bg-slate-50 p-1">
                             <img
@@ -3926,7 +3960,7 @@ export const VisualWebView = ({
                     })}
                   </div>
                 ) : (
-                  <div className="mt-8 flex min-h-[210mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  <div className="pdf-placeholder mt-8 flex min-h-[210mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload photos from inspection findings, pipe supports, or
                     special considerations to populate this page
                   </div>

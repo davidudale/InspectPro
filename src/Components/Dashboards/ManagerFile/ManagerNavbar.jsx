@@ -17,7 +17,7 @@ const ManagerNavbar = () => {
       if (user) {
     
         setUserEmail(user.email);
-        setUserFname(user.displayName || "NDT Reviewer");
+        setUserFname(user.displayName || "NDE Reviewer");
         user.displayName
       }
     });

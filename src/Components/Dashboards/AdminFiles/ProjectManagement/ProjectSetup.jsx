@@ -49,6 +49,7 @@ const ProjectSetup = () => {
   const [masterEquipment, setMasterEquipment] = useState([]);
   const [inspectors, setInspectors] = useState([]);
   const [supervisor, setSupervisor] = useState([]);
+  const [externalReviewers, setExternalReviewers] = useState([]);
   const [managers, setManagers] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -76,6 +77,8 @@ const ProjectSetup = () => {
     inspectorName: "",
     supervisorId: "",
     supervisorName: "",
+    externalReviewerId: "",
+    externalReviewerName: "",
     managerId: "",
     managerName: "",
     startDate: "",
@@ -115,9 +118,15 @@ const ProjectSetup = () => {
 
     // Sync qualified Lead Inspectors from Users Management
     const unsubSupervisor = onSnapshot(
-      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "External_Reviewer"])),
+      query(collection(db, "users"), where("role", "==", "Lead Inspector")),
       (snap) =>
         setSupervisor(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+
+    const unsubExternalReviewers = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "External_Reviewer")),
+      (snap) =>
+        setExternalReviewers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
 
     // Sync qualified Managers from Users Management
@@ -133,6 +142,7 @@ const ProjectSetup = () => {
       unsubEquip();
       unsubInspectors();
       unsubSupervisor();
+      unsubExternalReviewers();
       unsubManagers();
     };
   }, []);
@@ -160,9 +170,10 @@ const ProjectSetup = () => {
       !setupData.inspectorId ||
       !setupData.equipmentId ||
       !setupData.supervisorId ||
+      !setupData.externalReviewerId ||
       !setupData.managerId
     ) {
-      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, Lead Inspector, and Manager are assigned.");
+      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, Lead Inspector, External Reviewer, and Manager are assigned.");
       return;
     }
 
@@ -497,7 +508,7 @@ const ProjectSetup = () => {
                       });
                     }}
                   >
-                    <option value="">Choose Lead Inspector / External_Reviewer...</option>
+                    <option value="">Choose Lead Inspector...</option>
                     {supervisor.map((ins) => (
                       <option key={ins.id} value={ins.id}>
                         {ins.name || ins.displayName}
@@ -505,11 +516,42 @@ const ProjectSetup = () => {
                     ))}
                   </select>
                 </div>
-                
+                 
                 </div>
                 <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <UserCheck size={14} /> 4. Assign NDE Reviewer
+                    <UserCheck size={14} /> 4. Assign External Reviewer
+                  </h2>
+                  <select
+                    required
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                    value={setupData.externalReviewerId}
+                    onChange={(e) => {
+                      const selected = externalReviewers.find(
+                        (reviewer) => reviewer.id === e.target.value,
+                      );
+                      setSetupData({
+                        ...setupData,
+                        externalReviewerId: e.target.value,
+                        externalReviewerName:
+                          selected?.displayName ||
+                          selected?.name ||
+                          selected?.fullName ||
+                          "External Reviewer",
+                      });
+                    }}
+                  >
+                    <option value="">Choose External Reviewer...</option>
+                    {externalReviewers.map((reviewer) => (
+                      <option key={reviewer.id} value={reviewer.id}>
+                        {reviewer.name || reviewer.displayName || reviewer.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <UserCheck size={14} /> 5. Assign NDE Reviewer
                   </h2>
                   <select
                     required
@@ -694,6 +736,8 @@ const ProjectSetup = () => {
               <PreviewItem label="Asset" value={setupData.equipmentTag} icon={<Package size={14}/>} />
               <PreviewItem label="Technique" value={setupData.selectedTechnique} icon={<Zap size={14}/>} />
               <PreviewItem label="Assigned Inspector" value={setupData.inspectorName} icon={<UserCheck size={14}/>} />
+              <PreviewItem label="Lead Inspector" value={setupData.supervisorName} icon={<UserCheck size={14}/>} />
+              <PreviewItem label="External Reviewer" value={setupData.externalReviewerName} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Assigned Manager" value={setupData.managerName} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Schedule Start" value={setupData.startDate} icon={<Calendar size={14}/>} />
               <PreviewItem label="Report Number" value={setupData.reportNum} icon={<FileText size={14}/>} />
