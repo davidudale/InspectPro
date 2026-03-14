@@ -259,7 +259,7 @@ const ClientManager = () => {
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Industry Context</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Corporate Address</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Contact Details</th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Timestamp</th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Date Created</th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
                     </tr>
                   </thead>

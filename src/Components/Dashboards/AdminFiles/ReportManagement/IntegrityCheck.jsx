@@ -2130,7 +2130,7 @@ export const IntegrityWebView = ({
                     <th className="border-r border-slate-200 p-2 w-12 text-[12px]">
                       S/N
                     </th>
-                    <th className="border-r border-slate-200 p-2 text-[12px]">
+                    <th className="border-r border-slate-200 p-2 w-12 text-[12px]">
                       Description
                     </th>
                     <th className="p-2 w-20 text-[12px]">Page No.</th>

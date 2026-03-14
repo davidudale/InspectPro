@@ -40,6 +40,10 @@ const LocationManager = () => {
   };
   const getRowTimestamp = (row) =>
     row?.updatedAt || row?.createdAt || row?.timestamp || 0;
+  const formatRowTimestamp = (row) => {
+    const value = toMillis(getRowTimestamp(row));
+    return value ? new Date(value).toLocaleString() : "---";
+  };
   const [locations, setLocations] = useState([]);
   const [clients, setClients] = useState([]); // Master Client Location
   const [searchTerm, setSearchTerm] = useState("");
@@ -262,6 +266,10 @@ const LocationManager = () => {
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         Coordinates
                       </th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Date Created
+                      </th>
+                      
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
                         Actions
                       </th>
@@ -306,6 +314,9 @@ const LocationManager = () => {
                             <Navigation size={12} className="text-slate-600" />
                             {loc.coordinates || "No GPS Link"}
                           </div>
+                        </td>
+                        <td className="p-6 text-xs text-slate-400 whitespace-nowrap">
+                          {formatRowTimestamp(loc)}
                         </td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
