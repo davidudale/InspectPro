@@ -45,6 +45,9 @@ import ApprovedProjects from "./Components/Dashboards/ManagerFile/ApprovedProjec
 import ReportDownloadView from "./Components/Dashboards/ManagerFile/ReportDownloadView.jsx";
 import ProjectPreview from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectPreview.jsx";
 import ReportPlaceholder from "./Components/Dashboards/ReportManager/ReportPlaceholder.jsx";
+import ProjectsReviewing from "./Components/Dashboards/ExternalDashboard/ProjectsReviewing.jsx";
+import Feedback from "./Components/Dashboards/ExternalDashboard/Feedback.jsx";
+import ExternalFeedbackManager from "./Components/Dashboards/AdminFiles/FeedbackManagement/ExternalFeedbackManager.jsx";
 function App() {
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
@@ -265,7 +268,9 @@ function App() {
         <Route
           path="/admin/project/:id"
           element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Manager", "Admin",
+                "External_Reviewer"
+                ]}>
               <ProjectPreview />
             </ProtectedRoute>
           }
@@ -386,6 +391,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["Admin"]}>
               <ProjectList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/external-feedback"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <ExternalFeedbackManager />
             </ProtectedRoute>
           }
         />
@@ -554,6 +567,32 @@ function App() {
               ]}
             >
               <ReportPlaceholder title="Next Day Plan" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/external-reviewer-projects"
+          element={
+            <ProtectedRoute
+              allowedRoles={[
+                "Inspector",
+                "Lead Inspector",
+                "External_Reviewer",
+                "Manager",
+                "Admin",
+              ]}
+            >
+              <ProjectsReviewing/>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/external-reviewer-feedback"
+          element={
+            <ProtectedRoute
+              allowedRoles={["External_Reviewer"]}
+            >
+              <Feedback />
             </ProtectedRoute>
           }
         />

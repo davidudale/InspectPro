@@ -55,7 +55,7 @@ const ExternalNavbar = () => {
 
         {/* Desktop Nav Links */}
         <div className="hidden md:flex items-center space-x-4">
-          <MessageBell user={user} />
+          {/*<MessageBell user={user} />*/}
           <div className="flex flex-col items-end mr-2">
              {/* Displaying the actual user email instead of a hardcoded string */}
             <span className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">External Reviewer</span>

@@ -10,7 +10,6 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
-import ProjectChatbox from "../../Common/ProjectChatbox";
 
 import ExternalSideBar from "./ExternalSideBar";
 import ExternalNavbar from "./ExternalNavbar";
@@ -200,7 +199,7 @@ const ExternalReviewer = () => {
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Recent Projects Sent for Reviews</h2>
+                  <h2 className="text-lg font-bold text-white">Projects</h2>
                   <p className="text-sm text-slate-400">Project Listings.</p>
                 </div>
               </div>
@@ -243,13 +242,7 @@ const ExternalReviewer = () => {
               )}
             </div>
 
-            <ProjectChatbox
-              user={user}
-              assignmentField="externalReviewerId"
-              title="Project Chatbox"
-              description="Chat with the assigned project team inside each external review thread."
-              emptyStateLabel="No external review projects are available for chat yet."
-            />
+            
           </section>
          </div>
         </main>
