@@ -10,7 +10,8 @@ import {
   getDocs,
   limit,
 } from "firebase/firestore";
-import { Activity } from "lucide-react";
+import { Activity, Mail, Send, X } from "lucide-react";
+import { toast } from "react-toastify";
 import { IntegrityWebView } from "../../AdminFiles/ReportManagement/IntegrityCheck";
 import { VisualWebView } from "../../AdminFiles/ReportManagement/VisualReport";
 
@@ -28,6 +29,12 @@ const ReportDownloadView = ({
   const [project, setProject] = useState(null);
   const [report, setReport] = useState(null);
   const [companyLogo, setCompanyLogo] = useState("");
+  const [isMailComposerOpen, setIsMailComposerOpen] = useState(false);
+  const [mailDraft, setMailDraft] = useState({
+    to: "",
+    subject: "",
+    message: "",
+  });
 
   const getTechniqueType = () => {
     const hasVisualSpecificContent =
@@ -143,6 +150,38 @@ const ReportDownloadView = ({
     loadCompanyProfile();
   }, []);
 
+  useEffect(() => {
+    const fallbackProjectId = project?.projectId || id || "this report";
+    const fallbackProjectName = project?.projectName || "Inspection Report";
+    const reportLink =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/report/download/${id}`
+        : `/report/download/${id}`;
+
+    setMailDraft((prev) => ({
+      to:
+        prev.to ||
+        project?.clientEmail ||
+        project?.client?.email ||
+        project?.managerEmail ||
+        "",
+      subject:
+        prev.subject || `Inspection Report: ${fallbackProjectName} (${fallbackProjectId})`,
+      message:
+        prev.message ||
+        [
+          "Hello,",
+          "",
+          `Please find the inspection report for ${fallbackProjectName}.`,
+          `Project ID: ${fallbackProjectId}`,
+          "",
+          `Report link: ${reportLink}`,
+          "",
+          "Best regards,",
+        ].join("\n"),
+    }));
+  }, [id, project]);
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950">
@@ -217,24 +256,275 @@ const ReportDownloadView = ({
     };
   })();
 
+  const reportLink =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/report/download/${id}`
+      : `/report/download/${id}`;
+
+  const openMailComposer = () => {
+    setIsMailComposerOpen(true);
+  };
+
+  const closeMailComposer = () => {
+    setIsMailComposerOpen(false);
+  };
+
+  const handleMailDraftChange = (field, value) => {
+    setMailDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleSendMail = () => {
+    const to = String(mailDraft.to || "").trim();
+    const subject = String(mailDraft.subject || "").trim();
+    const message = String(mailDraft.message || "").trim();
+
+    if (!to) {
+      toast.error("Enter at least one recipient email.");
+      return;
+    }
+
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(
+      subject,
+    )}&body=${encodeURIComponent(message)}`;
+
+    window.location.href = mailtoUrl;
+    toast.success("Email draft opened in your mail app.");
+    closeMailComposer();
+  };
+
   if (techniqueType === "visual") {
     return (
-      <VisualWebView
+      <>
+        {!hideControls && (
+          <>
+            <div className="fixed bottom-6 right-6 z-40 print:hidden">
+              <button
+                type="button"
+                onClick={openMailComposer}
+                className="inline-flex items-center gap-2 rounded-2xl border border-orange-500/30 bg-orange-600 px-5 py-3 text-sm font-bold uppercase tracking-[0.16em] text-white shadow-lg shadow-orange-950/30 transition hover:bg-orange-700"
+              >
+                <Mail size={16} />
+                Send Report by Email
+              </button>
+            </div>
+            {isMailComposerOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm print:hidden">
+                <div className="w-full max-w-2xl rounded-[2rem] border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-400">
+                        Report Mailer
+                      </p>
+                      <h2 className="mt-3 text-2xl font-bold text-white">
+                        Send Report Link
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-400">
+                        This opens your default mail app with the report link prefilled.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeMailComposer}
+                      className="rounded-xl border border-slate-800 p-2 text-slate-400 transition hover:text-white"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <div className="mt-6 grid gap-4">
+                    <div className="grid gap-2">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                        Recipient Email
+                      </label>
+                      <input
+                        type="text"
+                        value={mailDraft.to}
+                        onChange={(e) => handleMailDraftChange("to", e.target.value)}
+                        placeholder="client@example.com"
+                        className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                        Subject
+                      </label>
+                      <input
+                        type="text"
+                        value={mailDraft.subject}
+                        onChange={(e) => handleMailDraftChange("subject", e.target.value)}
+                        className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                        Message
+                      </label>
+                      <textarea
+                        rows={8}
+                        value={mailDraft.message}
+                        onChange={(e) => handleMailDraftChange("message", e.target.value)}
+                        className="w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+                      <span className="font-bold uppercase tracking-[0.18em] text-slate-500">
+                        Report Link
+                      </span>
+                      <p className="mt-2 break-all text-slate-300">{reportLink}</p>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        onClick={closeMailComposer}
+                        className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-300 transition hover:bg-slate-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSendMail}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-orange-700"
+                      >
+                        <Send size={14} />
+                        Open Mail Draft
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        <VisualWebView
+          reportData={normalizedReportData}
+          companyLogo={companyLogo}
+          onBack={() => (onClose ? onClose() : navigate(-1))}
+          hideControls={hideControls}
+        />
+      </>
+    );
+  }
+
+  return (
+    <>
+      {!hideControls && (
+        <>
+          <div className="fixed bottom-6 right-6 z-40 print:hidden">
+            <button
+              type="button"
+              onClick={openMailComposer}
+              className="inline-flex items-center gap-2 rounded-2xl border border-orange-500/30 bg-orange-600 px-5 py-3 text-sm font-bold uppercase tracking-[0.16em] text-white shadow-lg shadow-orange-950/30 transition hover:bg-orange-700"
+            >
+              <Mail size={16} />
+              Send Report by Email
+            </button>
+          </div>
+          {isMailComposerOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm print:hidden">
+              <div className="w-full max-w-2xl rounded-[2rem] border border-slate-800 bg-slate-900 p-6 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-400">
+                      Report Mailer
+                    </p>
+                    <h2 className="mt-3 text-2xl font-bold text-white">
+                      Send Report Link
+                    </h2>
+                    <p className="mt-2 text-sm text-slate-400">
+                      This opens your default mail app with the report link prefilled.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeMailComposer}
+                    className="rounded-xl border border-slate-800 p-2 text-slate-400 transition hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="mt-6 grid gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                      Recipient Email
+                    </label>
+                    <input
+                      type="text"
+                      value={mailDraft.to}
+                      onChange={(e) => handleMailDraftChange("to", e.target.value)}
+                      placeholder="client@example.com"
+                      className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                      Subject
+                    </label>
+                    <input
+                      type="text"
+                      value={mailDraft.subject}
+                      onChange={(e) => handleMailDraftChange("subject", e.target.value)}
+                      className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                      Message
+                    </label>
+                    <textarea
+                      rows={8}
+                      value={mailDraft.message}
+                      onChange={(e) => handleMailDraftChange("message", e.target.value)}
+                      className="w-full resize-none rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+                    <span className="font-bold uppercase tracking-[0.18em] text-slate-500">
+                      Report Link
+                    </span>
+                    <p className="mt-2 break-all text-slate-300">{reportLink}</p>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={closeMailComposer}
+                      className="rounded-2xl border border-slate-700 px-4 py-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-300 transition hover:bg-slate-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendMail}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-orange-700"
+                    >
+                      <Send size={14} />
+                      Open Mail Draft
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      <IntegrityWebView
         reportData={normalizedReportData}
         companyLogo={companyLogo}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
       />
-    );
-  }
-
-  return (
-    <IntegrityWebView
-      reportData={normalizedReportData}
-      companyLogo={companyLogo}
-      onBack={() => (onClose ? onClose() : navigate(-1))}
-      hideControls={hideControls}
-    />
+    </>
   );
 };
 

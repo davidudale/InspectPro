@@ -1,18 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  addDoc,
   collection,
   doc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
-import { MessageSquare, Send, Users } from "lucide-react";
+import { ChevronDown, MessageSquare, Send, Users } from "lucide-react";
 import { toast } from "react-toastify";
 import { db } from "../Auth/firebase";
 
@@ -37,12 +36,7 @@ const buildParticipants = (project) => {
       id: project.supervisorId,
       name: project.supervisorName,
     },
-    {
-      key: "external",
-      label: "External Reviewer",
-      id: project.externalReviewerId,
-      name: project.externalReviewerName,
-    },
+    
     {
       key: "manager",
       label: "Manager",
@@ -76,6 +70,8 @@ const ProjectChatbox = ({
   const [messagesError, setMessagesError] = useState("");
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -144,6 +140,12 @@ const ProjectChatbox = ({
     () => buildParticipants(selectedProject),
     [selectedProject],
   );
+
+  const selectedProjectLabel =
+    selectedProject?.projectName ||
+    selectedProject?.projectId ||
+    selectedProject?.id ||
+    "Project Chat";
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -243,158 +245,247 @@ const ProjectChatbox = ({
     }
   };
 
+  const handleClearChat = async () => {
+    if (!selectedProjectId || isClearing) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      const threadRef = doc(db, "project_chats", selectedProjectId);
+      const messagesCollectionRef = collection(db, "project_chats", selectedProjectId, "messages");
+      const batchSize = 200;
+
+      while (true) {
+        const snapshot = await getDocs(query(messagesCollectionRef, limit(batchSize)));
+        if (snapshot.empty) {
+          break;
+        }
+
+        const batch = writeBatch(db);
+        snapshot.docs.forEach((messageDoc) => {
+          batch.delete(messageDoc.ref);
+        });
+        await batch.commit();
+
+        if (snapshot.size < batchSize) {
+          break;
+        }
+      }
+
+      const threadBatch = writeBatch(db);
+      threadBatch.delete(threadRef);
+      await threadBatch.commit();
+
+      setDraft("");
+      toast.success("Project chat cleared");
+    } catch (error) {
+      toast.error(`Unable to clear chat: ${error.message || "Please try again."}`);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-xl border border-slate-800 bg-slate-950 p-2 text-orange-500">
+    <div className="fixed bottom-4 right-4 z-50 w-[min(26rem,calc(100vw-1rem))] sm:bottom-6 sm:right-6 sm:w-[26rem]">
+      {isCollapsed ? (
+        <button
+          type="button"
+          onClick={() => setIsCollapsed(false)}
+          className="ml-auto flex w-full max-w-[20rem] items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-4 py-3 text-left shadow-2xl backdrop-blur-md transition hover:border-orange-500/40"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-orange-500">
               <MessageSquare size={18} />
             </div>
             <div>
-              <h2 className="font-bold text-white">{title}</h2>
-              <p className="mt-1 text-sm text-slate-400">{description}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5 space-y-4">
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
-            Project Thread
-          </label>
-          <select
-            className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-            value={selectedProjectId}
-            onChange={(event) => setSelectedProjectId(event.target.value)}
-            disabled={projectsLoading || projects.length === 0}
-          >
-            {projects.length === 0 ? (
-              <option value="">No available projects</option>
-            ) : (
-              projects.map((project) => (
-                <option key={getThreadId(project)} value={getThreadId(project)}>
-                  {(project.projectName || project.projectId || project.id) +
-                    " - " +
-                    (project.clientName || project.client || "Client")}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
-        {selectedProject && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
-            <div className="flex items-center gap-2 text-slate-300">
-              <Users size={14} className="text-orange-400" />
-              <p className="text-xs font-bold uppercase tracking-[0.2em]">
-                Assigned Participants
+              <p className="text-sm font-bold text-white">{title}</p>
+              <p className="truncate text-xs text-slate-400">
+                {selectedProjectId ? selectedProjectLabel : "Open project chat"}
               </p>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {participants.length > 0 ? (
-                participants.map((participant) => (
-                  <span
-                    key={`${participant.key}-${participant.id || participant.name}`}
-                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
-                  >
-                    {participant.label}: {participant.name || "Unassigned"}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-slate-500">No assigned participants found.</span>
-              )}
-            </div>
           </div>
-        )}
-
-        <div
-          ref={listRef}
-          className="h-[320px] space-y-3 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-4"
-        >
-          {projectsLoading ? (
-            <p className="text-sm text-slate-500">Loading project threads...</p>
-          ) : projectsError ? (
-            <p className="text-sm text-rose-400">{projectsError}</p>
-          ) : !selectedProjectId ? (
-            <p className="text-sm text-slate-500">{emptyStateLabel}</p>
-          ) : messagesLoading ? (
-            <p className="text-sm text-slate-500">Loading messages...</p>
-          ) : messagesError ? (
-            <p className="text-sm text-rose-400">{messagesError}</p>
-          ) : messages.length > 0 ? (
-            messages.map((message) => {
-              const isCurrentUser = message.userId === user?.uid;
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                      isCurrentUser
-                        ? "bg-orange-600 text-white"
-                        : "border border-slate-800 bg-slate-900 text-slate-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-[0.18em]">
-                        {message.userName || "Unknown User"}
-                      </span>
-                      {message.userRole ? (
-                        <span
-                          className={`text-[10px] ${
-                            isCurrentUser ? "text-orange-100/80" : "text-slate-500"
-                          }`}
-                        >
-                          {message.userRole}
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.text || ""}
-                    </p>
-                  </div>
+          <div className="flex items-center gap-2">
+            {messages.length > 0 ? (
+              <span className="rounded-full bg-orange-600 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white">
+                {messages.length}
+              </span>
+            ) : null}
+            <ChevronDown size={16} className="text-slate-400" />
+          </div>
+        </button>
+      ) : (
+        <div className="rounded-[1.75rem] border border-slate-800 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md sm:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-2 text-orange-500">
+                  <MessageSquare size={18} />
                 </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-slate-500">
-              No messages yet. Start the conversation for this project.
-            </p>
-          )}
-        </div>
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={handleComposerKeyDown}
-            placeholder={
-              selectedProjectId
-                ? "Send a message to the assigned project team..."
-                : "Select a project to start chatting..."
-            }
-            disabled={!selectedProjectId || isSending}
-            className="h-24 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-          />
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[11px] text-slate-500">
-              Messages are grouped by project ID and visible to assigned team members.
-            </p>
+                <div className="min-w-0">
+                  <h2 className="truncate font-bold text-white">{title}</h2>
+                  <p className="mt-1 text-sm text-slate-400">{description}</p>
+                </div>
+              </div>
+            </div>
             <button
               type="button"
-              onClick={handleSend}
-              disabled={!draft.trim() || !selectedProjectId || isSending}
-              className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+              onClick={() => setIsCollapsed(true)}
+              className="rounded-xl border border-slate-800 bg-slate-950 p-2 text-slate-400 transition hover:text-white"
+              aria-label="Minimize chat widget"
             >
-              <Send size={14} />
-              {isSending ? "Sending" : "Send"}
+              <ChevronDown size={18} />
             </button>
           </div>
+
+          <div className="mt-5 space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
+                Project Thread
+              </label>
+              <select
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                value={selectedProjectId}
+                onChange={(event) => setSelectedProjectId(event.target.value)}
+                disabled={projectsLoading || projects.length === 0}
+              >
+                {projects.length === 0 ? (
+                  <option value="">No available projects</option>
+                ) : (
+                  projects.map((project) => (
+                    <option key={getThreadId(project)} value={getThreadId(project)}>
+                      {(project.projectName || project.projectId || project.id) +
+                        " - " +
+                        (project.clientName || project.client || "Client")}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {selectedProject && (
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Users size={14} className="text-orange-400" />
+                  <p className="text-xs font-bold uppercase tracking-[0.2em]">
+                    Project Team
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {participants.length > 0 ? (
+                    participants.map((participant) => (
+                      <span
+                        key={`${participant.key}-${participant.id || participant.name}`}
+                        className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-[11px] text-slate-300"
+                      >
+                        {participant.label}: {participant.name || "Unassigned"}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-500">No assigned participants found.</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div
+              ref={listRef}
+              className="h-[280px] space-y-3 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-4 sm:h-[320px]"
+            >
+              {projectsLoading ? (
+                <p className="text-sm text-slate-500">Loading project threads...</p>
+              ) : projectsError ? (
+                <p className="text-sm text-rose-400">{projectsError}</p>
+              ) : !selectedProjectId ? (
+                <p className="text-sm text-slate-500">{emptyStateLabel}</p>
+              ) : messagesLoading ? (
+                <p className="text-sm text-slate-500">Loading messages...</p>
+              ) : messagesError ? (
+                <p className="text-sm text-rose-400">{messagesError}</p>
+              ) : messages.length > 0 ? (
+                messages.map((message) => {
+                  const isCurrentUser = message.userId === user?.uid;
+                  return (
+                    <div
+                      key={message.id}
+                      className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                          isCurrentUser
+                            ? "bg-orange-600 text-white"
+                            : "border border-slate-800 bg-slate-900 text-slate-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold uppercase tracking-[0.18em]">
+                            {message.userName || "Unknown User"}
+                          </span>
+                          {message.userRole ? (
+                            <span
+                              className={`text-[10px] ${
+                                isCurrentUser ? "text-orange-100/80" : "text-slate-500"
+                              }`}
+                            >
+                              {message.userRole}
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
+                          {message.text || ""}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No messages yet. Start the conversation for this project.
+                </p>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+              <textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={handleComposerKeyDown}
+                placeholder={
+                  selectedProjectId
+                    ? "Send a message to the assigned project team..."
+                    : "Select a project to start chatting..."
+                }
+                disabled={!selectedProjectId || isSending}
+                className="h-24 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+              />
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-[11px] text-slate-500">
+                  Messages are grouped by project ID and visible to assigned team members.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClearChat}
+                    disabled={!selectedProjectId || messages.length === 0 || isSending || isClearing}
+                    className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+                  >
+                    {isClearing ? "Clearing" : "Clear Chat"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={!draft.trim() || !selectedProjectId || isSending || isClearing}
+                    className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500"
+                  >
+                    <Send size={14} />
+                    {isSending ? "Sending" : "Send"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
