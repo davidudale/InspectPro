@@ -1,48 +1,42 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  BadgeCheck,
-  FileClock,
   LayoutDashboard,
-  Settings,
+  FolderKanban,
+  MessageSquareMore,
   ChevronDown,
   Menu,
   X,
-  Sliders,
-  FileText,
-} from "lucide-react"; // Example icons
-import { useState, useEffect } from "react";
+} from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
-import { db, auth } from "../../Auth/firebase"; // Ensure auth is exported from your firebase config
+import { db, auth } from "../../Auth/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
-import { useAuth } from "../../Auth/AuthContext";
 
-const getSidebarLinks = (dashboardHref) => [
+const sidebarLinks = [
   {
     name: "Dashboard",
     icon: <LayoutDashboard size={20} />,
-    href: dashboardHref,
+    href: "/external-reviewer-dashboard",
   },
- 
- {
-    name: "Reports",
-    icon: <LayoutDashboard size={20} />,
-    href: dashboardHref,
+  {
+    name: "Projects",
+    icon: <FolderKanban size={20} />,
+    href: "/external-reviewer-projects",
   },
   {
     name: "Feedback",
-    icon: <LayoutDashboard size={20} />,
-    href: dashboardHref,
+    icon: <MessageSquareMore size={20} />,
+    href: "/external-reviewer-feedback",
   },
+ 
+ 
 ];
 
-const ExternalSideBar = () => {
-  const { user } = useAuth();
-  const [fullName, setFullName] = useState(""); // State for logged-in user's name
+const ExternalSidebar = () => {
+  const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  // State to track which dropdown is open (by name)
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
@@ -53,7 +47,6 @@ const ExternalSideBar = () => {
     setIsMobileExpanded((prev) => !prev);
   };
 
-  // Fetch logged-in user's Full Name
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -62,7 +55,6 @@ const ExternalSideBar = () => {
           const docSnap = await getDoc(docRef);
 
           if (docSnap.exists()) {
-            // Assuming your Firestore field is called 'fullName'
             setFullName(
               docSnap.data().fullName || docSnap.data().name || "Admin",
             );
@@ -76,11 +68,10 @@ const ExternalSideBar = () => {
     return () => unsubscribe();
   }, []);
 
-  const dashboardHref =
-    user?.role === "External_Reviewer"
-      ? "/external-reviewer-dashboard"
-      : "/SupervisorDashboard";
-  const sidebarLinks = getSidebarLinks(dashboardHref);
+  const isPathActive = (href) => {
+    if (!href) return false;
+    return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
 
   return (
     <aside
@@ -92,13 +83,13 @@ const ExternalSideBar = () => {
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
             <button
-                        type="button"
-                        onClick={toggleMobileMenu}
-                        className="ml-auto mb-4 relative lg:hidden p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
-                        aria-label="Toggle sidebar"
-                      >
-                        {isMobileExpanded ? <X size={16} /> : <Menu size={16} />}
-                      </button>
+            type="button"
+            onClick={toggleMobileMenu}
+            className="ml-auto mb-4 relative lg:hidden p-2 rounded-lg border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            {isMobileExpanded ? <X size={16} /> : <Menu size={16} />}
+          </button>
             <div className="w-8 h-8 lg:w-12 lg:h-12 rounded-full bg-gradient-to-br from-orange-500 to-orange-700 p-0.5 shadow-orange-500/20">
               <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-white font-bold text-xs lg:text-base">
                 AV
@@ -106,7 +97,7 @@ const ExternalSideBar = () => {
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
           </div>
-          <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block overflow-hidden`}>
+          <div className={`${isMobileExpanded ? "block " : "hidden"} lg:block overflow-hidden`}>
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
               {fullName || "Admin"}
             </p>
@@ -116,17 +107,15 @@ const ExternalSideBar = () => {
       </div>
       {/* Example Sidebar Icons for Mobile */}
       <nav className="flex-1 bg-slate-900 overflow-y-auto py-4 px-3 space-y-1">
-        {sidebarLinks.map((link, index) => {
+        {sidebarLinks.map((link) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;
-          const isSubLinkActive = hasSubLinks
-            ? link.subLinks.some((sub) => location.pathname === sub.href)
-            : false;
-          const isActive = location.pathname === link.href || isSubLinkActive;
+          const isActive = hasSubLinks
+            ? link.subLinks.some((sub) => isPathActive(sub.href))
+            : isPathActive(link.href);
 
           return (
-            <div key={index} className="w-full">
-              {/* Main Link or Dropdown Trigger */}
+            <div key={link.name} className="w-full">
               <div
                 onClick={() =>
                   hasSubLinks ? toggleDropdown(link.name) : navigate(link.href)
@@ -147,7 +136,6 @@ const ExternalSideBar = () => {
                   </span>
                 </div>
 
-                {/* Chevron Icon for Dropdowns */}
                 {hasSubLinks && (
                   <ChevronDown
                     size={16}
@@ -156,16 +144,15 @@ const ExternalSideBar = () => {
                 )}
               </div>
 
-              {/* Dropdown Content */}
               {hasSubLinks && isOpen && (
                 <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block ml-9 mt-1 space-y-1 border-l border-slate-800`}>
-                  {link.subLinks.map((sub, subIdx) => (
+                  {link.subLinks.map((sub) => (
                     <button
-                      key={subIdx}
+                      key={sub.name}
                       onClick={() => navigate(sub.href)}
                       className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
                         ${
-                          location.pathname === sub.href
+                          isPathActive(sub.href)
                             ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
                             : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
@@ -184,4 +171,4 @@ const ExternalSideBar = () => {
   );
 };
 
-export default ExternalSideBar;
+export default ExternalSidebar;

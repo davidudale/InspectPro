@@ -24,6 +24,7 @@ import SupervisorNavbar from "../Dashboards/SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../Dashboards/SupervisorFiles/SupervisorSidebar";
 import { useAuth } from "../Auth/AuthContext";
 import { useNavigate } from "react-router-dom";
+import ProjectChatbox from "../Common/ProjectChatbox";
 
 const SupervisorDashboard = () => {
   const { user } = useAuth();
@@ -302,7 +303,8 @@ const SupervisorDashboard = () => {
               ))}
             </div>
 
-            {/* Assistant Activity Log Section */}
+            {/* Activity + Chat */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -350,7 +352,14 @@ const SupervisorDashboard = () => {
         )}
       </div>
     </div>
-  
+            <ProjectChatbox
+              user={user}
+              assignmentField="supervisorId"
+              title="Project Chatbox"
+              description="Coordinate directly with the inspector, external reviewer, and manager on assigned projects."
+              emptyStateLabel="No lead-review projects are available for chat yet."
+            />
+            </div>
           </div>
         </main>
       </div>

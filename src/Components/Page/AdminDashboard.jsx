@@ -25,8 +25,11 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns"; // Recommended for "2 mins ago" formatting
 import { useNavigate } from "react-router-dom";
+import ProjectChatbox from "../Common/ProjectChatbox";
+import { useAuth } from "../Auth/AuthContext";
 
 const AdminDashboard = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [userCount, setUserCount] = useState(0);
   const [inspectionCount, setInspectionCount] = useState(0);
@@ -217,7 +220,8 @@ const AdminDashboard = () => {
               ))}
             </div>
 
-            {/* Assistant Activity Log Section */}
+            {/* Activity + Chat */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -278,6 +282,13 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </div>
+            </div>
+            <ProjectChatbox
+              user={user}
+              title="Project Chatbox"
+              description="Monitor project conversations across all deployed projects."
+              emptyStateLabel="No project threads are available yet."
+            />
             </div>
           </div>
         </main>

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  ArrowRight,
-  BadgeCheck,
   ClipboardCheck,
   FileWarning,
   Inbox,
@@ -12,15 +10,19 @@ import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
-import SupervisorNavbar from "../SupervisorFiles/SupervisorNavbar";
-import SupervisorSidebar from "../SupervisorFiles/SupervisorSidebar";
+import ProjectChatbox from "../../Common/ProjectChatbox";
+
 import ExternalSideBar from "./ExternalSideBar";
+import ExternalNavbar from "./ExternalNavbar";
 
 const ExternalReviewer = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [assignedProjects, setAssignedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const reviewerName =
+    user?.fullName || user?.name || user?.displayName || user?.email || "External Reviewer";
 
   useEffect(() => {
     if (!user?.uid) {
@@ -29,9 +31,10 @@ const ExternalReviewer = () => {
       return undefined;
     }
 
+    setLoading(true);
     const projectsQuery = query(
       collection(db, "projects"),
-      where("supervisorId", "==", user.uid),
+      where("externalReviewerId", "==", user.uid),
     );
 
     const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
@@ -69,6 +72,9 @@ const ExternalReviewer = () => {
   const recentProjects = useMemo(
     () =>
       [...assignedProjects]
+        .filter(
+          (project) => String(project.status || "").trim().toLowerCase() === "approved",
+        )
         .sort((left, right) => {
           const leftMillis =
             left.updatedAt?.toMillis?.() ||
@@ -86,68 +92,116 @@ const ExternalReviewer = () => {
     [assignedProjects],
   );
 
-  return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <ExternalSideBar />
-      <div className="flex-1 ml-16 lg:ml-64">
-        <SupervisorNavbar />
-        <main className="p-4 sm:p-6 lg:p-8 space-y-6">
-          {/*<section className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 lg:p-8 shadow-2xl">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.35em] text-orange-400">
-                  External Reviewer
-                </p>
-                <h1 className="mt-3 text-3xl font-black tracking-tight text-white">
-                  Review queue and approval workspace
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm text-slate-400">
-                  Monitor assigned reviews, track returned items, and move projects through confirmation.
-                </p>
-              </div>
-              <button
-                onClick={() => navigate("/SubInspection_view")}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-sm font-bold uppercase tracking-[0.2em] text-white transition hover:bg-orange-700"
-              >
-                Open Review Queue
-                <ArrowRight size={16} />
-              </button>
-            </div>
-          </section>
+  const primaryClient = useMemo(() => {
+    if (assignedProjects.length === 0) {
+      return {
+        name: "Client Workspace",
+        logo: "",
+      };
+    }
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    const clientSummaries = assignedProjects.reduce((accumulator, project) => {
+      const name = String(project.clientName || project.client || "").trim();
+      const logo = String(
+        project.clientLogo || project.logo || project.client?.logo || "",
+      ).trim();
+
+      if (!name && !logo) {
+        return accumulator;
+      }
+
+      const key = name || "Unnamed Client";
+      const current = accumulator.get(key) || { count: 0, name: key, logo: "" };
+
+      accumulator.set(key, {
+        count: current.count + 1,
+        name: current.name,
+        logo: current.logo || logo,
+      });
+
+      return accumulator;
+    }, new Map());
+
+    const rankedClients = Array.from(clientSummaries.values()).sort(
+      (left, right) => right.count - left.count,
+    );
+    const dominantClient = rankedClients[0];
+
+    return {
+      name:
+        assignedProjects.length > 1 && rankedClients.length > 1
+          ? `${dominantClient?.name || "Client"} +${rankedClients.length - 1} more`
+          : dominantClient?.name ||
+        "Client Workspace",
+      logo:
+        dominantClient?.logo ||
+        "",
+    };
+  }, [assignedProjects]);
+
+  return (
+    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
+      <ExternalNavbar />
+      <div className="flex flex-1 min-h-screen">
+        <ExternalSideBar />
+        <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
+          <div className="max-w-7xl mx-auto">
+            <header className="flex justify-between items-end mb-8">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-lg shadow-black/20">
+                  {primaryClient.logo ? (
+                    <img
+                      src={primaryClient.logo}
+                      alt={`${primaryClient.name} logo`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xl font-black uppercase tracking-[0.2em] text-orange-500">
+                      {primaryClient.name.slice(0, 2)}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white tracking-tight">
+                    {primaryClient.name}
+                  </h1>
+                <p className="text-slate-400 text-sm mt-1">
+                  Welcome back,{" "}
+                  <span className="text-orange-500 font-semibold">
+                    {reviewerName}
+                  </span>
+                  .
+                </p>
+                </div>
+              </div>
+            </header>
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-4">
             <StatCard
               icon={<Inbox size={18} />}
-              label="Assigned Reviews"
+              label="Total Projects"
               value={metrics.total}
               tone="slate"
             />
             <StatCard
               icon={<ClipboardCheck size={18} />}
-              label="Pending Confirmation"
-              value={metrics.pending}
+              label="Returned Projects"
+              value={metrics.returned}
               tone="orange"
             />
             <StatCard
               icon={<FileWarning size={18} />}
-              label="Returned Items"
-              value={metrics.returned}
+              label="Confirmed Project"
+              value={metrics.confirmed}
               tone="red"
             />
-            <StatCard
-              icon={<BadgeCheck size={18} />}
-              label="Confirmed Items"
-              value={metrics.confirmed}
-              tone="emerald"
-            />
+            
           </section>
-
           <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Recent Assigned Reviews</h2>
-                  <p className="text-sm text-slate-400">Latest projects routed to your review queue.</p>
+                  <h2 className="text-lg font-bold text-white">Recent Projects Sent for Reviews</h2>
+                  <p className="text-sm text-slate-400">Project Listings.</p>
                 </div>
               </div>
 
@@ -174,7 +228,7 @@ const ExternalReviewer = () => {
                           {project.projectName || project.projectId || project.id}
                         </p>
                         <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
-                          {project.client || "Unassigned client"}
+                          {project.clientName || project.client || "Unassigned client"}
                         </p>
                         <p className="mt-3 text-sm text-slate-400">
                           {project.status || "Awaiting review"}
@@ -189,31 +243,15 @@ const ExternalReviewer = () => {
               )}
             </div>
 
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
-              <h2 className="text-lg font-bold text-white">Role Access</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                This dashboard is shown only for users with the <span className="font-semibold text-orange-400">External_Reviewer</span> role.
-              </p>
-
-              <div className="mt-6 space-y-3">
-                <QuickAction
-                  label="Pending inspections"
-                  description="Review active items assigned to you."
-                  onClick={() => navigate("/SubInspection_view")}
-                />
-                <QuickAction
-                  label="Confirmed inspections"
-                  description="Open already confirmed inspections."
-                  onClick={() => navigate("/ConfirmedInspection")}
-                />
-                <QuickAction
-                  label="Report review"
-                  description="Continue confirmation and feedback workflows."
-                  onClick={() => navigate("/review-for-confirmation")}
-                />
-              </div>
-            </div>
-          </section>*/}
+            <ProjectChatbox
+              user={user}
+              assignmentField="externalReviewerId"
+              title="Project Chatbox"
+              description="Chat with the assigned project team inside each external review thread."
+              emptyStateLabel="No external review projects are available for chat yet."
+            />
+          </section>
+         </div>
         </main>
       </div>
     </div>
@@ -236,16 +274,6 @@ const StatCard = ({ icon, label, value, tone }) => {
     </div>
   );
 };
-
-const QuickAction = ({ label, description, onClick }) => (
-  <button
-    onClick={onClick}
-    className="w-full rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-left transition hover:border-orange-500/40 hover:bg-slate-900"
-  >
-    <p className="text-sm font-bold text-white">{label}</p>
-    <p className="mt-1 text-sm text-slate-400">{description}</p>
-  </button>
-);
 
 const formatProjectAge = (project) => {
   const source =

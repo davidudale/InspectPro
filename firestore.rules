@@ -1,0 +1,245 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function myUserExists() {
+      return signedIn() && exists(myUserPath());
+    }
+
+    function myUser() {
+      return get(myUserPath()).data;
+    }
+
+    function myRole() {
+      return myUserExists() ? myUser().role : null;
+    }
+
+    function isAdmin() {
+      return myRole() == "Admin";
+    }
+
+    function isManager() {
+      return myRole() == "Manager";
+    }
+
+    function isLeadInspector() {
+      return myRole() == "Lead Inspector";
+    }
+
+    function isExternalReviewer() {
+      return myRole() == "External_Reviewer";
+    }
+
+    function isInspector() {
+      return myRole() == "Inspector";
+    }
+
+    function isReviewerTier() {
+      return isLeadInspector() || isExternalReviewer();
+    }
+
+    function isManagerOrAbove() {
+      return isManager() || isAdmin();
+    }
+
+    function isLeadOrAbove() {
+      return isReviewerTier() || isManagerOrAbove();
+    }
+
+    function projectAssignedToMe(data) {
+      return signedIn() && (
+        data.inspectorId == request.auth.uid ||
+        data.supervisorId == request.auth.uid ||
+        data.externalReviewerId == request.auth.uid ||
+        data.managerId == request.auth.uid
+      );
+    }
+
+    function canReadProject(data) {
+      return isAdmin() ||
+             isManager() ||
+             isReviewerTier() ||
+             projectAssignedToMe(data);
+    }
+
+    function canUpdateProject(data) {
+      return isAdmin() ||
+             data.inspectorId == request.auth.uid ||
+             data.supervisorId == request.auth.uid ||
+             data.externalReviewerId == request.auth.uid ||
+             data.managerId == request.auth.uid;
+    }
+
+    function isOwnLog() {
+      return signedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.userEmail == request.auth.token.email
+      );
+    }
+
+    function isCreatingOwnLog() {
+      return signedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.userEmail == request.auth.token.email
+      );
+    }
+
+    function projectDocById(projectDocId) {
+      return get(/databases/$(database)/documents/projects/$(projectDocId));
+    }
+
+    function projectDocExists(projectDocId) {
+      return projectDocId is string &&
+             exists(/databases/$(database)/documents/projects/$(projectDocId));
+    }
+
+    function threadHasProjectDoc(threadData) {
+      return threadData.projectDocId is string &&
+             projectDocExists(threadData.projectDocId);
+    }
+
+    function canAccessThread(threadData) {
+      return signedIn() && (
+        isAdmin() ||
+        (
+          threadHasProjectDoc(threadData) &&
+          projectAssignedToMe(projectDocById(threadData.projectDocId).data)
+        ) ||
+        (
+          threadData.participantIds is list &&
+          request.auth.uid in threadData.participantIds
+        )
+      );
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && (
+        userId == request.auth.uid ||
+        isLeadOrAbove()
+      );
+
+      allow create: if signedIn() && (
+        userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow update: if signedIn() && (
+        userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /projects/{projectId} {
+      allow read: if signedIn() && canReadProject(resource.data);
+
+      allow create: if isAdmin();
+
+      allow update: if signedIn() && canUpdateProject(resource.data);
+
+      allow delete: if isManagerOrAbove();
+    }
+
+    match /project_chats/{threadId} {
+      allow read: if canAccessThread(resource.data);
+
+      allow create, update: if signedIn() && (
+        isAdmin() ||
+        (
+          request.resource.data.projectDocId is string &&
+          projectDocExists(request.resource.data.projectDocId) &&
+          projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data)
+        )
+      );
+
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if canAccessThread(
+          get(/databases/$(database)/documents/project_chats/$(threadId)).data
+        );
+
+        allow create: if signedIn() && (
+          isAdmin() ||
+          (
+            request.resource.data.projectDocId is string &&
+            projectDocExists(request.resource.data.projectDocId) &&
+            projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data) &&
+            request.resource.data.userId == request.auth.uid
+          ) ||
+          (
+            get(/databases/$(database)/documents/project_chats/$(threadId)).exists() &&
+            canAccessThread(
+              get(/databases/$(database)/documents/project_chats/$(threadId)).data
+            ) &&
+            request.resource.data.userId == request.auth.uid
+          )
+        );
+
+        allow update, delete: if isAdmin();
+      }
+    }
+
+    match /activity_logs/{logId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        isManager() ||
+        isOwnLog()
+      );
+
+      allow create: if signedIn() && (
+        isAdmin() ||
+        isManager() ||
+        isCreatingOwnLog()
+      );
+
+      allow update: if isAdmin();
+
+      allow delete: if isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /locations/{locationId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /equipment/{equipmentId} {
+      allow read: if isLeadOrAbove();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /inspection_types/{typeId} {
+      allow read: if isLeadOrAbove();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /inspection_type/{typeId} {
+      allow read: if isLeadOrAbove();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /inspections/{inspectionId} {
+      allow read: if isLeadOrAbove();
+      allow create: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    match /companyprofile/{docId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

@@ -25,6 +25,7 @@ import ManagerNavbar from "../Dashboards/ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../Dashboards/ManagerFile/ManagerSidebar";
 import { useAuth } from "../Auth/AuthContext";
 import { useNavigate } from "react-router-dom";
+import ProjectChatbox from "../Common/ProjectChatbox";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -314,7 +315,8 @@ const AdminDashboard = () => {
               ))}
             </div>
 
-            {/* Assistant Activity Log Section */}
+            {/* Activity + Chat */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -362,7 +364,14 @@ const AdminDashboard = () => {
         )}
       </div>
     </div>
-  
+            <ProjectChatbox
+              user={user}
+              assignmentField="managerId"
+              title="Approval Chatbox"
+              description="Discuss approval decisions with the project team inside each assigned thread."
+              emptyStateLabel="No approval projects are available for chat yet."
+            />
+            </div>
           </div>
         </main>
       </div>

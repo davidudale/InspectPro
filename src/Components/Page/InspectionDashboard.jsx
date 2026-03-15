@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Auth/AuthContext";
 import InspectorNavbar from "../Dashboards/InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../Dashboards/InspectorsFile/InspectorSidebar";
+import ProjectChatbox from "../Common/ProjectChatbox";
 
 const InspectionDashboard = () => {
   const { user } = useAuth();
@@ -382,19 +383,13 @@ const InspectionDashboard = () => {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6 flex flex-col justify-center items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center mb-4">
-                  <Activity className="text-slate-600" size={32} />
-                </div>
-                <h3 className="text-white font-bold">Project Chatbox</h3>
-                <p className="text-slate-500 text-sm mt-2 max-w-[250px]">
-                  Connect your assistant to view real-time data visualization
-                  charts.
-                </p>
-                <button className="mt-6 text-orange-500 text-xs font-bold uppercase tracking-widest hover:underline">
-                  Configure Widget
-                </button>
-              </div>
+              <ProjectChatbox
+                user={user}
+                assignmentField="inspectorId"
+                title="Project Chatbox"
+                description="Chat with the assigned lead inspector, external reviewer, and manager on each project."
+                emptyStateLabel="No assigned inspections are available for chat yet."
+              />
             </div>
           </div>
         </main>

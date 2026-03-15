@@ -50,6 +50,7 @@ const ProjectEdit = () => {
   const [masterEquipment, setMasterEquipment] = useState([]);
   const [inspectors, setInspectors] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
+  const [externalReviewers, setExternalReviewers] = useState([]);
   const [managers, setManagers] = useState([]);
 
   const [setupData, setSetupData] = useState({
@@ -75,6 +76,8 @@ const ProjectEdit = () => {
     inspectorName: "",
     supervisorId: "",
     supervisorName: "",
+    externalReviewerId: "",
+    externalReviewerName: "",
     managerId: "",
     managerName: "",
     startDate: "",
@@ -106,9 +109,14 @@ const ProjectEdit = () => {
         setInspectors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
     const unsubSupervisors = onSnapshot(
-      query(collection(db, "users"), where("role", "in", ["Lead Inspector", "External_Reviewer"])),
+      query(collection(db, "users"), where("role", "==", "Lead Inspector")),
       (snap) =>
         setSupervisors(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    );
+    const unsubExternalReviewers = onSnapshot(
+      query(collection(db, "users"), where("role", "==", "External_Reviewer")),
+      (snap) =>
+        setExternalReviewers(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     );
     const unsubManagers = onSnapshot(
       query(collection(db, "users"), where("role", "==", "Manager")),
@@ -122,6 +130,7 @@ const ProjectEdit = () => {
       unsubEquip();
       unsubInspectors();
       unsubSupervisors();
+      unsubExternalReviewers();
       unsubManagers();
     };
   }, []);
@@ -229,6 +238,10 @@ const ProjectEdit = () => {
 
       await updateDoc(doc(db, "projects", resolvedDocId), {
         ...setupData,
+        approvedAt:
+          setupData.status === "Approved"
+            ? setupData.approvedAt || serverTimestamp()
+            : setupData.approvedAt || null,
         lastUpdated: serverTimestamp(),
         adminId: user?.uid || "",
         adminName: user?.displayName || user?.name || "System Admin",
@@ -518,10 +531,41 @@ const ProjectEdit = () => {
                           }));
                         }}
                       >
-                        <option value="">Select Lead Inspector / External_Reviewer</option>
+                        <option value="">Select lead inspector</option>
                         {supervisors.map((sup) => (
                           <option key={sup.id} value={sup.id}>
                             {sup.displayName || sup.name || sup.email}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                        Assign External Reviewer
+                      </label>
+                      <select
+                        required
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
+                        value={setupData.externalReviewerId}
+                        onChange={(e) => {
+                          const selected = externalReviewers.find(
+                            (reviewer) => reviewer.id === e.target.value,
+                          );
+                          setSetupData((prev) => ({
+                            ...prev,
+                            externalReviewerId: selected?.id || "",
+                            externalReviewerName:
+                              selected?.displayName ||
+                              selected?.name ||
+                              selected?.fullName ||
+                              "",
+                          }));
+                        }}
+                      >
+                        <option value="">Select external reviewer</option>
+                        {externalReviewers.map((reviewer) => (
+                          <option key={reviewer.id} value={reviewer.id}>
+                            {reviewer.displayName || reviewer.name || reviewer.fullName || reviewer.email}
                           </option>
                         ))}
                       </select>

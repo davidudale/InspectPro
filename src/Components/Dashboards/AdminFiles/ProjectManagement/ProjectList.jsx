@@ -12,6 +12,17 @@ import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const ProjectList = () => {
+  const formatDate = (value) => {
+    if (!value) return "N/A";
+    if (typeof value?.toDate === "function") {
+      return value.toDate().toLocaleDateString();
+    }
+    if (value instanceof Date) {
+      return value.toLocaleDateString();
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleDateString();
+  };
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -30,6 +41,25 @@ const ProjectList = () => {
     row?.timestamp ||
     row?.startDate ||
     0;
+  const getProjectStartDate = (project) =>
+    project?.startDate ||
+    project?.deploymentDate ||
+    project?.inspectionStartedAt ||
+    project?.createdAt ||
+    project?.timestamp ||
+    null;
+  const getProjectEndDate = (project) => {
+    const status = String(project?.status || "").toLowerCase();
+    if (status !== "approved") return null;
+    return (
+      project?.approvedAt ||
+      project?.confirmedAt ||
+      project?.confirmationDate ||
+      project?.updatedAt ||
+      project?.lastUpdated ||
+      null
+    );
+  };
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -154,6 +184,8 @@ const ProjectList = () => {
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project Identity</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Client & Industry</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Facility Location</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Start Date</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">End Date</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Status</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Administrative Actions</th>
                       </tr>
@@ -161,6 +193,8 @@ const ProjectList = () => {
                     <tbody className="divide-y divide-slate-800/50">
                       {filteredProjects.map((project) => {
                         const operationalStatus = getOperationalStatus(project);
+                        const projectStartDate = getProjectStartDate(project);
+                        const projectEndDate = getProjectEndDate(project);
                         const isInProgress = operationalStatus
                           .toLowerCase()
                           .startsWith("in progress");
@@ -192,6 +226,16 @@ const ProjectList = () => {
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin size={14} className="text-orange-500/50" />
                               <span className="text-xs font-medium">{project.locationName || project.location || "On-Shore Terminal"}</span>
+                            </div>
+                          </td>
+                          <td className="p-6">
+                            <div className="text-xs font-medium text-slate-300">
+                              {formatDate(projectStartDate)}
+                            </div>
+                          </td>
+                          <td className="p-6">
+                            <div className="text-xs font-medium text-slate-300">
+                              {projectEndDate ? formatDate(projectEndDate) : "Pending"}
                             </div>
                           </td>
                           <td className="p-6">
