@@ -287,12 +287,12 @@ const ProjectChatbox = ({
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[min(26rem,calc(100vw-1rem))] sm:bottom-6 sm:right-6 sm:w-[26rem]">
+    <div className="fixed bottom-3 right-3 z-50  w-[min(22rem,calc(100vw-0.75rem))] sm:bottom-4 sm:right-4 sm:w-[23rem]">
       {isCollapsed ? (
         <button
           type="button"
           onClick={() => setIsCollapsed(false)}
-          className="ml-auto flex w-full max-w-[20rem] items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-4 py-3 text-left shadow-2xl backdrop-blur-md transition hover:border-orange-500/40"
+          className="ml-auto flex w-full max-w-[17rem] items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-950/95 px-3 py-2.5 text-left shadow-2xl backdrop-blur-md transition hover:border-orange-500/40"
         >
           <div className="flex min-w-0 items-center gap-3">
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-orange-500">
@@ -315,7 +315,7 @@ const ProjectChatbox = ({
           </div>
         </button>
       ) : (
-        <div className="rounded-[1.75rem] border border-slate-800 bg-slate-900/95 p-4 shadow-2xl backdrop-blur-md sm:p-5">
+        <div className="max-h-[min(36rem,calc(100vh-1rem))] overflow-y-auto rounded-[1.5rem] border border-slate-800 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700 sm:max-h-[min(40rem,calc(100vh-2rem))] sm:p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
@@ -324,7 +324,7 @@ const ProjectChatbox = ({
                 </div>
                 <div className="min-w-0">
                   <h2 className="truncate font-bold text-white">{title}</h2>
-                  <p className="mt-1 text-sm text-slate-400">{description}</p>
+                  
                 </div>
               </div>
             </div>
@@ -338,13 +338,13 @@ const ProjectChatbox = ({
             </button>
           </div>
 
-          <div className="mt-5 space-y-4">
+          <div className="mt-3 space-y-2.5">
             <div className="space-y-2">
               <label className="text-[10px] font-bold uppercase tracking-[0.25em] text-slate-500">
                 Project Thread
               </label>
               <select
-                className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                className="w-full rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-sm text-white outline-none transition focus:border-orange-500"
                 value={selectedProjectId}
                 onChange={(event) => setSelectedProjectId(event.target.value)}
                 disabled={projectsLoading || projects.length === 0}
@@ -364,7 +364,7 @@ const ProjectChatbox = ({
             </div>
 
             {selectedProject && (
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
                 <div className="flex items-center gap-2 text-slate-300">
                   <Users size={14} className="text-orange-400" />
                   <p className="text-xs font-bold uppercase tracking-[0.2em]">
@@ -390,7 +390,7 @@ const ProjectChatbox = ({
 
             <div
               ref={listRef}
-              className="h-[280px] space-y-3 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-4 sm:h-[320px]"
+              className="h-[240px] space-y-2.5 overflow-y-auto rounded-2xl border border-slate-800 bg-slate-950/70 p-3 scrollbar-thin scrollbar-track-slate-950 scrollbar-thumb-slate-700 sm:h-[200px] "
             >
               {projectsLoading ? (
                 <p className="text-sm text-slate-500">Loading project threads...</p>
@@ -413,7 +413,7 @@ const ProjectChatbox = ({
                       <div
                         className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                           isCurrentUser
-                            ? "bg-orange-600 text-white"
+                            ? "bg-orange-600 text-white text-sm"
                             : "border border-slate-800 bg-slate-900 text-slate-100"
                         }`}
                       >
@@ -445,7 +445,7 @@ const ProjectChatbox = ({
               )}
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-3 sm:h-[100px]">
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
@@ -456,7 +456,7 @@ const ProjectChatbox = ({
                     : "Select a project to start chatting..."
                 }
                 disabled={!selectedProjectId || isSending}
-                className="h-24 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                className="h-20 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
                 <p className="text-[11px] text-slate-500">

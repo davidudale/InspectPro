@@ -387,7 +387,7 @@ const InspectionDashboard = () => {
                 user={user}
                 assignmentField="inspectorId"
                 title="Project Chatbox"
-                description="Chat with the assigned lead inspector, external reviewer, and manager on each project."
+                description=""
                 emptyStateLabel="No assigned inspections are available for chat yet."
               />
             </div>
