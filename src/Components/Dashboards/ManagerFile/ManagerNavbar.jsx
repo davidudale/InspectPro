@@ -4,9 +4,12 @@ import { auth, db } from "../../Auth/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../Auth/AuthContext";
+import MessageBell from "../../Common/MessageBell";
 
 const ManagerNavbar = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState("Guest");
   const [userFname, setUserFname] = useState("");
@@ -49,6 +52,7 @@ const ManagerNavbar = () => {
 
         {/* Desktop Nav Links */}
         <div className="hidden md:flex items-center space-x-4">
+          <MessageBell user={user} />
           <div className="flex flex-col items-end mr-2">
              {/* Displaying the actual user email instead of a hardcoded string */}
             <span className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">{userFname}</span>

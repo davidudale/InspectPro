@@ -133,6 +133,10 @@ const VisualReport = ({
       schematicSubtitle: "",
       schematicNotes: "",
       pidTitle: "",
+      pipeSupportNotes:
+        "Inspected for mechanical damage, sagging, distortion, coating failure, corrosion, pitting, cracks in welds, vibration, corrosion under pipe supports, etc. as applicable.",
+      specialConsiderationNotes:
+        "Inspected for signs of leakage, mechanical damage, coating failure, corrosion, pitting, cracks in welds, vibration, etc. as applicable.",
     },
     observations: [
       {
@@ -1349,6 +1353,12 @@ const VisualReport = ({
         schematicSubtitle: asText(i.schematicSubtitle),
         schematicNotes: asText(i.schematicNotes),
         pidTitle: asText(i.pidTitle),
+        pipeSupportNotes:
+          asText(i.pipeSupportNotes || i.finalNotes) ||
+          "Inspected for mechanical damage, sagging, distortion, coating failure, corrosion, pitting, cracks in welds, vibration, corrosion under pipe supports, etc. as applicable.",
+        specialConsiderationNotes:
+          asText(i.specialConsiderationNotes) ||
+          "Inspected for signs of leakage, mechanical damage, coating failure, corrosion, pitting, cracks in welds, vibration, etc. as applicable.",
       },
       observations,
       checklist,
@@ -1638,6 +1648,7 @@ const VisualReport = ({
                     }
                     required
                   />
+                  
                 </div>
               </section>
 
@@ -1673,7 +1684,9 @@ const VisualReport = ({
                             Remove
                           </button>
                         )}
+                        
                       </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="flex flex-col gap-2">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -1932,6 +1945,13 @@ const VisualReport = ({
                       </div>
                     </div>
                   ))}
+                  <TextArea
+                    label="Pipe Support Notes"
+                    value={reportData.inspection.pipeSupportNotes || ""}
+                    onChange={(v) =>
+                      handleChange("inspection", "pipeSupportNotes", v)
+                    }
+                  />
                 </div>
               </section>
 
@@ -2091,6 +2111,13 @@ const VisualReport = ({
                       </div>
                     </div>
                   ))}
+                  <TextArea
+                    label="Special Consideration Notes"
+                    value={reportData.inspection.specialConsiderationNotes || ""}
+                    onChange={(v) =>
+                      handleChange("inspection", "specialConsiderationNotes", v)
+                    }
+                  />
                 </div>
               </section>
 
@@ -3685,10 +3712,8 @@ export const VisualWebView = ({
                   <div className="mt-2 border border-t-0 border-black px-2 py-1 text-[10px] leading-5 text-black">
                     <p className="font-bold underline text-red-700">Notes:</p>
                     <p>
-                      Inspected for mechanical damage, sagging, distortion,
-                      coating failure, corrosion, pitting, cracks in welds,
-                      vibration, corrosion under pipe supports, etc. as
-                      applicable.
+                      {reportData?.inspection?.pipeSupportNotes ||
+                        "Inspected for mechanical damage, sagging, distortion, coating failure, corrosion, pitting, cracks in welds, vibration, corrosion under pipe supports, etc. as applicable."}
                     </p>
                   </div>
                 )}
@@ -3791,9 +3816,8 @@ export const VisualWebView = ({
                   <div className="mt-2 border border-t-0 border-black px-2 py-1 text-[10px] leading-5 text-black">
                     <p className="font-bold underline">Notes:</p>
                     <p>
-                      Inspected for signs of leakage, mechanical damage,
-                      coating failure, corrosion, pitting, cracks in welds,
-                      vibration, etc. as applicable.
+                      {reportData?.inspection?.specialConsiderationNotes ||
+                        "Inspected for signs of leakage, mechanical damage, coating failure, corrosion, pitting, cracks in welds, vibration, etc. as applicable."}
                     </p>
                   </div>
                 )}
@@ -3982,6 +4006,113 @@ export const VisualWebView = ({
             </div>
           </div>
         ))}
+
+        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+          <div className="absolute inset-0">
+            <div className="absolute -top-24 -left-16 h-64 w-64 rounded-full bg-blue-100/60 blur-2xl" />
+            <div className="absolute bottom-12 -right-20 h-72 w-72 rounded-full bg-cyan-100/60 blur-2xl" />
+          </div>
+
+          {reportHeader}
+
+          <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
+            <div className="rounded-sm border border-slate-800 bg-white overflow-hidden">
+              <table className="w-full border-collapse table-fixed">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[11px] font-bold text-black leading-tight uppercase">
+                    <th className="w-1/3 border-r border-slate-200 p-2 text-left">
+                      Prepared By
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        Inspector
+                      </div>
+                    </th>
+                    <th className="w-1/3 border-r border-slate-200 p-2 text-left">
+                      Reviewed by
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        Lead Inspector
+                      </div>
+                    </th>
+                    <th className="w-1/3 p-2 text-left">
+                      Verified By
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        NDE Advisor
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-800">
+                  <tr className="bg-slate-50/70 text-[10px]">
+                    <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.inspectorSignature ? (
+                          <img
+                            src={reportData.signoff.inspectorSignature}
+                            alt="Prepared by signature"
+                            className="mb-2 h-14 w-auto object-contain"
+                          />
+                        ) : null}
+                        <div className="mb-2 h-6 border-b border-slate-400" />
+                        <div className="text-[9px] font-semibold uppercase text-black">
+                          {reportData.signoff.inspector ||
+                            reportData.general?.inspectorName ||
+                            "Inspector"}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.reviewerSignature ? (
+                          <img
+                            src={reportData.signoff.reviewerSignature}
+                            alt="Lead inspector signature"
+                            className="mb-2 h-14 w-auto object-contain"
+                          />
+                        ) : null}
+                        <div className="mb-2 h-6 border-b border-slate-400" />
+                        <div className="text-[9px] font-semibold uppercase text-black">
+                          {reportData.signoff.reviewer ||
+                            reportData.general?.assignedSupervisorName ||
+                            reportData.general?.supervisorName ||
+                            reportData?.assignedSupervisorName ||
+                            reportData?.supervisorName ||
+                            "Lead Inspector"}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="h-[220px] p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.managerSignature ? (
+                          <img
+                            src={reportData.signoff.managerSignature}
+                            alt="NDE advisor signature"
+                            className="mb-2 h-14 w-auto object-contain"
+                          />
+                        ) : null}
+                        <div className="mb-2 h-6 border-b border-slate-400" />
+                        <div className="text-[9px] font-semibold uppercase text-black">
+                          {reportData.signoff.manager ||
+                            reportData.general?.managerName ||
+                            "NDT Advisor"}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="relative mt-auto px-12 pb-8">
+            <div className="border-t-2 border-slate-900/80 pt-6 text-center">
+              <p className="text-[10px] font-black tracking-[0.4em] text-red-600">
+                Original Document
+              </p>
+            </div>
+            <div className="pt-4 text-right text-[10px] font-bold uppercase tracking-widest text-black">
+              Page {signaturePage} of {totalPages}
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>

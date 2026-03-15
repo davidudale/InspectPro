@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 import { MessageSquare, Send, Users } from "lucide-react";
 import { toast } from "react-toastify";
@@ -192,8 +193,13 @@ const ProjectChatbox = ({
     setIsSending(true);
     try {
       const participantIds = buildParticipantIds(selectedProject);
-      await setDoc(
-        doc(db, "project_chats", selectedProjectId),
+      const threadRef = doc(db, "project_chats", selectedProjectId);
+      const messageRef = doc(collection(db, "project_chats", selectedProjectId, "messages"));
+      const senderName = getDisplayName(user);
+      const batch = writeBatch(db);
+
+      batch.set(
+        threadRef,
         {
           projectId: selectedProject.projectId || selectedProjectId,
           projectDocId: selectedProject.id || "",
@@ -201,21 +207,26 @@ const ProjectChatbox = ({
           clientName: selectedProject.clientName || selectedProject.client || "",
           participantIds,
           participants: buildParticipants(selectedProject),
+          lastMessageText: text,
+          lastMessageSenderId: user.uid,
+          lastMessageSenderName: senderName,
+          lastMessageAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         },
         { merge: true },
       );
 
-      await addDoc(collection(db, "project_chats", selectedProjectId, "messages"), {
+      batch.set(messageRef, {
         text,
         projectId: selectedProject.projectId || selectedProjectId,
         projectDocId: selectedProject.id || "",
         userId: user.uid,
         userEmail: user.email || "",
-        userName: getDisplayName(user),
+        userName: senderName,
         userRole: user.role || "",
         timestamp: serverTimestamp(),
       });
+      await batch.commit();
       setDraft("");
       toast.success("Message sent");
     } catch (error) {
