@@ -20,7 +20,7 @@ const sidebarLinks = [
     href: "/external-reviewer-dashboard",
   },
   {
-    name: "Projects",
+    name: "Reports",
     icon: <FolderKanban size={20} />,
     href: "/external-reviewer-projects",
   },

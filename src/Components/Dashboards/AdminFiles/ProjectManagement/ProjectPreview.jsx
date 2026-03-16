@@ -233,6 +233,11 @@ const ReportDownloadView = ({
           base.diagramImage ||
           project?.report?.general?.diagramImage ||
           "",
+        pidImage:
+          baseGeneral.pidImage ||
+          base.pidImage ||
+          project?.report?.general?.pidImage ||
+          "",
         utCalibrationCert:
           baseGeneral.utCalibrationCert ||
           base.utCalibrationCert ||

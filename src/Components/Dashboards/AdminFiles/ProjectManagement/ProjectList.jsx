@@ -187,6 +187,7 @@ const ProjectList = () => {
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Start Date</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">End Date</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Status</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Report View</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Administrative Actions</th>
                       </tr>
                     </thead>
@@ -195,6 +196,10 @@ const ProjectList = () => {
                         const operationalStatus = getOperationalStatus(project);
                         const projectStartDate = getProjectStartDate(project);
                         const projectEndDate = getProjectEndDate(project);
+                        const reportViewCode =
+                          String(project?.status || "").trim().toLowerCase() === "approved"
+                            ? "E"
+                            : "I";
                         const isInProgress = operationalStatus
                           .toLowerCase()
                           .startsWith("in progress");
@@ -246,6 +251,11 @@ const ProjectList = () => {
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${isInProgress ? 'bg-orange-500 animate-pulse' : 'bg-slate-600'}`}></span>
                               {operationalStatus}
+                            </div>
+                          </td>
+                          <td className="p-6">
+                            <div className="inline-flex min-w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-white">
+                              {reportViewCode}
                             </div>
                           </td>
                           <td className="p-6 text-right">

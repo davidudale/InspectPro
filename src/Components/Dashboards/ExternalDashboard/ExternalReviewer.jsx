@@ -177,11 +177,11 @@ const ExternalReviewer = () => {
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-4">
             <StatCard
               icon={<Inbox size={18} />}
-              label="Total Projects"
+              label="Total Reports"
               value={metrics.total}
               tone="slate"
             />
-            <StatCard
+           {/*} <StatCard
               icon={<ClipboardCheck size={18} />}
               label="Returned Projects"
               value={metrics.returned}
@@ -192,10 +192,10 @@ const ExternalReviewer = () => {
               label="Confirmed Project"
               value={metrics.confirmed}
               tone="red"
-            />
+            />*/}
             
           </section>
-          <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+          {/*<section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
@@ -243,7 +243,7 @@ const ExternalReviewer = () => {
             </div>
 
             
-          </section>
+          </section>*/}
          </div>
         </main>
       </div>

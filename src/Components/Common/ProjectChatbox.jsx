@@ -458,11 +458,7 @@ const ProjectChatbox = ({
                 disabled={!selectedProjectId || isSending}
                 className="h-20 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
               />
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-[11px] text-slate-500">
-                  Messages are grouped by project ID and visible to assigned team members.
-                </p>
-                <div className="flex items-center gap-2">
+              <div className="mt-3 flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={handleClearChat}
@@ -480,7 +476,6 @@ const ProjectChatbox = ({
                     <Send size={14} />
                     {isSending ? "Sending" : "Send"}
                   </button>
-                </div>
               </div>
             </div>
           </div>

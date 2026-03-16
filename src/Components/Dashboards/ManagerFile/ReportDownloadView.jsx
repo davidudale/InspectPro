@@ -197,6 +197,11 @@ const ReportDownloadView = ({
           base.diagramImage ||
           project?.report?.general?.diagramImage ||
           "",
+        pidImage:
+          baseGeneral.pidImage ||
+          base.pidImage ||
+          project?.report?.general?.pidImage ||
+          "",
         clientLogo:
           baseGeneral.clientLogo ||
           project?.clientLogo ||
