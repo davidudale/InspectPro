@@ -48,6 +48,7 @@ import ReportPlaceholder from "./Components/Dashboards/ReportManager/ReportPlace
 import ProjectsReviewing from "./Components/Dashboards/ExternalDashboard/ProjectsReviewing.jsx";
 import Feedback from "./Components/Dashboards/ExternalDashboard/Feedback.jsx";
 import ExternalFeedbackManager from "./Components/Dashboards/AdminFiles/FeedbackManagement/ExternalFeedbackManager.jsx";
+import InspectedEquipment from "./Components/Dashboards/ExternalDashboard/InspectedEquipment.jsx";
 function App() {
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
@@ -155,6 +156,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["External_Reviewer"]}>
               <ExternalReviewer />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/external-reviewer-equipment"
+          element={
+            <ProtectedRoute allowedRoles={["External_Reviewer"]}>
+              <InspectedEquipment />
             </ProtectedRoute>
           }
         />

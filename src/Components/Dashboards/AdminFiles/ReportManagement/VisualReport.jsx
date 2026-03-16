@@ -203,9 +203,15 @@ const VisualReport = ({
       inspector: "",
       supervisor: "",
       manager: "",
+      externalReviewer: "",
+      inspectorQualification: "",
+      reviewerQualification: "",
+      managerQualification: "",
+      externalReviewerQualification: "",
       inspectorSignature: "",
       reviewerSignature: "",
       managerSignature: "",
+      externalReviewerSignature: "",
     },
     customSections: [],
   });
@@ -285,9 +291,17 @@ const VisualReport = ({
     user?.role === "Manager" || user?.role === "Admin";
   const canEditManagerSignature =
     user?.role === "Manager" || user?.role === "Admin";
+  const canViewExternalReviewerSignature = [
+    "External_Reviewer",
+    "Manager",
+    "Admin",
+  ].includes(user?.role);
+  const canEditExternalReviewerSignature =
+    user?.role === "External_Reviewer" || user?.role === "Admin";
   // Role-aware visibility for signoff name fields.
   const canViewInspectorField = canViewInspectorSignature;
   const canViewLeadField = canViewLeadSignature;
+  const canViewExternalReviewerField = canViewExternalReviewerSignature;
   const canViewManagerField = canViewManagerSignature;
   const Navbar =
     user?.role === "Admin"
@@ -317,6 +331,8 @@ const VisualReport = ({
         p.inspectorName || p.assignedInspectorName || "";
       const prefillSupervisorName =
         p.supervisorName || p.assignedSupervisorName || "";
+      const prefillExternalReviewerName =
+        p.externalReviewerName || p.assignedExternalReviewerName || "";
       const prefillManagerName =
         p.managerName || p.assignedManagerName || "";
 
@@ -343,6 +359,8 @@ const VisualReport = ({
           ...prev.signoff,
           inspector: prev.signoff.inspector || prefillInspectorName,
           reviewer: prev.signoff.reviewer || prefillSupervisorName,
+          externalReviewer:
+            prev.signoff.externalReviewer || prefillExternalReviewerName,
           manager: prev.signoff.manager || prefillManagerName,
         },
       }));
@@ -435,6 +453,11 @@ const VisualReport = ({
                 projectData?.supervisorName ||
                 prefillSupervisorName ||
                 "",
+              externalReviewer:
+                existingData?.signoff?.externalReviewer ||
+                projectData?.externalReviewerName ||
+                prefillExternalReviewerName ||
+                "",
               manager:
                 existingData?.signoff?.manager ||
                 projectData?.managerName ||
@@ -476,6 +499,11 @@ const VisualReport = ({
                 prev.signoff.reviewer ||
                 projectData?.supervisorName ||
                 prefillSupervisorName ||
+                "",
+              externalReviewer:
+                prev.signoff.externalReviewer ||
+                projectData?.externalReviewerName ||
+                prefillExternalReviewerName ||
                 "",
               manager:
                 prev.signoff.manager ||
@@ -1368,9 +1396,15 @@ const VisualReport = ({
       signoff: {
         inspector: asText(s.inspector || user?.displayName || ""),
         reviewer: asText(s.reviewer),
+        externalReviewer: asText(s.externalReviewer),
         manager: asText(s.manager),
+        inspectorQualification: asText(s.inspectorQualification),
+        reviewerQualification: asText(s.reviewerQualification),
+        externalReviewerQualification: asText(s.externalReviewerQualification),
+        managerQualification: asText(s.managerQualification),
         inspectorSignature: asText(s.inspectorSignature),
         reviewerSignature: asText(s.reviewerSignature),
+        externalReviewerSignature: asText(s.externalReviewerSignature),
         managerSignature: asText(s.managerSignature),
       },
       customSections,
@@ -2274,48 +2308,107 @@ const VisualReport = ({
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12 bg-slate-900">
                   Signature
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                   {canViewInspectorField && (
-                    <InputField
-                      label="Inspector"
-                      value={
-                        reportData.signoff.inspector ||
-                        reportData.general.inspectorName ||
-                        location.state?.preFill?.inspectorName ||
-                        ""
-                      }
-                      onChange={(v) => handleChange("signoff", "inspector", v)}
-                      required
-                    />
+                    <div className="space-y-4">
+                      <InputField
+                        label="Inspector"
+                        value={
+                          reportData.signoff.inspector ||
+                          reportData.general.inspectorName ||
+                          location.state?.preFill?.inspectorName ||
+                          ""
+                        }
+                        onChange={(v) => handleChange("signoff", "inspector", v)}
+                        required
+                      />
+                      <InputField
+                        label="Inspector Qualification"
+                        value={reportData.signoff.inspectorQualification || ""}
+                        onChange={(v) =>
+                          handleChange("signoff", "inspectorQualification", v)
+                        }
+                        placeholder="e.g. ASNT Level II"
+                      />
+                    </div>
                   )}
                   {canViewLeadField && (
-                    <InputField
-                      label="Lead Inspector"
-                      value={
-                        reportData.signoff.reviewer ||
-                        reportData.general.supervisorName ||
-                        location.state?.preFill?.supervisorName ||
-                        ""
-                      }
-                      onChange={(v) => handleChange("signoff", "reviewer", v)}
-                      required
-                    />
+                    <div className="space-y-4">
+                      <InputField
+                        label="Lead Inspector"
+                        value={
+                          reportData.signoff.reviewer ||
+                          reportData.general.supervisorName ||
+                          location.state?.preFill?.supervisorName ||
+                          ""
+                        }
+                        onChange={(v) => handleChange("signoff", "reviewer", v)}
+                        required
+                      />
+                      <InputField
+                        label="Lead Inspector Qualification"
+                        value={reportData.signoff.reviewerQualification || ""}
+                        onChange={(v) =>
+                          handleChange("signoff", "reviewerQualification", v)
+                        }
+                        placeholder="e.g. ASNT Level III"
+                      />
+                    </div>
+                  )}
+                  {canViewExternalReviewerField && (
+                    <div className="space-y-4">
+                      <InputField
+                        label="External Reviewer"
+                        value={
+                          reportData.signoff.externalReviewer ||
+                          location.state?.preFill?.externalReviewerName ||
+                          ""
+                        }
+                        onChange={(v) =>
+                          handleChange("signoff", "externalReviewer", v)
+                        }
+                      />
+                      <InputField
+                        label="External Reviewer Qualification"
+                        value={
+                          reportData.signoff.externalReviewerQualification || ""
+                        }
+                        onChange={(v) =>
+                          handleChange(
+                            "signoff",
+                            "externalReviewerQualification",
+                            v,
+                          )
+                        }
+                        placeholder="e.g. API 570 Reviewer"
+                      />
+                    </div>
                   )}
                   {canViewManagerField && (
-                    <InputField
-                      label="NDT Manager"
-                      value={
-                        reportData.signoff.manager ||
-                        reportData.general.managerName ||
-                        location.state?.preFill?.managerName ||
-                        ""
-                      }
-                      onChange={(v) => handleChange("signoff", "manager", v)}
-                      required
-                    />
+                    <div className="space-y-4">
+                      <InputField
+                        label="NDT Manager"
+                        value={
+                          reportData.signoff.manager ||
+                          reportData.general.managerName ||
+                          location.state?.preFill?.managerName ||
+                          ""
+                        }
+                        onChange={(v) => handleChange("signoff", "manager", v)}
+                        required
+                      />
+                      <InputField
+                        label="NDT Manager Qualification"
+                        value={reportData.signoff.managerQualification || ""}
+                        onChange={(v) =>
+                          handleChange("signoff", "managerQualification", v)
+                        }
+                        placeholder="e.g. NDT Level III"
+                      />
+                    </div>
                   )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                   {canViewInspectorSignature && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -2403,6 +2496,56 @@ const VisualReport = ({
                                   handleChange(
                                     "signoff",
                                     "reviewerSignature",
+                                    "",
+                                  )
+                                }
+                                className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {canViewExternalReviewerSignature && (
+                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        External Reviewer Signature
+                      </label>
+                      <div className="flex items-center gap-3">
+                        {canEditExternalReviewerSignature && (
+                          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                            <Camera size={14} /> Upload
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                handleSignoffUpload(
+                                  "externalReviewerSignature",
+                                  file,
+                                  "external reviewer signature",
+                                );
+                              }}
+                            />
+                          </label>
+                        )}
+                        {reportData.signoff.externalReviewerSignature && (
+                          <>
+                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
+                              Signature attached
+                            </span>
+                            {canEditExternalReviewerSignature && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleChange(
+                                    "signoff",
+                                    "externalReviewerSignature",
                                     "",
                                   )
                                 }
@@ -3709,7 +3852,7 @@ export const VisualWebView = ({
                 </table>
 
                 {pageIdx === pipeSupportPages.length - 1 && (
-                  <div className="mt-2 border border-t-0 border-black px-2 py-1 text-[10px] leading-5 text-black">
+                  <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[10px] leading-5 text-black">
                     <p className="font-bold underline text-red-700">Notes:</p>
                     <p>
                       {reportData?.inspection?.pipeSupportNotes ||
@@ -3813,7 +3956,7 @@ export const VisualWebView = ({
                 </table>
 
                 {pageIdx === specialConsiderationPages.length - 1 && (
-                  <div className="mt-2 border border-t-0 border-black px-2 py-1 text-[10px] leading-5 text-black">
+                  <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[10px] leading-5 text-black">
                     <p className="font-bold underline">Notes:</p>
                     <p>
                       {reportData?.inspection?.specialConsiderationNotes ||
@@ -4020,19 +4163,25 @@ export const VisualWebView = ({
               <table className="w-full border-collapse table-fixed">
                 <thead>
                   <tr className="border-b border-slate-200 text-[11px] font-bold text-black leading-tight uppercase">
-                    <th className="w-1/3 border-r border-slate-200 p-2 text-left">
+                    <th className="w-1/4 border-r border-slate-200 p-2 text-left">
                       Prepared By
                       <div className="mt-1 text-[10px] font-semibold normal-case">
                         Inspector
                       </div>
                     </th>
-                    <th className="w-1/3 border-r border-slate-200 p-2 text-left">
+                    <th className="w-1/4 border-r border-slate-200 p-2 text-left">
                       Reviewed by
                       <div className="mt-1 text-[10px] font-semibold normal-case">
                         Lead Inspector
                       </div>
                     </th>
-                    <th className="w-1/3 p-2 text-left">
+                    <th className="w-1/4 border-r border-slate-200 p-2 text-left">
+                      Reviewed by
+                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                        External Reviewer
+                      </div>
+                    </th>
+                    <th className="w-1/4 p-2 text-left">
                       Verified By
                       <div className="mt-1 text-[10px] font-semibold normal-case">
                         NDE Advisor
@@ -4057,6 +4206,9 @@ export const VisualWebView = ({
                             reportData.general?.inspectorName ||
                             "Inspector"}
                         </div>
+                        <div className="mt-1 text-[9px] text-slate-700">
+                          {reportData.signoff.inspectorQualification || " "}
+                        </div>
                       </div>
                     </td>
                     <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
@@ -4077,6 +4229,29 @@ export const VisualWebView = ({
                             reportData?.supervisorName ||
                             "Lead Inspector"}
                         </div>
+                        <div className="mt-1 text-[9px] text-slate-700">
+                          {reportData.signoff.reviewerQualification || " "}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
+                      <div className="flex h-full flex-col justify-end">
+                        {reportData.signoff.externalReviewerSignature ? (
+                          <img
+                            src={reportData.signoff.externalReviewerSignature}
+                            alt="External reviewer signature"
+                            className="mb-2 h-14 w-auto object-contain"
+                          />
+                        ) : null}
+                        <div className="mb-2 h-6 border-b border-slate-400" />
+                        <div className="text-[9px] font-semibold uppercase text-black">
+                          {reportData.signoff.externalReviewer ||
+                            reportData.general?.externalReviewerName ||
+                            "External Reviewer"}
+                        </div>
+                        <div className="mt-1 text-[9px] text-slate-700">
+                          {reportData.signoff.externalReviewerQualification || " "}
+                        </div>
                       </div>
                     </td>
                     <td className="h-[220px] p-3 align-bottom">
@@ -4093,6 +4268,9 @@ export const VisualWebView = ({
                           {reportData.signoff.manager ||
                             reportData.general?.managerName ||
                             "NDT Advisor"}
+                        </div>
+                        <div className="mt-1 text-[9px] text-slate-700">
+                          {reportData.signoff.managerQualification || " "}
                         </div>
                       </div>
                     </td>

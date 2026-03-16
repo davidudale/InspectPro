@@ -168,8 +168,8 @@ const ProjectReviewing = () => {
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project Identity</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Client & Industry</th>
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Facility Location</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Start Date</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">End Date</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Inspection Start Date</th>
+                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Inspection End Date</th>
                         {/*<th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Status</th>*/}
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Open Report</th>
                       </tr>

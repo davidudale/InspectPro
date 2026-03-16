@@ -39,7 +39,7 @@ const buildParticipants = (project) => {
     
     {
       key: "manager",
-      label: "Manager",
+      label: "NDE Reviewer",
       id: project.managerId,
       name: project.managerName,
     },
@@ -53,6 +53,23 @@ const buildParticipantIds = (project) =>
     project?.externalReviewerId,
     project?.managerId,
   ].filter(Boolean);
+
+const formatMessageTime = (value) => {
+  const source =
+    value?.toDate?.() ||
+    (value instanceof Date ? value : null) ||
+    (value ? new Date(value) : null);
+
+  if (!source || Number.isNaN(source.getTime())) {
+    return "";
+  }
+
+  return source.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+};
 
 const ProjectChatbox = ({
   user,
@@ -73,6 +90,7 @@ const ProjectChatbox = ({
   const [isClearing, setIsClearing] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const listRef = useRef(null);
+  const canClearChat = user?.role === "Admin";
 
   useEffect(() => {
     if (!user?.uid) {
@@ -246,7 +264,7 @@ const ProjectChatbox = ({
   };
 
   const handleClearChat = async () => {
-    if (!selectedProjectId || isClearing) {
+    if (!canClearChat || !selectedProjectId || isClearing) {
       return;
     }
 
@@ -405,35 +423,34 @@ const ProjectChatbox = ({
               ) : messages.length > 0 ? (
                 messages.map((message) => {
                   const isCurrentUser = message.userId === user?.uid;
+                  const messageTime = formatMessageTime(message.timestamp);
                   return (
                     <div
                       key={message.id}
                       className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
                     >
-                      <div
-                        className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                          isCurrentUser
-                            ? "bg-orange-600 text-white text-sm"
-                            : "border border-slate-800 bg-slate-900 text-slate-100"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold uppercase tracking-[0.18em]">
+                      <div className={`flex max-w-[75%] flex-col ${isCurrentUser ? "items-end" : "items-start"}`}>
+                        <div
+                          className={`rounded-[1.05rem] px-3 py-2 shadow-lg ${
+                            isCurrentUser
+                              ? "bg-orange-600 text-white text-sm"
+                              : "border border-orange-500/20 bg-orange-600 text-white"
+                          }`}
+                        >
+                          <p className="whitespace-pre-wrap text-[13px] leading-relaxed">
+                            {message.text || ""}
+                          </p>
+                        </div>
+                        <div
+                          className={`mt-1 px-1 text-[11px] text-slate-400 ${
+                            isCurrentUser ? "text-right" : "text-left"
+                          }`}
+                        >
+                          <span className="font-medium text-slate-300">
                             {message.userName || "Unknown User"}
                           </span>
-                          {message.userRole ? (
-                            <span
-                              className={`text-[10px] ${
-                                isCurrentUser ? "text-orange-100/80" : "text-slate-500"
-                              }`}
-                            >
-                              {message.userRole}
-                            </span>
-                          ) : null}
+                          {messageTime ? ` ${messageTime}` : ""}
                         </div>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">
-                          {message.text || ""}
-                        </p>
                       </div>
                     </div>
                   );
@@ -459,14 +476,16 @@ const ProjectChatbox = ({
                 className="h-20 w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
               />
               <div className="mt-3 flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleClearChat}
-                    disabled={!selectedProjectId || messages.length === 0 || isSending || isClearing}
-                    className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
-                  >
-                    {isClearing ? "Clearing" : "Clear Chat"}
-                  </button>
+                  {canClearChat ? (
+                    <button
+                      type="button"
+                      onClick={handleClearChat}
+                      disabled={!selectedProjectId || messages.length === 0 || isSending || isClearing}
+                      className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-800 disabled:text-slate-600"
+                    >
+                      {isClearing ? "Clearing" : "Clear Chat"}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={handleSend}

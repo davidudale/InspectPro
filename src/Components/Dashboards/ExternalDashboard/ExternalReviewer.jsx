@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ClipboardCheck,
+  Eye,
   FileWarning,
   Inbox,
+  MessageSquareText,
 } from "lucide-react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
@@ -18,6 +20,7 @@ const ExternalReviewer = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [assignedProjects, setAssignedProjects] = useState([]);
+  const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const reviewerName =
@@ -48,25 +51,50 @@ const ExternalReviewer = () => {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      setFeedbackEntries([]);
+      return undefined;
+    }
+
+    const feedbackQuery = query(
+      collection(db, "external_feedback"),
+      where("externalReviewerId", "==", user.uid),
+    );
+
+    const unsubscribe = onSnapshot(feedbackQuery, (snapshot) => {
+      const nextFeedback = snapshot.docs.map((feedbackDoc) => ({
+        id: feedbackDoc.id,
+        ...feedbackDoc.data(),
+      }));
+      setFeedbackEntries(nextFeedback);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
   const metrics = useMemo(() => {
-    const pending = assignedProjects.filter((project) =>
-      String(project.status || "").toLowerCase().startsWith("pending confirmation"),
-    ).length;
-    const returned = assignedProjects.filter((project) =>
-      String(project.returnNote || "").trim(),
-    ).length;
-    const confirmed = assignedProjects.filter((project) =>
-      String(project.status || "").toLowerCase().includes("passed") ||
-      String(project.status || "").toLowerCase().includes("confirmed"),
-    ).length;
+    const viewedReports = assignedProjects.filter(
+      (project) => String(project.status || "").trim().toLowerCase() === "approved",
+    );
+    const reviewedProjectIds = new Set(
+      feedbackEntries
+        .map((entry) => entry.projectDocId || entry.projectId || "")
+        .filter(Boolean),
+    );
+    const awaitingReview = viewedReports.filter((project) => {
+      const docId = String(project.id || "").trim();
+      const projectId = String(project.projectId || "").trim();
+      return !reviewedProjectIds.has(docId) && !reviewedProjectIds.has(projectId);
+    }).length;
 
     return {
       total: assignedProjects.length,
-      pending,
-      returned,
-      confirmed,
+      viewedReports: viewedReports.length,
+      awaitingReview,
+      feedbackProvided: feedbackEntries.length,
     };
-  }, [assignedProjects]);
+  }, [assignedProjects, feedbackEntries]);
 
   const recentProjects = useMemo(
     () =>
@@ -147,12 +175,12 @@ const ExternalReviewer = () => {
           <div className="max-w-7xl mx-auto">
             <header className="flex justify-between items-end mb-8">
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/80 shadow-lg shadow-black/20">
+                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-white p-2 shadow-lg shadow-black/20">
                   {primaryClient.logo ? (
                     <img
                       src={primaryClient.logo}
                       alt={`${primaryClient.name} logo`}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                     />
                   ) : (
                     <span className="text-xl font-black uppercase tracking-[0.2em] text-orange-500">
@@ -176,25 +204,31 @@ const ExternalReviewer = () => {
             </header>
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mb-4">
             <StatCard
-              icon={<Inbox size={18} />}
+              icon={<Eye size={18} />}
               label="Total Reports"
-              value={metrics.total}
+              value={metrics.viewedReports}
               tone="slate"
             />
-           {/*} <StatCard
+            <StatCard
+              icon={<Eye size={18} />}
+              label="Total Viewed Reports"
+              value={metrics.viewedReports}
+              tone="slate"
+            />
+            <StatCard
               icon={<ClipboardCheck size={18} />}
-              label="Returned Projects"
-              value={metrics.returned}
+              label="Total Reports Awaiting Review"
+              value={metrics.awaitingReview}
               tone="orange"
             />
             <StatCard
-              icon={<FileWarning size={18} />}
-              label="Confirmed Project"
-              value={metrics.confirmed}
-              tone="red"
-            />*/}
-            
-          </section>
+              icon={<MessageSquareText size={18} />}
+              label="Total Feedback Provided"
+              value={metrics.feedbackProvided}
+              tone="emerald"
+            />
+             
+           </section>
           {/*<section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/60 p-6 shadow-xl">
               <div className="mb-5 flex items-center justify-between">

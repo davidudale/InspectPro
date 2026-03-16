@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  Wrench,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -23,6 +24,11 @@ const sidebarLinks = [
     name: "Reports",
     icon: <FolderKanban size={20} />,
     href: "/external-reviewer-projects",
+  },
+  {
+    name: "Inspected Equipment",
+    icon: <Wrench size={20} />,
+    href: "/external-reviewer-equipment",
   },
   {
     name: "Feedback",
