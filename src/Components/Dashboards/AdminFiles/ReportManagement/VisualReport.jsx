@@ -3330,8 +3330,8 @@ export const VisualWebView = ({
               <div className="h-10 w-24 rounded-lg border border-slate-300" />
             )}
           </div>
-
-          <div className="relative flex-1 flex flex-col items-center justify-center text-center px-10">
+<div className="space-y-4 ">
+          <div className="relative flex-1 flex flex-col mt-12 mb-12 text-center px-10">
             <div className="mx-auto flex h-full max-w-[190mm] flex-col items-center text-center">
               <div className="mt-2 text-[10px] font-semibold uppercase tracking-[0.45em] text-slate-500">
                 Technical Inspection Report
@@ -3343,13 +3343,105 @@ export const VisualWebView = ({
                 Report
               </div>
               <div className="mt-8 h-[3px] w-32 rounded-full border-t border-slate-300" />
-              <div className="mt-8 mb-20 text-[11px] font-semibold uppercase tracking-[0.35em] text-slate-600">
+              <div className="mt-8 mb-20 3 font-semibold uppercase tracking-[0.35em] text-slate-600">
                 {reportData?.general?.equipment || "Storage Tank (T)"}
               </div>
 
             
             </div>
           </div>
+          <div className="mt-auto w-full px-6 items-center justify-center">
+              <table className="w-full  table-fixed border-collapse text-[13px] text-black">
+                <tbody>
+                  <tr className="bg-white">
+                    <td className="w-[15%] border border-slate-200 px-4 py-1  font-semibold">
+                      Client:
+                    </td>
+                    <td className="w-[30%] border border-slate-200 px-4 py-1  text-blue-700">
+                      {reportData?.general?.client || "ESSO"}
+                    </td>
+                    <td className="w-[21%] border border-slate-200 px-4 py-1  font-semibold">
+                      Report Number
+                    </td>
+                    <td className="w-[19%] border border-slate-200 px-4 py-1  text-blue-700">
+                      {reportData?.general?.reportNum || "XXXXXX"}
+                    </td>
+                  </tr>
+                  <tr className="bg-slate-50">
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Location:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {reportData?.general?.platform || "USAN FPSO"}
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Contract Number:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoContractNumber || "XXXXX"}
+                    </td>
+                  </tr>
+                  <tr className="bg-white">
+                    <td className="border border-slate-200 px-4 py-1 align-top  font-semibold">
+                      P &amp; ID Number/DWG No.:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {reportData?.general?.tag || "XXXXXXX"}
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Date of Inspection:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {formattedPageTwoDate || "XXXXXX"}
+                    </td>
+                  </tr>
+                  <tr className="bg-slate-50">
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Test Code:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoTestCode || "XXXXX"}
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Name of Inspectors:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoInspectors || "XXXXXX"}
+                    </td>
+                  </tr>
+                  <tr className="bg-white">
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Equipment Description:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {reportData?.general?.equipment || "Storage Tank (T)"}
+                    </td>
+                    <td className="border  border-slate-200 px-4 py-1  font-semibold">
+                      Operating Procedures:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoProcedure || "XXXX"}
+                    </td>
+                  </tr>
+                  <tr className="bg-slate-50">
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Revision:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoRevision || "XXXX"}
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Acceptance Criteria:
+                    </td>
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoAcceptanceCriteria || "XXXXXXX"}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+            </div>
+            </div>
         </div>
 
         <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
@@ -3358,102 +3450,12 @@ export const VisualWebView = ({
           
 
           <div className="relative flex-1 px-12 pt-12">
-            <div className="mt-auto w-full px-2">
-              <table className="w-full table-fixed border-collapse text-[12px] text-black">
-                <tbody>
-                  <tr className="bg-white">
-                    <td className="w-[15%] border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Client:
-                    </td>
-                    <td className="w-[30%] border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {reportData?.general?.client || "ESSO"}
-                    </td>
-                    <td className="w-[21%] border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Report Number
-                    </td>
-                    <td className="w-[19%] border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {reportData?.general?.reportNum || "XXXXXX"}
-                    </td>
-                  </tr>
-                  <tr className="bg-slate-50">
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Location:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {reportData?.general?.platform || "USAN FPSO"}
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Contract Number:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {pageTwoContractNumber || "XXXXX"}
-                    </td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="border border-slate-200 px-4 py-1 align-top text-[12px] font-semibold">
-                      P &amp; ID Number/DWG No.:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {reportData?.general?.tag || "XXXXXXX"}
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Date of Inspection:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {formattedPageTwoDate || "XXXXXX"}
-                    </td>
-                  </tr>
-                  <tr className="bg-slate-50">
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Test Code:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {pageTwoTestCode || "XXXXX"}
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Name of Inspectors:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {pageTwoInspectors || "XXXXXX"}
-                    </td>
-                  </tr>
-                  <tr className="bg-white">
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Equipment Description:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {reportData?.general?.equipment || "Storage Tank (T)"}
-                    </td>
-                    <td className="border  border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Operating Procedures:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {pageTwoProcedure || "XXXX"}
-                    </td>
-                  </tr>
-                  <tr className="bg-slate-50">
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Revision:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {pageTwoRevision || "XXXX"}
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] font-semibold">
-                      Acceptance Criteria:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1 text-[12px] text-blue-700">
-                      {pageTwoAcceptanceCriteria || "XXXXXXX"}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-            </div>
-            <div className="mx-auto w-full mt-32">
+            
+            <div className="mx-auto w-full mt-4">
               <h2 className="text-center text-[18px] font-black uppercase underline text-blue-900">
                 Table of Contents
               </h2>
-                <table className="pdf-avoid-break mt-6 w-full text-[10px] border-collapse">
+                <table className="pdf-avoid-break mt-6 w-full text-[14px] border-collapse">
                 <thead className="border-b border-slate-200 bg-blue-900 text-white">
                   <tr className="border-b border-slate-200 bg-blue-900 text-white">
                     <th className="border-r border-slate-200 bg-blue-900 p-2 w-12 text-[12px] text-white">
@@ -3621,19 +3623,19 @@ export const VisualWebView = ({
                   1. Pipe Components &amp; Insulated Systems
                 </h3>
 
-                <table className="pdf-avoid-break mt-6 w-full text-[10px] border-collapse">
+                <table className="pdf-avoid-break mt-6 w-full text-[14px] border-collapse">
                   <thead>
                     <tr>
-                      <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center font-bold text-white">
                         S/N
                       </th>
-                      <th className="w-[31%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[31%] border border-black bg-blue-900 px-2 py-2 text-center font-bold text-white">
                         Pipe Components
                       </th>
-                      <th className="w-[53%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[53%] border border-black bg-blue-900 px-2 py-2 text-center font-bold text-white">
                         Observation
                       </th>
-                      <th className="w-[9%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[9%] border border-black bg-blue-900 px-2 py-2 text-center font-bold text-white">
                         Photo
                       </th>
                     </tr>
@@ -3655,13 +3657,13 @@ export const VisualWebView = ({
                           key={item.id || `checklist-row-${globalIdx}`}
                           className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                         >
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[13px] font-bold">
                             {`1.${globalIdx + 1}`}
                           </td>
-                          <td className="align-top border border-black px-2 py-2 text-[10px] font-bold leading-4">
+                          <td className="align-top border border-black px-2 py-2 text-[13px] font-bold leading-4">
                             {item.equipmentDescription || "Pipe component"}
                           </td>
-                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4 text-[#0a58b5]">
+                          <td className="align-top border border-black px-2 py-2 text-[13px] leading-4 text-[#0a58b5]">
                             {(observationLines.length
                               ? observationLines
                               : ["No observation added."]
@@ -3674,7 +3676,7 @@ export const VisualWebView = ({
                               </p>
                             ))}
                           </td>
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] text-[#0a58b5]">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[13px] text-[#0a58b5]">
                             {(photoRefs.length ? photoRefs : ["-"]).map((ref, refIdx) => (
                               <p
                                 key={`photo-${globalIdx}-${refIdx}`}
@@ -3718,19 +3720,19 @@ export const VisualWebView = ({
                   2. Pipe Supports:
                 </h2>
 
-                <table className="pdf-avoid-break mt-6 w-full text-[10px] border-collapse">
+                <table className="pdf-avoid-break mt-6 w-full text-[14px] border-collapse">
                   <thead>
                     <tr>
-                      <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         S/N
                       </th>
-                      <th className="w-[31%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[31%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         Pipe Components
                       </th>
-                      <th className="w-[53%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[53%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         Observation
                       </th>
-                      <th className="w-[9%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[9%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         Photo
                       </th>
                     </tr>
@@ -3788,7 +3790,7 @@ export const VisualWebView = ({
                 </table>
 
                 {pageIdx === pipeSupportPages.length - 1 && (
-                  <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[10px] leading-5 text-black">
+                  <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[13px] leading-5 text-black">
                     <p className="font-bold underline text-red-700">Notes:</p>
                     <p>
                       {reportData?.inspection?.pipeSupportNotes ||
@@ -3825,19 +3827,19 @@ export const VisualWebView = ({
                   3. Special Considerations
                 </h2>
 
-                <table className="pdf-avoid-break mt-6 w-full text-[10px] border-collapse">
+                <table className="pdf-avoid-break mt-6 w-full text-[14px] border-collapse">
                   <thead>
                     <tr>
-                      <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         S/N
                       </th>
-                      <th className="w-[31%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[31%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         Pipe Components
                       </th>
-                      <th className="w-[53%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[53%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         Observation
                       </th>
-                      <th className="w-[9%] border border-black bg-blue-900 px-2 py-2 text-center text-[11px] font-bold text-white">
+                      <th className="w-[9%] border border-black bg-blue-900 px-2 py-2 text-center text-[13px] font-bold text-white">
                         Photo
                       </th>
                     </tr>
@@ -3859,13 +3861,13 @@ export const VisualWebView = ({
                           key={item.id || `special-row-${globalIdx}`}
                           className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                         >
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[13px] font-bold">
                             {`3.${globalIdx + 1}`}
                           </td>
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[13px] font-bold">
                             {item.equipmentDescription || "Special consideration"}
                           </td>
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[13px] font-bold">
                             {(observationLines.length
                               ? observationLines
                               : ["N/A."]
@@ -3878,7 +3880,7 @@ export const VisualWebView = ({
                               </p>
                             ))}
                           </td>
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[13px] font-bold">
                             {(photoRefs.length ? photoRefs : ["NA"]).map((ref, refIdx) => (
                               <p
                                 key={`special-photo-${globalIdx}-${refIdx}`}
@@ -3895,7 +3897,7 @@ export const VisualWebView = ({
                 </table>
 
                 {pageIdx === specialConsiderationPages.length - 1 && (
-                  <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[10px] leading-5 text-black">
+                  <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[13px] leading-5 text-black">
                     <p className="font-bold underline text-red-700">Notes:</p>
                     <p>
                       {reportData?.inspection?.specialConsiderationNotes ||
@@ -3963,10 +3965,10 @@ export const VisualWebView = ({
                 )}
 
                 <div className="pdf-avoid-break mt-6 border border-dashed border-slate-500 px-3 py-3 text-[#0a58b5]">
-                  <p className="text-[11px] font-bold italic underline text-red-700">
+                  <p className="text-[13px] font-bold italic underline text-red-700">
                     Notes:
                   </p>
-                  <div className="mt-2 space-y-1 text-[11px] leading-5">
+                  <div className="mt-2 space-y-1 text-[13px] leading-5">
                     {noteChunk
                       .split(/\r?\n/)
                       .map((line) => line.trim())
@@ -4157,22 +4159,22 @@ export const VisualWebView = ({
             <div className="rounded-sm border border-slate-800 overflow-hidden">
               <table className="w-full border-collapse table-fixed">
                 <thead>
-                  <tr className="border-b border-slate-200 bg-blue-900 text-[11px] font-bold leading-tight uppercase text-white">
+                  <tr className="border-b border-slate-200 bg-blue-900 text-[13px] font-bold leading-tight uppercase text-white">
                     <th className="w-1/3 border-r border-slate-200 bg-blue-900 p-2 text-left text-white">
                       Prepared By
-                      <div className="mt-1 text-[10px] font-semibold normal-case text-white">
+                      <div className="mt-1 text-[13px] font-semibold normal-case text-white">
                         Inspector
                       </div>
                     </th>
                     <th className="w-1/3 border-r border-slate-200 bg-blue-900 p-2 text-left text-white">
                       Reviewed by
-                      <div className="mt-1 text-[10px] font-semibold normal-case text-white">
+                      <div className="mt-1 text-[13px] font-semibold normal-case text-white">
                         Lead Inspector
                       </div>
                     </th>
                     <th className="w-1/3 bg-blue-900 p-2 text-left text-white">
                       Verified By
-                      <div className="mt-1 text-[10px] font-semibold normal-case text-white">
+                      <div className="mt-1 text-[13px] font-semibold normal-case text-white">
                         NDE Advisor
                       </div>
                     </th>
