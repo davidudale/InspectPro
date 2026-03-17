@@ -21,6 +21,23 @@ import { useAuth } from "../../Auth/AuthContext";
 import ExternalNavbar from "./ExternalNavbar";
 import ExternalSideBar from "./ExternalSideBar";
 
+function getInspectionEndDate(project) {
+  const normalizedStatus = String(project?.status || "").trim().toLowerCase();
+
+  if (normalizedStatus !== "approved") {
+    return null;
+  }
+
+  return (
+    project?.approvedAt ||
+    project?.confirmedAt ||
+    project?.confirmationDate ||
+    project?.updatedAt ||
+    project?.lastUpdated ||
+    null
+  );
+}
+
 const InspectedEquipment = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -100,13 +117,14 @@ const InspectedEquipment = () => {
           clientName: project.clientName || project.client || "N/A",
           locationName: project.locationName || project.location || "N/A",
           status: project.status || "Pending",
-          inspectionDate:
-            project.updatedAt ||
-            project.lastUpdated ||
-            project.createdAt ||
+          inspectionStartDate:
             project.startDate ||
+            project.deploymentDate ||
+            project.inspectionStartedAt ||
+            project.createdAt ||
             project.timestamp ||
             null,
+          inspectionEndDate: getInspectionEndDate(project),
           tagReference:
             linkedEquipment?.tagNumber ||
             project.equipmentTag ||
@@ -151,7 +169,10 @@ const InspectedEquipment = () => {
           row.service,
         ].some((value) => String(value || "").toLowerCase().includes(term));
       })
-      .sort((left, right) => toMillis(right.inspectionDate) - toMillis(left.inspectionDate));
+      .sort(
+        (left, right) =>
+          toMillis(right.inspectionStartDate) - toMillis(left.inspectionStartDate),
+      );
   }, [equipmentRows, searchTerm]);
 
   const metrics = useMemo(() => {
@@ -222,7 +243,10 @@ const InspectedEquipment = () => {
                           Location
                         </th>
                         <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Date
+                          Start Date
+                        </th>
+                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          End Date
                         </th>
                        {/* <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
                           Status
@@ -278,7 +302,10 @@ const InspectedEquipment = () => {
                             </div>
                           </td>
                           <td className="p-6 text-xs font-medium text-slate-300">
-                            {formatDate(row.inspectionDate)}
+                            {formatDate(row.inspectionStartDate)}
+                          </td>
+                          <td className="p-6 text-xs font-medium text-slate-300">
+                            {row.inspectionEndDate ? formatDate(row.inspectionEndDate) : "Pending"}
                           </td>
                           {/*<td className="p-6">
                             <StatusBadge status={row.status} />

@@ -64,7 +64,7 @@ const ViewInspectionsList = () => {
       orderBy("startDate", "desc")
     );
   } 
-  // Inspectors see all their assignments so status remains visible across workflow stages
+  // Inspectors see all their assignments so status remains visible across workflow stages.
   else {
     q = query(
       collection(db, "projects"),
@@ -104,7 +104,7 @@ const ViewInspectionsList = () => {
 
       fallbackUnsubscribe = onSnapshot(fallbackQ, (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        // Keep rows visible for inspector across all status values
+        // Keep rows visible for inspector across all status values.
         if (user?.role === "Inspector") {
           setProjects(data.filter((p) => p.inspectorId === user.uid));
         } else {

@@ -113,6 +113,9 @@ const ProjectChatbox = ({
         const nextProjects = snapshot.docs
           .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
           .filter((project) => getThreadId(project))
+          .filter(
+            (project) => String(project.status || "").trim().toLowerCase() !== "approved",
+          )
           .sort((left, right) => {
             const leftTime =
               left.updatedAt?.toMillis?.() ||

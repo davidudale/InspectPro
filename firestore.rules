@@ -23,6 +23,10 @@ service cloud.firestore {
       return myUserExists() ? myUser().role : null;
     }
 
+    function roleMatches(primary, alternate) {
+      return myRole() == primary || myRole() == alternate;
+    }
+
     function isAdmin() {
       return myRole() == "Admin";
     }
@@ -36,7 +40,7 @@ service cloud.firestore {
     }
 
     function isExternalReviewer() {
-      return myRole() == "External_Reviewer";
+      return roleMatches("External_Reviewer", "External Reviewer");
     }
 
     function isInspector() {
@@ -153,8 +157,18 @@ service cloud.firestore {
     match /project_chats/{threadId} {
       allow read: if canAccessThread(resource.data);
 
-      allow create, update: if signedIn() && (
+      allow create: if signedIn() && (
         isAdmin() ||
+        (
+          request.resource.data.projectDocId is string &&
+          projectDocExists(request.resource.data.projectDocId) &&
+          projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data)
+        )
+      );
+
+      allow update: if signedIn() && (
+        isAdmin() ||
+        canAccessThread(resource.data) ||
         (
           request.resource.data.projectDocId is string &&
           projectDocExists(request.resource.data.projectDocId) &&

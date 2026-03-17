@@ -203,15 +203,12 @@ const VisualReport = ({
       inspector: "",
       supervisor: "",
       manager: "",
-      externalReviewer: "",
       inspectorQualification: "",
       reviewerQualification: "",
       managerQualification: "",
-      externalReviewerQualification: "",
       inspectorSignature: "",
       reviewerSignature: "",
       managerSignature: "",
-      externalReviewerSignature: "",
     },
     customSections: [],
   });
@@ -291,17 +288,9 @@ const VisualReport = ({
     user?.role === "Manager" || user?.role === "Admin";
   const canEditManagerSignature =
     user?.role === "Manager" || user?.role === "Admin";
-  const canViewExternalReviewerSignature = [
-    "External_Reviewer",
-    "Manager",
-    "Admin",
-  ].includes(user?.role);
-  const canEditExternalReviewerSignature =
-    user?.role === "External_Reviewer" || user?.role === "Admin";
   // Role-aware visibility for signoff name fields.
   const canViewInspectorField = canViewInspectorSignature;
   const canViewLeadField = canViewLeadSignature;
-  const canViewExternalReviewerField = canViewExternalReviewerSignature;
   const canViewManagerField = canViewManagerSignature;
   const Navbar =
     user?.role === "Admin"
@@ -331,8 +320,6 @@ const VisualReport = ({
         p.inspectorName || p.assignedInspectorName || "";
       const prefillSupervisorName =
         p.supervisorName || p.assignedSupervisorName || "";
-      const prefillExternalReviewerName =
-        p.externalReviewerName || p.assignedExternalReviewerName || "";
       const prefillManagerName =
         p.managerName || p.assignedManagerName || "";
 
@@ -359,8 +346,6 @@ const VisualReport = ({
           ...prev.signoff,
           inspector: prev.signoff.inspector || prefillInspectorName,
           reviewer: prev.signoff.reviewer || prefillSupervisorName,
-          externalReviewer:
-            prev.signoff.externalReviewer || prefillExternalReviewerName,
           manager: prev.signoff.manager || prefillManagerName,
         },
       }));
@@ -453,11 +438,6 @@ const VisualReport = ({
                 projectData?.supervisorName ||
                 prefillSupervisorName ||
                 "",
-              externalReviewer:
-                existingData?.signoff?.externalReviewer ||
-                projectData?.externalReviewerName ||
-                prefillExternalReviewerName ||
-                "",
               manager:
                 existingData?.signoff?.manager ||
                 projectData?.managerName ||
@@ -499,11 +479,6 @@ const VisualReport = ({
                 prev.signoff.reviewer ||
                 projectData?.supervisorName ||
                 prefillSupervisorName ||
-                "",
-              externalReviewer:
-                prev.signoff.externalReviewer ||
-                projectData?.externalReviewerName ||
-                prefillExternalReviewerName ||
                 "",
               manager:
                 prev.signoff.manager ||
@@ -1396,15 +1371,12 @@ const VisualReport = ({
       signoff: {
         inspector: asText(s.inspector || user?.displayName || ""),
         reviewer: asText(s.reviewer),
-        externalReviewer: asText(s.externalReviewer),
         manager: asText(s.manager),
         inspectorQualification: asText(s.inspectorQualification),
         reviewerQualification: asText(s.reviewerQualification),
-        externalReviewerQualification: asText(s.externalReviewerQualification),
         managerQualification: asText(s.managerQualification),
         inspectorSignature: asText(s.inspectorSignature),
         reviewerSignature: asText(s.reviewerSignature),
-        externalReviewerSignature: asText(s.externalReviewerSignature),
         managerSignature: asText(s.managerSignature),
       },
       customSections,
@@ -2308,7 +2280,7 @@ const VisualReport = ({
                 <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500 mt-12 bg-slate-900">
                   Signature
                 </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {canViewInspectorField && (
                     <div className="space-y-4">
                       <InputField
@@ -2355,35 +2327,6 @@ const VisualReport = ({
                       />
                     </div>
                   )}
-                  {canViewExternalReviewerField && (
-                    <div className="space-y-4">
-                      <InputField
-                        label="External Reviewer"
-                        value={
-                          reportData.signoff.externalReviewer ||
-                          location.state?.preFill?.externalReviewerName ||
-                          ""
-                        }
-                        onChange={(v) =>
-                          handleChange("signoff", "externalReviewer", v)
-                        }
-                      />
-                      <InputField
-                        label="External Reviewer Qualification"
-                        value={
-                          reportData.signoff.externalReviewerQualification || ""
-                        }
-                        onChange={(v) =>
-                          handleChange(
-                            "signoff",
-                            "externalReviewerQualification",
-                            v,
-                          )
-                        }
-                        placeholder="e.g. API 570 Reviewer"
-                      />
-                    </div>
-                  )}
                   {canViewManagerField && (
                     <div className="space-y-4">
                       <InputField
@@ -2408,7 +2351,7 @@ const VisualReport = ({
                     </div>
                   )}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {canViewInspectorSignature && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
@@ -2496,56 +2439,6 @@ const VisualReport = ({
                                   handleChange(
                                     "signoff",
                                     "reviewerSignature",
-                                    "",
-                                  )
-                                }
-                                className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {canViewExternalReviewerSignature && (
-                    <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        External Reviewer Signature
-                      </label>
-                      <div className="flex items-center gap-3">
-                        {canEditExternalReviewerSignature && (
-                          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                            <Camera size={14} /> Upload
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                handleSignoffUpload(
-                                  "externalReviewerSignature",
-                                  file,
-                                  "external reviewer signature",
-                                );
-                              }}
-                            />
-                          </label>
-                        )}
-                        {reportData.signoff.externalReviewerSignature && (
-                          <>
-                            <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                              Signature attached
-                            </span>
-                            {canEditExternalReviewerSignature && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleChange(
-                                    "signoff",
-                                    "externalReviewerSignature",
                                     "",
                                   )
                                 }
@@ -3132,7 +3025,7 @@ export const VisualWebView = ({
       items: findingLines.length ? findingLines : defaultExecutiveSummaryLines,
       separator: "\n",
       chunkSize: 1200,
-      spacingClass: "mt-24",
+      spacingClass: "mt-12",
       underline: false,
     },
     {
@@ -3621,35 +3514,68 @@ export const VisualWebView = ({
                             : block.spacingClass
                       }
                     >
-                      {!block.isContinuation && (
-                        <h2
-                          className={`text-center text-[18px] font-black uppercase text-blue-900 ${
-                            block.underline ? "underline" : ""
+                      {["introduction", "executive-summary", "recommendation"].includes(
+                        block.key,
+                      ) ? (
+                        <table
+                          className={`mt-2 w-full border-collapse border border-black bg-white ${
+                            block.isContinuation ? "" : ""
                           }`}
                         >
-                          {block.title}
-                        </h2>
-                      )}
-                      <div
-                        className={`text-[14px] leading-7 text-blue-900   ${
-                          block.isContinuation ? "" : "mt-4"
-                        } ${
-                          block.key === "introduction"
-                            ? "space-y-6 text-blue-900"
-                            : block.key === "recommendation"
-                              ? "space-y-2 pl-5"
-                              : "space-y-2 pl-5"
-                        }`}
-                      >
-                        {blockLines.map((line, idx) => (
-                          <p
-                            key={`${block.key}-line-${pageIdx}-${idx}`}
-                            className="text-left text-black"
+                          <tbody>
+                            {!block.isContinuation && (
+                              <tr>
+                                <th className="border border-black px-4 py-3 text-center text-[18px] font-bold uppercase text-white bg-blue-900">
+                                  {block.title}
+                                </th>
+                              </tr>
+                            )}
+                            <tr>
+                              <td className="px-4 py-3 align-top">
+                                <div
+                                  className={`text-[14px] leading-7 text-blue-900 ${
+                                    block.key === "introduction"
+                                      ? "space-y-6"
+                                      : "space-y-2 pl-5"
+                                  }`}
+                                >
+                                  {blockLines.map((line, idx) => (
+                                    <p
+                                      key={`${block.key}-line-${pageIdx}-${idx}`}
+                                      className="text-left text-black"
+                                    >
+                                      {line}
+                                    </p>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      ) : (
+                        <>
+                          <div
+                            className={`text-[14px] leading-7 text-blue-900 ${
+                              block.isContinuation ? "" : "mt-4"
+                            } ${
+                              block.key === "introduction"
+                                ? "space-y-6 text-blue-900"
+                                : block.key === "recommendation"
+                                  ? "space-y-2 pl-5"
+                                  : "space-y-2 pl-5"
+                            }`}
                           >
-                            {line}
-                          </p>
-                        ))}
-                      </div>
+                            {blockLines.map((line, idx) => (
+                              <p
+                                key={`${block.key}-line-${pageIdx}-${idx}`}
+                                className="text-left text-black"
+                              >
+                                {line}
+                              </p>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </section>
                   );
                 })}
@@ -3885,28 +3811,28 @@ export const VisualWebView = ({
 
             <div className="relative flex-1 px-8 pt-10 pb-8">
               <div className="mx-auto max-w-[190mm]">
-                <h2 className="text-[18px] font-black uppercase underline text-black">
+                <h2 className="text-[18px] font-bold uppercase underline  text-blue-900">
                   3. Special Considerations
                 </h2>
 
-                <table className="pdf-avoid-break mt-6 w-full table-fixed border-collapse border border-black bg-white text-black">
-                  <thead>
+                <table className="pdf-avoid-break mt-6 w-full text-[10px] border-collapse bg-blue-200">
+                  <thead className="bg-blue-900">
                     <tr>
-                      <th className="w-[7%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                      <th className="w-[7%] border border-black px-2 py-2 text-center text-white text-[11px] font-bold">
                         S/N
                       </th>
-                      <th className="w-[31%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                      <th className="w-[31%] border border-black px-2 py-2 text-center text-white text-[11px] font-bold">
                         Pipe Components
                       </th>
-                      <th className="w-[53%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                      <th className="w-[53%] border border-black px-2 py-2 text-center text-white text-[11px] font-bold">
                         Observation
                       </th>
-                      <th className="w-[9%] border border-black px-2 py-2 text-center text-[11px] font-bold">
+                      <th className="w-[9%] border border-black px-2 py-2 text-center text-white text-[11px] font-bold">
                         Photo
                       </th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white">
                     {pageItems.map((item, idx) => {
                       const globalIdx = pageIdx * 8 + idx;
                       const observationLines = String(item.anomaly || "")
@@ -3923,10 +3849,10 @@ export const VisualWebView = ({
                           <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
                             {`3.${globalIdx + 1}`}
                           </td>
-                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
                             {item.equipmentDescription || "Special consideration"}
                           </td>
-                          <td className="align-top border border-black px-2 py-2 text-[10px] leading-4 text-[#0a58b5]">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
                             {(observationLines.length
                               ? observationLines
                               : ["N/A."]
@@ -3939,7 +3865,7 @@ export const VisualWebView = ({
                               </p>
                             ))}
                           </td>
-                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] text-[#0a58b5]">
+                          <td className="align-top border border-black px-1 py-2 text-center text-[10px] font-bold">
                             {(photoRefs.length ? photoRefs : ["NA"]).map((ref, refIdx) => (
                               <p
                                 key={`special-photo-${globalIdx}-${refIdx}`}
@@ -3957,7 +3883,7 @@ export const VisualWebView = ({
 
                 {pageIdx === specialConsiderationPages.length - 1 && (
                   <div className="mt-2 border border-dashed border-slate-500 px-2 py-1 text-[10px] leading-5 text-black">
-                    <p className="font-bold underline">Notes:</p>
+                    <p className="font-bold underline text-red-700">Notes:</p>
                     <p>
                       {reportData?.inspection?.specialConsiderationNotes ||
                         "Inspected for signs of leakage, mechanical damage, coating failure, corrosion, pitting, cracks in welds, vibration, etc. as applicable."}
@@ -3985,7 +3911,7 @@ export const VisualWebView = ({
 
           <div className="relative flex-1 px-8 pt-8 pb-8">
             <div className="mx-auto flex h-full max-w-[190mm] flex-col">
-              <h2 className="text-[18px] font-black uppercase underline text-black">
+              <h2 className="text-[18px] font-bold text-blue-900 uppercase underline text-black">
                 4.0 Schematics of Anomaly
               </h2>
 
@@ -4016,7 +3942,7 @@ export const VisualWebView = ({
               </div>
 
               <div className="pdf-avoid-break mt-6 border border-dashed border-slate-500 px-3 py-3 text-[#0a58b5]">
-                <p className="text-[11px] font-bold italic underline">Notes:</p>
+                <p className="text-[11px] font-bold italic underline text-red-700">Notes:</p>
                 <div className="mt-2 space-y-1 text-[11px] leading-5">
                   {(String(reportData?.inspection?.schematicNotes || "")
                     .split(/\r?\n/)
@@ -4053,7 +3979,7 @@ export const VisualWebView = ({
 
             <div className="relative flex-1 px-8 pt-8 pb-8">
               <div className="mx-auto flex h-full max-w-[190mm] flex-col">
-                <h2 className="text-center text-[18px] font-black uppercase underline text-black">
+                <h2 className="text-center text-[18px] font-bold text-blue-900 uppercase underline text-black">
                   {reportData?.inspection?.pidTitle || "5.0 P& ID of Anomaly"}
                 </h2>
 
@@ -4094,7 +4020,7 @@ export const VisualWebView = ({
 
             <div className="relative flex-1 px-6 pt-8 pb-8">
               <div className="mx-auto max-w-[196mm]">
-                <h2 className="text-center text-[18px] font-black uppercase underline text-black">
+                <h2 className="text-center text-[18px] font-bold text-blue-900 uppercase underline text-black">
                   6.0 Photographic Details
                 </h2>
 
@@ -4161,29 +4087,23 @@ export const VisualWebView = ({
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
             <div className="rounded-sm border border-slate-800 bg-white overflow-hidden">
               <table className="w-full border-collapse table-fixed">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[11px] font-bold text-black leading-tight uppercase">
-                    <th className="w-1/4 border-r border-slate-200 p-2 text-left">
+                <thead className="bg-blue-900 ">
+                  <tr className="border-b border-slate-200 text-[11px] font-bold text-white leading-tight uppercase">
+                    <th className="w-1/3 border-r border-slate-200 p-2 text-white text-left">
                       Prepared By
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                      <div className="mt-1 text-[10px] font-semibold text-white normal-case">
                         Inspector
                       </div>
                     </th>
-                    <th className="w-1/4 border-r border-slate-200 p-2 text-left">
+                    <th className="w-1/3 border-r border-slate-200 p-2 text-white text-left">
                       Reviewed by
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                      <div className="mt-1 text-[10px] font-semibold text-white normal-case">
                         Lead Inspector
                       </div>
                     </th>
-                    <th className="w-1/4 border-r border-slate-200 p-2 text-left">
-                      Reviewed by
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
-                        External Reviewer
-                      </div>
-                    </th>
-                    <th className="w-1/4 p-2 text-left">
+                    <th className="w-1/3 p-2 text-left text-white">
                       Verified By
-                      <div className="mt-1 text-[10px] font-semibold normal-case">
+                      <div className="mt-1 text-[10px] font-semibold text-white normal-case">
                         NDE Advisor
                       </div>
                     </th>
@@ -4231,26 +4151,6 @@ export const VisualWebView = ({
                         </div>
                         <div className="mt-1 text-[9px] text-slate-700">
                           {reportData.signoff.reviewerQualification || " "}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="h-[220px] border-r border-slate-200 p-3 align-bottom">
-                      <div className="flex h-full flex-col justify-end">
-                        {reportData.signoff.externalReviewerSignature ? (
-                          <img
-                            src={reportData.signoff.externalReviewerSignature}
-                            alt="External reviewer signature"
-                            className="mb-2 h-14 w-auto object-contain"
-                          />
-                        ) : null}
-                        <div className="mb-2 h-6 border-b border-slate-400" />
-                        <div className="text-[9px] font-semibold uppercase text-black">
-                          {reportData.signoff.externalReviewer ||
-                            reportData.general?.externalReviewerName ||
-                            "External Reviewer"}
-                        </div>
-                        <div className="mt-1 text-[9px] text-slate-700">
-                          {reportData.signoff.externalReviewerQualification || " "}
                         </div>
                       </div>
                     </td>
