@@ -4152,7 +4152,7 @@ export const VisualWebView = ({
           </div>
         ))}
 
-        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
+        <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[290mm] flex flex-col relative overflow-hidden">
           {reportHeader}
 
           <div className="relative flex-1 flex flex-col px-12 pt-10 gap-8">
