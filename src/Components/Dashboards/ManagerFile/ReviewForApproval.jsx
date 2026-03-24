@@ -42,8 +42,14 @@ const ReviewForApproval = () => {
 
     if (raw.includes("pressure vessel") || raw.includes("integrity")) return "integrity";
     if (raw.includes("detailed")) return "detailed";
+    if (
+      raw.includes("utreport") ||
+      raw.includes("ut report") ||
+      raw.includes("manual ut") ||
+      raw.includes("ultrasonic test")
+    ) return "ut";
     if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
-    if (raw.includes("mut") || raw.includes("manual ut")) return "mut";
+    if (raw.includes("mut")) return "mut";
     if (raw.includes("visual") || raw.includes("vt") || raw.includes("visual testing")) return "visual";
     if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray")) return "visual";
     return "visual";
@@ -56,6 +62,7 @@ const ReviewForApproval = () => {
 
     if (techniqueType === "integrity") return `${base}/integrity`;
     if (techniqueType === "detailed") return `${base}/detailed`;
+    if (techniqueType === "ut") return `${base}/ut`;
     if (techniqueType === "aut") return "/inspector/aut-report";
     if (techniqueType === "mut") return `${base}/mut`;
     return `${base}/visual`;

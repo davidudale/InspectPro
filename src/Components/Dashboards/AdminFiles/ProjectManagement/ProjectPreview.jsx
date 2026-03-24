@@ -14,6 +14,7 @@ import { Activity, Mail, Send, X } from "lucide-react";
 import { toast } from "react-toastify";
 import { IntegrityWebView } from "../../AdminFiles/ReportManagement/IntegrityCheck";
 import { VisualWebView } from "../../AdminFiles/ReportManagement/VisualReport";
+import { UTWebView } from "../../AdminFiles/ReportManagement/UTReport";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -48,6 +49,11 @@ const ReportDownloadView = ({
 
     if (hasVisualSpecificContent) return "visual";
     if (explicitType.includes("visual")) return "visual";
+    if (
+      explicitType.includes("utreport") ||
+      explicitType.includes("ut report") ||
+      explicitType.includes("ultrasonic test")
+    ) return "ut";
     if (explicitType.includes("integrity")) return "integrity";
     if (explicitType.includes("detailed")) return "detailed";
     if (explicitType.includes("aut")) return "aut";
@@ -77,6 +83,17 @@ const ReportDownloadView = ({
     ) {
       return "visual";
     }
+    if (
+      candidates.some(
+        (value) =>
+          value.includes("utreport") ||
+          value.includes("ut report") ||
+          value.includes("manual ut") ||
+          value.includes("ultrasonic test"),
+      )
+    ) {
+      return "ut";
+    }
     if (candidates.some((value) => value.includes("integrity"))) return "integrity";
     if (candidates.some((value) => value.includes("detailed"))) return "detailed";
     if (candidates.some((value) => value.includes("aut"))) return "aut";
@@ -97,6 +114,8 @@ const ReportDownloadView = ({
       ? "Integrity Check Report"
       : techniqueType === "detailed"
         ? "Detailed Inspection Report"
+        : techniqueType === "ut"
+          ? "Ultrasonic Test"
         : techniqueType === "aut"
           ? "AUT Technical Report"
           : techniqueType === "mut"
@@ -414,6 +433,17 @@ const ReportDownloadView = ({
           hideControls={hideControls}
         />
       </>
+    );
+  }
+
+  if (techniqueType === "ut") {
+    return (
+      <UTWebView
+        reportData={normalizedReportData}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
+      />
     );
   }
 

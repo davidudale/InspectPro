@@ -413,7 +413,7 @@ const ProjectEdit = () => {
                         <option value="">Select technique</option>
                         {(authorizedTechniques.length
                           ? authorizedTechniques
-                          : ["Visual", "Detailed", "Integrity Check", "AUT", "MUT"]
+                          : ["Visual", "Ultrasonic Test", "Detailed", "Integrity Check", "AUT", "MUT"]
                         ).map((tech) => (
                           <option key={tech} value={tech}>
                             {tech}

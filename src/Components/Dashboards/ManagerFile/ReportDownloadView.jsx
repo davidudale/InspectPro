@@ -16,6 +16,7 @@ import VisualReport from "../AdminFiles/ReportManagement/VisualReport";
 import Aut from "../AdminFiles/ReportManagement/Aut";
 import DetailedReport from "../AdminFiles/ReportManagement/DetailedReport";
 import MutReport from "../AdminFiles/ReportManagement/MutReport";
+import UTReport from "../AdminFiles/ReportManagement/UTReport";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -46,6 +47,11 @@ const ReportDownloadView = ({
 
     if (hasVisualSpecificContent) return "visual";
     if (explicitType.includes("visual")) return "visual";
+    if (
+      explicitType.includes("utreport") ||
+      explicitType.includes("ut report") ||
+      explicitType.includes("ultrasonic test")
+    ) return "ut";
     if (explicitType.includes("integrity")) return "integrity";
     if (explicitType.includes("detailed")) return "detailed";
     if (explicitType.includes("aut")) return "aut";
@@ -75,6 +81,17 @@ const ReportDownloadView = ({
     ) {
       return "visual";
     }
+    if (
+      candidates.some(
+        (value) =>
+          value.includes("utreport") ||
+          value.includes("ut report") ||
+          value.includes("manual ut") ||
+          value.includes("ultrasonic test"),
+      )
+    ) {
+      return "ut";
+    }
     if (candidates.some((value) => value.includes("integrity"))) return "integrity";
     if (candidates.some((value) => value.includes("detailed"))) return "detailed";
     if (candidates.some((value) => value.includes("aut"))) return "aut";
@@ -88,6 +105,8 @@ const ReportDownloadView = ({
       ? "Integrity Check Report"
       : techniqueType === "detailed"
         ? "Detailed Inspection Report"
+        : techniqueType === "ut"
+          ? "Ultrasonic Test"
         : techniqueType === "aut"
           ? "AUT Technical Report"
           : techniqueType === "mut"
@@ -258,6 +277,16 @@ const ReportDownloadView = ({
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
         hideSaveReportButton={hideSaveReportButton}
+      />
+    );
+  }
+  if (techniqueType === "ut") {
+    return (
+      <UTReport
+        previewData={reportPayload}
+        onBack={() => (onClose ? onClose() : navigate(-1))}
+        hideControls={hideControls}
+        companyLogo={companyLogo}
       />
     );
   }

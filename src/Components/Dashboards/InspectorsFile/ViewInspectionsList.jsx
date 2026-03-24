@@ -239,7 +239,12 @@ const ViewInspectionsList = () => {
       technique === "Integrity Check Report"
     ) {
       route = "/inspector/integrity-check";
-    } else if (technique === "Manual UT" || technique === "MUT") {
+    } else if (
+      
+      technique === "Ultrasonic Test"
+    ) {
+      route = "/inspector/utreport";
+    } else if (technique === "MUT") {
       route = "/inspector/manual-ut-report";
     } else if (
       technique === "Piping" ||

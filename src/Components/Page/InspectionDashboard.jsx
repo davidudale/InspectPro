@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ShieldCheck,
-  AlertCircle,
-  Terminal,
   PlusCircle,
+  ArrowRight,
+  ClipboardList,
+  MapPinned,
+  RefreshCw,
 } from "lucide-react";
 
 import { db } from "../Auth/firebase";
@@ -264,27 +266,45 @@ const InspectionDashboard = () => {
     {
       label: "Active Inspections",
       value: loading ? "..." : metrics.active.toString(),
-      icon: <Activity className="text-orange-500" />,
-      trend: "Live assignments",
+      icon: <ClipboardList className="text-orange-500" size={16} />,
+      trend: "Projects still active in your workflow",
     },
     {
       label: "Returned Inspections",
       value: loading ? "..." : metrics.returned.toString(),
-      icon: <AlertCircle className="text-amber-500" />,
-      trend: "Needs correction",
+      icon: <RefreshCw className="text-orange-500" size={16} />,
+      trend: "Reports sent back for correction",
     },
     {
       label: "Inspection Completed",
       value: loading ? "..." : metrics.completed.toString(),
-      icon: <ShieldCheck className="text-emerald-500" />,
-      trend: metrics.total ? `${Math.round((metrics.completed / metrics.total) * 100)}% closeout` : "No history",
+      icon: <ShieldCheck className="text-orange-500" size={16} />,
+      trend: "Inspections marked completed or closed",
     },
 
     {
       label: "Projects",
       value: loading ? "..." : metrics.total.toString(),
-      icon: <AlertCircle className="text-red-500" />,
-      trend: `${Math.max(metrics.total - metrics.completed, 0)} pending`,
+      icon: <Activity className="text-orange-500" size={16} />,
+      trend: `${Math.max(metrics.total - metrics.completed, 0)} still in progress`,
+    },
+  ];
+
+  const quickActions = [
+    {
+      title: "Open inspection queue",
+      description: "Review assigned inspections and continue current report work.",
+      onClick: () => navigate("/Inspection_view"),
+    },
+    {
+      title: "Review returned reports",
+      description: "Jump back into inspections that need corrections or updates.",
+      onClick: () => navigate("/Inspection_view"),
+    },
+    {
+      title: "Project conversations",
+      description: "Open the chat workspace and coordinate with the wider team.",
+      onClick: () => navigate("/Inspection_view"),
     },
   ];
 
@@ -294,87 +314,111 @@ const InspectionDashboard = () => {
       <div className="flex flex-1 min-h-screen">
         <InspectorSidebar />
 
-        <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
-          <div className="max-w-7xl mx-auto">
-            <header className="flex justify-between items-end mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-white tracking-tight">
-                  System Overview
-                </h1>
-                <p className="text-slate-400 text-sm mt-1">
-                  Welcome back,{" "}
-                    <span className="text-orange-500 font-semibold">
+        <main className="flex-1 ml-16 lg:ml-64 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_rgba(249,115,22,0.12),_transparent_30%),linear-gradient(180deg,_#070c19_0%,_#090f1d_100%)] px-4 py-5 lg:px-8 lg:py-8">
+          <div className="mx-auto max-w-7xl space-y-7">
+            <header className="rounded-[2rem] border border-slate-800/90 bg-[linear-gradient(135deg,rgba(12,18,36,0.98),rgba(35,22,24,0.94))] px-6 py-7 shadow-[0_30px_80px_rgba(0,0,0,0.35)] lg:px-8">
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                <div className="space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.38em] text-slate-500">
+                    Control Center
+                  </p>
+                  <h1 className="text-3xl font-black tracking-tight text-white lg:text-5xl">
+                    Inspection Visibility
+                  </h1>
+                  <p className="max-w-2xl text-sm leading-7 text-slate-400 lg:text-base">
+                    Monitor your assigned inspections, correction loops, and activity
+                    stream from one command view.
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    Signed in as{" "}
+                    <span className="font-semibold text-orange-400">
                       {fullName || "Inspector"}
                     </span>
-                  .
-                </p>
+                  </p>
+                </div>
+                <button
+                  onClick={() => navigate("/Inspection_view")}
+                  title="Open inspections"
+                  aria-label="Open inspections"
+                  className="inline-flex items-center gap-2 rounded-2xl border border-orange-500/40 bg-orange-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-orange-700 shadow-lg shadow-orange-950/20"
+                >
+                  <PlusCircle size={18} />
+                  Open Inspections
+                </button>
               </div>
-              <button
-                onClick={() => navigate("/Inspection_view")}
-                title="Add Inspection"
-                aria-label="Add Inspection"
-                className="hidden md:flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20"
-              >
-                <PlusCircle size={18} />
-                New Inspection
-              </button>
             </header>
 
-            {/* Metric Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
               {stats.map((stat) => (
                 <div
                   key={stat.label}
-                  className="group p-6 rounded-2xl border border-slate-800 bg-slate-900/40 hover:bg-slate-900/60 transition-all"
+                  className="rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700"
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-slate-950 rounded-lg border border-slate-800 group-hover:border-orange-500/50 transition-colors">
+                  <div className="mb-5 flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950">
                       {stat.icon}
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                      {stat.trend}
-                    </span>
                   </div>
-                  <p className="text-slate-400 text-xs font-medium uppercase tracking-tight">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
                     {stat.label}
                   </p>
-                  <p className="text-3xl font-bold text-white mt-1">
+                  <p className="mt-2 text-5xl font-black leading-none text-white">
                     {stat.value}
+                  </p>
+                  <p className="mt-4 max-w-[16rem] text-sm leading-7 text-slate-400">
+                    {stat.trend}
                   </p>
                 </div>
               ))}
             </div>
 
-            {/* Assistant Activity Log Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <Terminal size={20} className="text-orange-500" />
-                  <h2 className="font-bold text-white">
-                    Assistant Activity Log
-                  </h2>
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_1fr]">
+              <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
+                <div className="mb-6 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.36em] text-slate-500">
+                      Recent Activity
+                    </p>
+                    <h2 className="mt-3 text-2xl font-black text-white">
+                      Latest Inspection Updates
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => navigate("/Inspection_view")}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:border-orange-500/50"
+                  >
+                    <RefreshCw size={14} />
+                    View all
+                  </button>
                 </div>
                 <div className="space-y-4">
                   {logsLoading ? (
-                    <div className="flex gap-4 p-3 rounded-xl border-l-2 border-slate-800">
-                      <div className="w-2 h-2 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-5">
                       <p className="text-sm text-slate-400">Loading activity...</p>
                     </div>
                   ) : activityLogs.length > 0 ? (
                     activityLogs.map((log) => (
-                      <div key={log.id} className="flex gap-4 p-3 rounded-xl border-l-2 border-slate-800 hover:border-orange-500 transition-colors">
-                        <div className="w-2 h-2 rounded-full bg-orange-600 mt-1.5 shrink-0" />
-                        <div className="space-y-1">
-                          <p className="text-sm text-slate-300">{log.message || "Activity logged"}</p>
-                          <p className="text-[10px] text-slate-500 uppercase tracking-wider">
+                      <div
+                        key={log.id}
+                        className="rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-5 transition hover:border-slate-700"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-2">
+                            <p className="text-base font-semibold text-white">
+                              {log.message || "Activity logged"}
+                            </p>
+                            <p className="text-sm text-slate-400">
+                              Inspector-side workflow activity has been updated.
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-[10px] uppercase tracking-[0.22em] text-slate-500">
                             {formatTimeAgo(log.timestamp)}
                           </p>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="flex gap-4 p-3 rounded-xl border-l-2 border-slate-800">
-                      <div className="w-2 h-2 rounded-full bg-orange-600 mt-1.5 shrink-0" />
+                    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-5">
                       <p className="text-sm text-slate-400">
                         No recent assistant activity for your inspections.
                       </p>
@@ -383,13 +427,46 @@ const InspectionDashboard = () => {
                 </div>
               </div>
 
-              <ProjectChatbox
-                user={user}
-                assignmentField="inspectorId"
-                title="Project Chatbox"
-                description=""
-                emptyStateLabel="No assigned inspections are available for chat yet."
-              />
+              <div className="space-y-6">
+                <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
+                  <div className="mb-6">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.36em] text-slate-500">
+                      Quick Actions
+                    </p>
+                  </div>
+                  <div className="space-y-4">
+                    {quickActions.map((action) => (
+                      <button
+                        key={action.title}
+                        onClick={action.onClick}
+                        className="flex w-full items-start justify-between gap-4 rounded-[1.5rem] border border-slate-800 bg-slate-950/70 px-5 py-5 text-left transition hover:border-orange-500/30"
+                      >
+                        <div>
+                          <p className="text-base font-bold text-white">{action.title}</p>
+                          <p className="mt-2 max-w-md text-sm leading-7 text-slate-400">
+                            {action.description}
+                          </p>
+                        </div>
+                        <ArrowRight size={18} className="mt-1 shrink-0 text-slate-500" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
+                  <div className="mb-5 flex items-center gap-3">
+                    <MapPinned size={18} className="text-orange-500" />
+                    <h2 className="text-lg font-bold text-white">Project Chatbox</h2>
+                  </div>
+                  <ProjectChatbox
+                    user={user}
+                    assignmentField="inspectorId"
+                    title=""
+                    description=""
+                    emptyStateLabel="No assigned inspections are available for chat yet."
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </main>

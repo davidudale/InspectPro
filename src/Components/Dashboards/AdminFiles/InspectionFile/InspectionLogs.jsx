@@ -39,13 +39,37 @@ const InspectionLogs = () => {
     return () => { unsubLogs(); unsubEquip(); unsubTypes(); };
   }, []);
 
+  const normalizeTechniqueLabel = (tech = "") => {
+    const normalized = String(tech).trim().toLowerCase();
+    if (normalized === "utreport" || normalized === "ut report") {
+      return "Ultrasonic Test";
+    }
+    return tech;
+  };
+
+  const getReportRoutePath = (tech = "") => {
+    const normalized = String(tech).trim().toLowerCase();
+    if (
+      normalized === "utreport" ||
+      normalized === "ut report" ||
+      normalized === "ultrasonic test" ||
+      normalized === "manual ut"
+    ) {
+      return "utreport";
+    }
+    return normalized.split(" ")[0].replace(/[^a-z]/g, "");
+  };
+
   const availableTechniques = Array.from(
-    new Set(masterInspectionTypes.flatMap(type => type.requiredTechniques || []))
+    new Set(
+      masterInspectionTypes.flatMap(type =>
+        (type.requiredTechniques || []).map(normalizeTechniqueLabel),
+      ),
+    ),
   ).filter(tech => tech.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleRouteToReport = (tech) => {
-    // Standardize route path (e.g., "Visual (VT)" -> "visual")
-    const routePath = tech.toLowerCase().split(' ')[0].replace(/[^a-z]/g, '');
+    const routePath = getReportRoutePath(tech);
     const assetData = equipment.find(e => e.tagNumber === selectedEquip);
     const relatedLog = inspections.find(i => i.items?.some(item => item.reference === selectedEquip))?.items?.[0];
 

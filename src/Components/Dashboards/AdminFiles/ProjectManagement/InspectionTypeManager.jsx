@@ -96,6 +96,7 @@ const InspectionTypeManager = () => {
 
   const availableTechniques = [
     "Visual",
+    "Ultrasonic Test",
     "Detailed",
     "AUT",
     "MUT",

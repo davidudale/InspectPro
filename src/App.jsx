@@ -12,6 +12,7 @@ import InspectionDashboard from "./Components/Page/InspectionDashboard.jsx";
 import UserPage from "./Components/Dashboards/AdminFiles/UserManagement/UserPage.jsx";
 import Adduser from "./Components/Dashboards/AdminFiles/UserManagement/Adduser.jsx";
 import EditUser from "./Components/Dashboards/AdminFiles/UserManagement/EditUser.jsx";
+import UTReport from "./Components/Dashboards/AdminFiles/ReportManagement/UTReport.jsx";
 import ManagerDashboard from "./Components/Page/ManagerDashboard.jsx";
 import InspectionLogs from "./Components/Dashboards/AdminFiles/InspectionFile/InspectionLogs.jsx";
 import AddInspectionTemplate from "./Components/Dashboards/AdminFiles/InspectionFile/AddInspectionTemplate.jsx";
@@ -125,6 +126,16 @@ function App() {
               allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <Aut />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inspector/utreport"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+            >
+              <UTReport />
             </ProtectedRoute>
           }
         />
@@ -305,6 +316,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
               <Aut />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports/utreport"
+          element={
+            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+              <UTReport />
             </ProtectedRoute>
           }
         />

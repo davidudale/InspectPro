@@ -53,6 +53,14 @@ const ProjectSetup = () => {
   const [managers, setManagers] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
 
+  const normalizeTechniqueLabel = (tech = "") => {
+    const normalized = String(tech).trim().toLowerCase();
+    if (normalized === "utreport" || normalized === "ut report") {
+      return "Ultrasonic Test";
+    }
+    return tech;
+  };
+
   // --- Consolidated Project Manifest State ---
   const [setupData, setSetupData] = useState({
     projectId: `PRJ-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -154,7 +162,9 @@ const ProjectSetup = () => {
   const selectedProtocol = inspectionTypes.find(
     (t) => t.id === setupData.inspectionTypeId,
   );
-  const authorizedTechniques = selectedProtocol?.requiredTechniques || [];
+  const authorizedTechniques = (selectedProtocol?.requiredTechniques || []).map(
+    normalizeTechniqueLabel,
+  );
   const isTechniqueRequired = authorizedTechniques.length > 0;
 
   // --- 3. Submission & Forwarding Logic ---
@@ -612,7 +622,9 @@ const ProjectSetup = () => {
                             inspectionTypeName: selected?.fullName || "",
                             selectedTechnique: hasTechniques
                               ? ""
-                              : templateName || selected?.title || "",
+                              : normalizeTechniqueLabel(
+                                  templateName || selected?.title || "",
+                                ),
                             reportTemplate: templateName || selected?.title || "",
                           });
                         }}
@@ -638,7 +650,9 @@ const ProjectSetup = () => {
                       onChange={(e) =>
                         setSetupData({
                           ...setupData,
-                          selectedTechnique: e.target.value,
+                          selectedTechnique: normalizeTechniqueLabel(
+                            e.target.value,
+                          ),
                         })
                       }
                     >
