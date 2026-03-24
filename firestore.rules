@@ -228,6 +228,7 @@ service cloud.firestore {
       allow create: if signedIn() && (
         isAdmin() ||
         isManager() ||
+        isReviewerTier() ||
         isCreatingOwnLog()
       );
 

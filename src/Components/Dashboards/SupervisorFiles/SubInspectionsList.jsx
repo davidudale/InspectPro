@@ -35,6 +35,23 @@ const SubInspectionsList = () => {
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (value?.seconds) return value.seconds * 1000;
+    const parsed = new Date(value).getTime();
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const getRowTimestamp = (row) =>
+    row?.updatedAt ||
+    row?.lastUpdated ||
+    row?.inspectionStartedAt ||
+    row?.createdAt ||
+    row?.timestamp ||
+    row?.startDate ||
+    null;
+ 
    useEffect(() => {
     if (!user?.uid) return;
   
@@ -64,7 +81,11 @@ const SubInspectionsList = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        setProjects(projectsData);
+        setProjects(
+          projectsData.sort(
+            (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+          ),
+        );
         setLoading(false);
       },
       (error) => {
@@ -75,9 +96,20 @@ const SubInspectionsList = () => {
           const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           // Manual role filter for fallback if index isn't ready
           if (user?.role === "Lead Inspector" || user?.role === "External_Reviewer") {
-            setProjects(data.filter((p) => p.supervisorId === user.uid));
+            setProjects(
+              data
+                .filter((p) => p.supervisorId === user.uid)
+                .sort(
+                  (a, b) =>
+                    toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+                ),
+            );
           } else {
-            setProjects(data);
+            setProjects(
+              data.sort(
+                (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+              ),
+            );
           }
           setLoading(false);
         });
@@ -159,7 +191,7 @@ const SubInspectionsList = () => {
       p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.projectId?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)));
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">

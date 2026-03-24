@@ -11,12 +11,12 @@ import {
   limit,
 } from "firebase/firestore";
 import { Activity } from "lucide-react";
-import IntegrityCheck, { IntegrityWebView } from "../AdminFiles/ReportManagement/IntegrityCheck";
-import VisualReport from "../AdminFiles/ReportManagement/VisualReport";
+import { IntegrityWebView } from "../AdminFiles/ReportManagement/IntegrityCheck";
+import { VisualWebView } from "../AdminFiles/ReportManagement/VisualReport";
 import Aut from "../AdminFiles/ReportManagement/Aut";
 import DetailedReport from "../AdminFiles/ReportManagement/DetailedReport";
 import MutReport from "../AdminFiles/ReportManagement/MutReport";
-import UTReport from "../AdminFiles/ReportManagement/UTReport";
+import { UTWebView } from "../AdminFiles/ReportManagement/UTReport";
 
 const ReportDownloadView = ({
   projectId: projectIdProp = "",
@@ -36,27 +36,9 @@ const ReportDownloadView = ({
   const [projectDocId, setProjectDocId] = useState("");
 
   const getTechniqueType = () => {
-    const hasVisualSpecificContent =
-      Array.isArray(report?.checklist) ||
-      (report?.observations || []).some(
-        (obs) => obs?.refSn || obs?.equipmentId || obs?.equipmentDescription,
-      );
     const explicitType = String(
       report?.type || project?.report?.type || "",
     ).toLowerCase();
-
-    if (hasVisualSpecificContent) return "visual";
-    if (explicitType.includes("visual")) return "visual";
-    if (
-      explicitType.includes("utreport") ||
-      explicitType.includes("ut report") ||
-      explicitType.includes("ultrasonic test")
-    ) return "ut";
-    if (explicitType.includes("integrity")) return "integrity";
-    if (explicitType.includes("detailed")) return "detailed";
-    if (explicitType.includes("aut")) return "aut";
-    if (explicitType.includes("mut")) return "mut";
-
     const candidates = [
       report?.general?.selectedTechnique,
       report?.technique,
@@ -69,18 +51,22 @@ const ReportDownloadView = ({
     ]
       .filter(Boolean)
       .map((value) => String(value).toLowerCase());
+    const hasVisualSpecificContent =
+      Array.isArray(report?.checklist) ||
+      (report?.observations || []).some(
+        (obs) => obs?.refSn || obs?.equipmentId || obs?.equipmentDescription,
+      );
 
     if (
-      candidates.some(
-        (value) =>
-          value.includes("visual") ||
-          value.includes("radiography") ||
-          value.includes("rt") ||
-          value.includes("x-ray"),
-      )
-    ) {
-      return "visual";
-    }
+      explicitType.includes("utreport") ||
+      explicitType.includes("ut report") ||
+      explicitType.includes("ultrasonic test")
+    ) return "ut";
+    if (explicitType.includes("integrity")) return "integrity";
+    if (explicitType.includes("detailed")) return "detailed";
+    if (explicitType.includes("aut")) return "aut";
+    if (explicitType.includes("mut")) return "mut";
+
     if (
       candidates.some(
         (value) =>
@@ -96,6 +82,19 @@ const ReportDownloadView = ({
     if (candidates.some((value) => value.includes("detailed"))) return "detailed";
     if (candidates.some((value) => value.includes("aut"))) return "aut";
     if (candidates.some((value) => value.includes("mut"))) return "mut";
+    if (explicitType.includes("visual")) return "visual";
+    if (
+      candidates.some(
+        (value) =>
+          value.includes("visual") ||
+          value.includes("radiography") ||
+          value.includes("rt") ||
+          value.includes("x-ray"),
+      )
+    ) {
+      return "visual";
+    }
+    if (hasVisualSpecificContent) return "visual";
     return "visual";
   };
 
@@ -260,7 +259,7 @@ const ReportDownloadView = ({
 
   if (techniqueType === "visual") {
     return (
-      <VisualReport
+      <VisualWebView
         reportData={reportPayload}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
@@ -271,19 +270,18 @@ const ReportDownloadView = ({
 
   if (techniqueType === "integrity") {
     return (
-      <IntegrityCheck
+      <IntegrityWebView
         reportData={reportPayload}
         companyLogo={companyLogo}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
-        hideSaveReportButton={hideSaveReportButton}
       />
     );
   }
   if (techniqueType === "ut") {
     return (
-      <UTReport
-        previewData={reportPayload}
+      <UTWebView
+        reportData={reportPayload}
         onBack={() => (onClose ? onClose() : navigate(-1))}
         hideControls={hideControls}
         companyLogo={companyLogo}

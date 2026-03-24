@@ -113,7 +113,7 @@ const InspectionTypeManager = () => {
                     {/* ... Regulatory Standard Selection (remains same) */}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Category with Add More */}
+                      
                       <AddMoreDropdown 
                         label="Category"
                         value={newType.category}
@@ -131,7 +131,7 @@ const InspectionTypeManager = () => {
                         options={designCodes}
                         isAdding={isAddingDesignCode}
                         setIsAdding={setIsAddingDesignCode}
-                        fieldKey="code"
+                        fieldKey=""
                         onSelect={(val) => setNewType({...newType, defaultStandard: val})}
                       />
                     </div>

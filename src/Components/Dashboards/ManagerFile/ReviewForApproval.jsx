@@ -62,7 +62,7 @@ const ReviewForApproval = () => {
 
     if (techniqueType === "integrity") return `${base}/integrity`;
     if (techniqueType === "detailed") return `${base}/detailed`;
-    if (techniqueType === "ut") return `${base}/ut`;
+    if (techniqueType === "ut") return `${base}/utreport`;
     if (techniqueType === "aut") return "/inspector/aut-report";
     if (techniqueType === "mut") return `${base}/mut`;
     return `${base}/visual`;

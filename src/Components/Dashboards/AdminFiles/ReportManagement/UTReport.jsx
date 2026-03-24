@@ -104,7 +104,7 @@ const UTReport = ({
     return `PEL-WPQ/${year}/${sequence}`;
   };
   const [reportData, setReportData] = useState({
-    type: "Visual",
+    type: "Ultrasonic Test",
     status: user?.role === "Inspector" ? "New" : "Draft",
     general: {
       client: "",
@@ -117,8 +117,11 @@ const UTReport = ({
       customPipeSupports: [],
       customSpecialConsiderations: [],
       diagramImage: "",
+      diagramImageNote: "",
       pidImage: "",
+      pidImageNote: "",
       inspectedEquipmentImage: "",
+      inspectedEquipmentImageNote: "",
       projectId: "",
       inspectionType: "",
     },
@@ -1326,8 +1329,11 @@ const UTReport = ({
               .filter(Boolean)
           : [],
         diagramImage: asText(g.diagramImage),
+        diagramImageNote: asText(g.diagramImageNote),
         pidImage: asText(g.pidImage),
+        pidImageNote: asText(g.pidImageNote),
         inspectedEquipmentImage: asText(g.inspectedEquipmentImage),
+        inspectedEquipmentImageNote: asText(g.inspectedEquipmentImageNote),
         projectId: asText(projectDocId || g.projectId || ""),
         projectDocId: asText(g.projectDocId || projectDocId || ""),
         inspectionType: asText(g.inspectionType),
@@ -1450,7 +1456,7 @@ const UTReport = ({
       );
 
       setReportData((prev) => ({ ...prev, status: saveStatus }));
-      toast.success("Visual report saved.");
+      toast.success("Ultrasonic Test report saved.");
     } catch (error) {
       toast.error(`Error saving report: ${error.message}`);
     } finally {
@@ -2083,6 +2089,16 @@ const UTReport = ({
                         alt="Schematic preview"
                         className="mt-3 max-h-80 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
                       />
+                      <div className="mt-4">
+                        <TextArea
+                          label="Photo Note"
+                          value={reportData.general.diagramImageNote || ""}
+                          onChange={(v) =>
+                            handleChange("general", "diagramImageNote", v)
+                          }
+                          placeholder="Add note for uploaded schematic anomaly image"
+                        />
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -2141,11 +2157,21 @@ const UTReport = ({
                       )}
                     </div>
                     {reportData.general.pidImage ? (
-                      <img
-                        src={reportData.general.pidImage}
-                        alt="P&ID preview"
-                        className="max-h-96 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
-                      />
+                      <>
+                        <img
+                          src={reportData.general.pidImage}
+                          alt="P&ID preview"
+                          className="max-h-96 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
+                        />
+                        <TextArea
+                          label="Photo Note"
+                          value={reportData.general.pidImageNote || ""}
+                          onChange={(v) =>
+                            handleChange("general", "pidImageNote", v)
+                          }
+                          placeholder="Add note for uploaded P&ID anomaly image"
+                        />
+                      </>
                     ) : null}
                   </div>
                 </div>
@@ -2200,11 +2226,25 @@ const UTReport = ({
                       )}
                     </div>
                     {reportData.general.inspectedEquipmentImage ? (
-                      <img
-                        src={reportData.general.inspectedEquipmentImage}
-                        alt="Inspected equipment schematic preview"
-                        className="max-h-96 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
-                      />
+                      <>
+                        <img
+                          src={reportData.general.inspectedEquipmentImage}
+                          alt="Inspected equipment schematic preview"
+                          className="max-h-96 w-full rounded-xl border border-slate-800 object-contain bg-white p-3"
+                        />
+                        <TextArea
+                          label="Photo Note"
+                          value={reportData.general.inspectedEquipmentImageNote || ""}
+                          onChange={(v) =>
+                            handleChange(
+                              "general",
+                              "inspectedEquipmentImageNote",
+                              v,
+                            )
+                          }
+                          placeholder="Add note for uploaded inspected equipment image"
+                        />
+                      </>
                     ) : null}
                   </div>
                 </div>
@@ -3793,11 +3833,18 @@ export const UTWebView = ({
 
               <div className="mt-6 flex-1 rounded-sm border border-slate-300 bg-white p-4">
                 {reportData?.general?.diagramImage ? (
-                  <img
-                    src={reportData.general.diagramImage}
-                    alt="Schematic of anomaly"
-                    className="h-full max-h-[180mm] w-full object-contain"
-                  />
+                  <div className="flex h-full flex-col">
+                    <img
+                      src={reportData.general.diagramImage}
+                      alt="Schematic of anomaly"
+                      className="h-full max-h-[160mm] w-full object-contain"
+                    />
+                    {String(reportData?.general?.diagramImageNote || "").trim() ? (
+                      <div className="mt-4 border border-slate-300 px-4 py-3 text-[11px] leading-5 text-black">
+                        {reportData.general.diagramImageNote}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="pdf-placeholder flex h-full min-h-[180mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload schematic anomaly photo in the form view
@@ -3903,11 +3950,18 @@ export const UTWebView = ({
 
               <div className="mt-6 flex-1 rounded-sm border border-slate-300 bg-white p-5">
                 {reportData?.general?.pidImage ? (
-                  <img
-                    src={reportData.general.pidImage}
-                    alt="P&ID of anomaly"
-                    className="h-full max-h-[150mm] w-full object-contain"
-                  />
+                  <div className="flex h-full flex-col">
+                    <img
+                      src={reportData.general.pidImage}
+                      alt="P&ID of anomaly"
+                      className="h-full max-h-[135mm] w-full object-contain"
+                    />
+                    {String(reportData?.general?.pidImageNote || "").trim() ? (
+                      <div className="mt-4 border border-slate-300 px-4 py-3 text-[11px] leading-5 text-black">
+                        {reportData.general.pidImageNote}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="pdf-placeholder flex h-full min-h-[150mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload P&amp; ID anomaly photo in the form view
@@ -3940,11 +3994,20 @@ export const UTWebView = ({
 
               <div className="mt-6 flex-1 rounded-sm border border-slate-300 bg-white p-5">
                 {reportData?.general?.inspectedEquipmentImage ? (
-                  <img
-                    src={reportData.general.inspectedEquipmentImage}
-                    alt="Schematic of inspected equipment"
-                    className="h-full max-h-[180mm] w-full object-contain"
-                  />
+                  <div className="flex h-full flex-col">
+                    <img
+                      src={reportData.general.inspectedEquipmentImage}
+                      alt="Schematic of inspected equipment"
+                      className="h-full max-h-[160mm] w-full object-contain"
+                    />
+                    {String(
+                      reportData?.general?.inspectedEquipmentImageNote || "",
+                    ).trim() ? (
+                      <div className="mt-4 border border-slate-300 px-4 py-3 text-[11px] leading-5 text-black">
+                        {reportData.general.inspectedEquipmentImageNote}
+                      </div>
+                    ) : null}
+                  </div>
                 ) : (
                   <div className="pdf-placeholder flex h-full min-h-[180mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload inspected equipment/piping/structure schematic in the form view

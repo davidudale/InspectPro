@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import { collection, onSnapshot, query, deleteDoc, doc } from "firebase/firestore";
@@ -68,10 +68,14 @@ const ProjectList = () => {
   useEffect(() => {
     const q = query(collection(db, "projects"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const projectsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const projectsData = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .sort(
+          (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+        );
       setProjects(projectsData);
     });
     return () => unsubscribe();
@@ -94,18 +98,22 @@ const ProjectList = () => {
     }
   };
 
-  const filteredProjects = projects
-    .filter(
-      (p) =>
-        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.clientName || p.client || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-    );
+  const filteredProjects = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase();
+
+    return [...projects]
+      .filter(
+        (p) =>
+          p.projectName?.toLowerCase().includes(normalizedSearch) ||
+          (p.clientName || p.client || "")
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          p.projectId?.toLowerCase().includes(normalizedSearch),
+      )
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      );
+  }, [projects, searchTerm]);
 
   const getOperationalStatus = (project) => {
     const topLevelStatus = String(project?.status || "").trim();
@@ -177,8 +185,8 @@ const ProjectList = () => {
             {/* TABULAR INTERFACE */}
             {filteredProjects.length > 0 ? (
               <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                <div className="max-h-[70vh] overflow-auto">
+                  <table className="w-full min-w-[1100px] text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-800 bg-slate-950/50">
                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project Identity</th>

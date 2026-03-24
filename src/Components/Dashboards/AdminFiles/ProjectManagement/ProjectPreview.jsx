@@ -38,27 +38,9 @@ const ReportDownloadView = ({
   });
 
   const getTechniqueType = () => {
-    const hasVisualSpecificContent =
-      Array.isArray(report?.checklist) ||
-      (report?.observations || []).some(
-        (obs) => obs?.refSn || obs?.equipmentId || obs?.equipmentDescription,
-      );
     const explicitType = String(
       report?.type || project?.report?.type || "",
     ).toLowerCase();
-
-    if (hasVisualSpecificContent) return "visual";
-    if (explicitType.includes("visual")) return "visual";
-    if (
-      explicitType.includes("utreport") ||
-      explicitType.includes("ut report") ||
-      explicitType.includes("ultrasonic test")
-    ) return "ut";
-    if (explicitType.includes("integrity")) return "integrity";
-    if (explicitType.includes("detailed")) return "detailed";
-    if (explicitType.includes("aut")) return "aut";
-    if (explicitType.includes("mut")) return "mut";
-
     const candidates = [
       report?.general?.selectedTechnique,
       report?.technique,
@@ -71,18 +53,22 @@ const ReportDownloadView = ({
     ]
       .filter(Boolean)
       .map((value) => String(value).toLowerCase());
+    const hasVisualSpecificContent =
+      Array.isArray(report?.checklist) ||
+      (report?.observations || []).some(
+        (obs) => obs?.refSn || obs?.equipmentId || obs?.equipmentDescription,
+      );
 
     if (
-      candidates.some(
-        (value) =>
-          value.includes("visual") ||
-          value.includes("radiography") ||
-          value.includes("rt") ||
-          value.includes("x-ray"),
-      )
-    ) {
-      return "visual";
-    }
+      explicitType.includes("utreport") ||
+      explicitType.includes("ut report") ||
+      explicitType.includes("ultrasonic test")
+    ) return "ut";
+    if (explicitType.includes("integrity")) return "integrity";
+    if (explicitType.includes("detailed")) return "detailed";
+    if (explicitType.includes("aut")) return "aut";
+    if (explicitType.includes("mut")) return "mut";
+
     if (
       candidates.some(
         (value) =>
@@ -98,6 +84,19 @@ const ReportDownloadView = ({
     if (candidates.some((value) => value.includes("detailed"))) return "detailed";
     if (candidates.some((value) => value.includes("aut"))) return "aut";
     if (candidates.some((value) => value.includes("mut"))) return "mut";
+    if (explicitType.includes("visual")) return "visual";
+    if (
+      candidates.some(
+        (value) =>
+          value.includes("visual") ||
+          value.includes("radiography") ||
+          value.includes("rt") ||
+          value.includes("x-ray"),
+      )
+    ) {
+      return "visual";
+    }
+    if (hasVisualSpecificContent) return "visual";
     return "visual";
   };
 
@@ -114,7 +113,7 @@ const ReportDownloadView = ({
       ? "Integrity Check Report"
       : techniqueType === "detailed"
         ? "Detailed Inspection Report"
-        : techniqueType === "ut"
+        : techniqueType === "Ultrasonic Test"
           ? "Ultrasonic Test"
         : techniqueType === "aut"
           ? "AUT Technical Report"

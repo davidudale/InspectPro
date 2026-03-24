@@ -43,6 +43,25 @@ const ViewInspectionsList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const toMillis = (value) => {
+    if (!value) return 0;
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? 0 : parsed;
+    }
+    if (typeof value?.toMillis === "function") return value.toMillis();
+    if (typeof value?.toDate === "function") return value.toDate().getTime();
+    return 0;
+  };
+  const getRowTimestamp = (row) =>
+    row?.updatedAt ||
+    row?.lastUpdated ||
+    row?.inspectionStartedAt ||
+    row?.createdAt ||
+    row?.timestamp ||
+    row?.startDate ||
+    0;
   const isPassedForwardedStatus = (status = "") =>
     String(status).startsWith("Passed and Forwarded to ");
 
@@ -61,7 +80,7 @@ const ViewInspectionsList = () => {
   if (user?.role === "Manager" || user?.role === "Admin") {
     q = query(
       collection(db, "projects"),
-      orderBy("startDate", "desc")
+      orderBy("startDate", "asc")
     );
   } 
   // Inspectors see all their assignments so status remains visible across workflow stages.
@@ -69,7 +88,7 @@ const ViewInspectionsList = () => {
     q = query(
       collection(db, "projects"),
       where("inspectorId", "==", user.uid),
-      orderBy("startDate", "desc")
+      orderBy("startDate", "asc")
     );
   }
 
@@ -143,12 +162,16 @@ const ViewInspectionsList = () => {
     }
   };
 
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) || // Use clientName from setupData
-      p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredProjects = projects
+    .filter(
+      (p) =>
+        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) || // Use clientName from setupData
+        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(a)) - toMillis(getRowTimestamp(b)),
+    );
 
   const getInspectionActionState = (project) => {
     const status = (project?.status || "").toLowerCase();
@@ -361,7 +384,14 @@ const ViewInspectionsList = () => {
                             </div>
                           </td>
                           <td className="p-6 text-xs text-slate-300 font-semibold uppercase">
-                            {project.clientName}
+                            <div className="flex items-center gap-2">
+                              <Users size={14} className="text-slate-600" />
+                              <div>
+                                <p className="text-xs font-semibold text-slate-300 uppercase">
+                                  {project.clientName}
+                                </p>
+                              </div>
+                            </div>
                           </td>
                           <td className="p-6">
                             <div className="flex items-center gap-2 text-slate-400">

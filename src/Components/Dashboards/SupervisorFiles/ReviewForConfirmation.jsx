@@ -75,7 +75,7 @@ const ReviewForConfirmation = () => {
 
     if (techniqueType === "integrity") return isAdminPath ? `${base}/integrity` : `${base}/integrity-check`;
     if (techniqueType === "detailed") return isAdminPath ? `${base}/detailed` : `${base}/Detailed-report`;
-    if (techniqueType === "ut") return isAdminPath ? `${base}/ut` : `${base}/manual-ut-report`;
+    if (techniqueType === "ut") return isAdminPath ? `${base}/utreport` : `${base}/utreport`;
     if (techniqueType === "aut") return `${base}/aut-report`;
     if (techniqueType === "mut") return isAdminPath ? `${base}/mut` : `${base}/mut-report`;
     return isAdminPath ? `${base}/visual` : `${base}/visual-report`;
