@@ -4096,7 +4096,7 @@ export const VisualWebView = ({
             {reportHeader}
 
             <div className="relative flex-1 px-6 pt-8 pb-8">
-              <div className="mx-auto max-w-[196mm]">
+              <div className="mx-auto max-w-[189mm]">
                 <h2 className="text-center text-[18px] font-bold text-blue-900 uppercase underline text-black">
                   6.0 Photographic Details
                 </h2>
@@ -4132,7 +4132,7 @@ export const VisualWebView = ({
                     })}
                   </div>
                 ) : (
-                  <div className="pdf-placeholder mt-8 flex min-h-[210mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
+                  <div className="pdf-placeholder mt-8 flex min-h-[200mm] items-center justify-center rounded-sm border border-dashed border-slate-400 bg-slate-50 px-8 text-center text-[12px] font-semibold uppercase tracking-[0.25em] text-slate-400">
                     Upload photos from inspection findings, pipe supports, or
                     special considerations to populate this page
                   </div>
