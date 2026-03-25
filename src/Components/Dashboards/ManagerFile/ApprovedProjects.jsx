@@ -1,29 +1,27 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 import {
-  collection,
-  onSnapshot,
-  query,
-  doc,
-  where,
-} from "firebase/firestore";
-import {
-  Briefcase,
-  Search,
-  MapPin,
-  ShieldAlert,
   Activity,
-  FileText, // Added for Download icon
-  Download, // Added for Download icon
+  Briefcase,
+  Download,
+  FileText,
+  MapPin,
+  Search,
+  ShieldAlert,
 } from "lucide-react";
-
-import { toast } from "react-toastify";
 import { useAuth } from "../../Auth/AuthContext";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 
 const ApprovedProjects = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(true);
+
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -35,36 +33,57 @@ const ApprovedProjects = () => {
     if (typeof value?.toDate === "function") return value.toDate().getTime();
     return 0;
   };
+
   const getRowTimestamp = (row) =>
+    row?.approvedAt ||
     row?.updatedAt ||
     row?.lastUpdated ||
+    row?.confirmedAt ||
     row?.confirmationDate ||
     row?.createdAt ||
     row?.timestamp ||
     row?.startDate ||
     0;
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [projects, setProjects] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
+
+  const formatDateTime = (value) => {
+    const millis = toMillis(value);
+    if (!millis) return "Not available";
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(millis));
+  };
+
+  const resolveTechnique = (project) =>
+    project?.report?.general?.inspectionTypeCode ||
+    project?.report?.general?.inspectionTypeName ||
+    project?.inspectionTypeCode ||
+    project?.inspectionTypeName ||
+    project?.reportTemplate ||
+    project?.selectedTechnique ||
+    "Inspection Report";
 
   useEffect(() => {
     if (!user?.uid) return;
-    let q;
 
-    if (user?.role === "Manager" || user?.role === "Admin") {
-      q = query(collection(db, "projects"), where("status", "==", "Approved"));
-    } else {
-      q = query(
-        collection(db, "projects"),
-        where("supervisorId", "==", user.uid),
-        where("status", "==", "Approved")
-      );
-    }
+    const approvedQuery =
+      user?.role === "Manager" || user?.role === "Admin"
+        ? query(collection(db, "projects"), where("status", "==", "Approved"))
+        : query(
+            collection(db, "projects"),
+            where("supervisorId", "==", user.uid),
+            where("status", "==", "Approved"),
+          );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setProjects(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    const unsubscribe = onSnapshot(approvedQuery, (snapshot) => {
+      const nextProjects = snapshot.docs
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+        .sort((a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)));
+
+      setProjects(nextProjects);
       setLoading(false);
     });
 
@@ -72,101 +91,197 @@ const ApprovedProjects = () => {
   }, [user]);
 
   const filteredProjects = projects
-    .filter(
-      (p) =>
-        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-    );
+    .filter((project) => {
+      const searchValue = searchTerm.toLowerCase();
+      return (
+        String(project.projectName || "").toLowerCase().includes(searchValue) ||
+        String(project.clientName || "").toLowerCase().includes(searchValue) ||
+        String(project.projectId || "").toLowerCase().includes(searchValue) ||
+        String(resolveTechnique(project)).toLowerCase().includes(searchValue) ||
+        String(project.locationName || "").toLowerCase().includes(searchValue)
+      );
+    })
+    .sort((a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)));
+
+  const approvedCount = filteredProjects.length;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
+    <div className="flex min-h-screen flex-col bg-[#050816] text-slate-200">
       <ManagerNavbar />
       <div className="flex flex-1">
         <ManagerSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
-          <div className="max-w-7xl mx-auto">
-            <header className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
-              <div>
-                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white flex items-center gap-3">
-                  <Briefcase className="text-orange-500" /> Approved Reports
-                </h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
-                  Archived & Finalized Technical Documents
-                </p>
-              </div>
+        <main className="ml-16 flex-1 bg-[radial-gradient(circle_at_top_right,_rgba(249,115,22,0.12),_transparent_25%),linear-gradient(180deg,_#07101f_0%,_#050816_55%,_#040712_100%)] p-4 sm:p-6 lg:ml-64 lg:p-8">
+          <div className="mx-auto max-w-[1500px]">
+            <div className="overflow-hidden rounded-[2rem] border border-slate-800/80 bg-[#08101f]/95 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
+              <header className="border-b border-slate-800/80 px-6 py-6 sm:px-8">
+                <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">
+                      Control Center
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3 text-orange-400">
+                        <Briefcase size={18} />
+                      </div>
+                      <div>
+                        <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                          Approved Reports
+                        </h1>
+                        <p className="mt-1 text-sm text-slate-400">
+                          Browse finalized inspection documents and download the approved report package.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="relative w-full md:w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                <input
-                  type="text"
-                  placeholder="Search approved projects..."
-                  className="w-full bg-slate-900/50 border border-slate-800 p-4 pl-12 rounded-2xl text-xs focus:border-orange-500 outline-none"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </header>
-
-            {loading ? (
-              <div className="flex justify-center py-20"><Activity className="animate-spin text-orange-500" /></div>
-            ) : filteredProjects.length > 0 ? (
-              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-800 bg-slate-950/50">
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project Identity</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Client</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Facility</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800/50">
-                      {filteredProjects.map((project) => (
-                        <tr key={project.id} className="group hover:bg-white/5 transition-colors">
-                          <td className="p-6">
-                            <div className="flex items-center gap-4">
-                              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-emerald-500 shadow-inner">
-                                <FileText size={18} />
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold text-white uppercase">{project.projectName}</p>
-                                <p className="text-[9px] font-mono text-slate-500 uppercase">{project.projectId}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-6 text-xs text-slate-300 font-semibold uppercase">{project.clientName}</td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-2 text-slate-400">
-                              <MapPin size={14} className="text-orange-500/50" />
-                              <span className="text-xs font-medium">{project.locationName}</span>
-                            </div>
-                          </td>
-                          <td className="p-6 text-right">
-                            {/* DOWNLOAD BUTTON */}
-                            <button
-                              onClick={() => navigate(`/report/download/${project.id}`)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex-inline items-center gap-2"
-                            >
-                              <Download size={14} className="inline mr-1" /> Download PDF
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="flex w-full flex-col gap-3 xl:max-w-[420px] xl:items-end">
+                    <div className="relative w-full">
+                      <Search
+                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+                        size={16}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search by project, client, technique, or facility..."
+                        className="w-full rounded-2xl border border-slate-700/80 bg-[#0a1224] py-4 pl-12 pr-4 text-sm text-slate-200 outline-none transition-colors placeholder:text-slate-500 focus:border-orange-500"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-400">
+                      {approvedCount} Approved Report{approvedCount === 1 ? "" : "s"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-slate-800 rounded-[3rem] bg-slate-900/10">
-                <ShieldAlert size={48} className="text-slate-800 mb-4" />
-                <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">No Approved Reports Found</p>
-              </div>
-            )}
+              </header>
+
+              <section className="px-6 py-6 sm:px-8">
+                {loading ? (
+                  <div className="flex min-h-[360px] items-center justify-center">
+                    <Activity className="animate-spin text-orange-500" />
+                  </div>
+                ) : filteredProjects.length > 0 ? (
+                  <div className="rounded-[1.75rem] border border-slate-800/80 bg-[#070d1c] p-4 sm:p-6">
+                    <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-5 sm:flex-row sm:items-center sm:justify-between">
+                      
+
+                      
+                    </div>
+
+                    <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-slate-800/80 bg-[#060b17]">
+                      <div className="table-scroll-region max-h-[68vh] overflow-auto">
+                        <table className="min-w-[900px] w-full border-collapse text-left">
+                          <thead className="sticky top-0 z-10 bg-[#0b1326]">
+                            <tr className="border-b border-slate-800/80">
+                              <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Project Identity
+                              </th>
+                              <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Last Updated
+                              </th>
+                              <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Status
+                              </th>
+                              <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Technique
+                              </th>
+                              <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Client
+                              </th>
+                              <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Facility
+                              </th>
+                              <th className="px-3 py-3 text-right text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                                Action
+                              </th>
+                            </tr>
+                          </thead>
+
+                          <tbody>
+                            {filteredProjects.map((project) => (
+                              <tr
+                                key={project.id}
+                                className="border-b border-slate-800/60 transition-colors hover:bg-white/[0.03]"
+                              >
+                                <td className="px-3 py-4 align-top">
+                                  <div className="space-y-1">
+                                    <p className="text-xs font-black uppercase text-white sm:text-sm">
+                                      {project.projectName || "Untitled Project"}
+                                    </p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                      {project.projectId || "No Project ID"}
+                                    </p>
+                                  </div>
+                                </td>
+
+                                <td className="px-3 py-4 align-top">
+                                  <p className="text-xs font-bold text-slate-200 sm:text-sm">
+                                    {formatDateTime(getRowTimestamp(project))}
+                                  </p>
+                                  <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                                    Approved Record
+                                  </p>
+                                </td>
+
+                                <td className="px-3 py-4 align-top">
+                                  <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-emerald-300">
+                                    {project.status || "Approved"}
+                                  </span>
+                                </td>
+
+                                <td className="px-3 py-4 align-top">
+                                  <p className="text-xs font-bold text-slate-200 sm:text-sm">
+                                    {resolveTechnique(project)}
+                                  </p>
+                                  <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
+                                    Report Template
+                                  </p>
+                                </td>
+
+                                <td className="px-3 py-4 align-top">
+                                  <p className="text-xs font-bold uppercase text-slate-200 sm:text-sm">
+                                    {project.clientName || "No Client"}
+                                  </p>
+                                </td>
+
+                                <td className="px-3 py-4 align-top">
+                                  <div className="flex items-center gap-2 text-slate-300">
+                                    <MapPin size={14} className="shrink-0 text-orange-500/60" />
+                                    <span className="text-xs font-medium sm:text-sm">
+                                      {project.locationName || "No Facility"}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="px-3 py-4 text-right align-top">
+                                  <button
+                                    onClick={() => navigate(`/report/download/${project.id}`)}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500 px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] text-white transition-all hover:bg-orange-600"
+                                  >
+                                    <Download size={14} />
+                                    Download PDF
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[1.75rem] border-2 border-dashed border-slate-800 bg-[#070d1c] px-6 py-16 text-center">
+                    <ShieldAlert size={48} className="mb-4 text-slate-700" />
+                    <p className="text-sm font-black uppercase tracking-[0.3em] text-slate-500">
+                      No Approved Reports Found
+                    </p>
+                    <p className="mt-3 max-w-md text-sm text-slate-400">
+                      Once projects are approved, they will appear here with technique details and downloadable report packages.
+                    </p>
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
         </main>
       </div>

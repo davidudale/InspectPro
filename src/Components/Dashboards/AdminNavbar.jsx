@@ -41,7 +41,8 @@ const AdminNavbar = () => {
     }
   };
   return (
-    <nav className="sticky top-0 w-full border-b border-slate-800 bg-slate-900/50 backdrop-blur-md z-50">
+    <>
+    <nav className="fixed inset-x-0 top-0 z-50 w-full border-b border-slate-800 bg-slate-900/85 backdrop-blur-md">
       <div className="flex items-center justify-between p-4 lg:px-8">
         {/* Logo Section */}
         <div className="flex items-center space-x-3">
@@ -100,6 +101,8 @@ const AdminNavbar = () => {
         </div>
       )}
     </nav>
+    <div className="h-[73px] w-full shrink-0" />
+    </>
   );
 };
 

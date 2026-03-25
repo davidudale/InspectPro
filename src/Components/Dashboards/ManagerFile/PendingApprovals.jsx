@@ -27,6 +27,7 @@ import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import { useAuth } from "../../Auth/AuthContext";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
+import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 
 const PendingApprovals = () => {
   const toMillis = (value) => {
@@ -130,55 +131,39 @@ const PendingApprovals = () => {
     );
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <ManagerNavbar />
+    <>
       {ConfirmDialog}
-      <div className="flex flex-1">
-        <ManagerSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
-          <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
-              <div>
-                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white flex items-center gap-3">
-                  <Briefcase className="text-orange-500" /> Pending Approvals
-                </h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
-                  Reviewing Manifests Sent for Approval
-                </p>
-              </div>
-
-              <div className="relative w-full md:w-80 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-orange-500 transition-colors" size={16} />
-                <input
-                  type="text"
-                  placeholder="Search reviews..."
-                  className="w-full bg-slate-900/50 border border-slate-800 p-4 pl-12 rounded-2xl text-xs focus:border-orange-500 outline-none transition-all backdrop-blur-md"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center py-20"><Activity className="animate-spin text-orange-500" /></div>
-            ) : filteredProjects.length > 0 ? (
-              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+      <ControlCenterTableShell
+        navbar={<ManagerNavbar />}
+        sidebar={<ManagerSidebar />}
+        title="Pending Approvals"
+        subtitle="Review forwarded reports, return items for correction, and move approved work to the archive."
+        icon={<Briefcase size={18} />}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search reviews..."
+        summary={`${filteredProjects.length} Pending Approval${filteredProjects.length === 1 ? "" : "s"}`}
+        
+        loading={loading}
+        hasData={filteredProjects.length > 0}
+        emptyTitle="No Pending Approvals"
+        emptyDescription="Reports forwarded to management for approval will appear here."
+      >
+        <div className="table-scroll-region max-h-[68vh] overflow-auto">
+          <table className="w-full min-w-[840px] text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-800 bg-slate-950/50">
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Project Identity</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Client</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Facility</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Approval Actions</th>
+                      <tr className="border-b border-slate-800/80 bg-[#0b1326]">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Project Identity</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Client</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
+                        <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Approval Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
                       {filteredProjects.map((project) => (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
-                          <td className="p-6">
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-4">
                               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 shadow-inner">
                                 <Briefcase size={18} />
@@ -189,21 +174,21 @@ const PendingApprovals = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="p-6 text-xs text-slate-300 font-semibold uppercase">{project.clientName}</td>
-                          <td className="p-6">
+                          <td className="px-3 py-4 text-[11px] text-slate-300 font-semibold uppercase">{project.clientName}</td>
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin size={14} className="text-orange-500/50" />
                               <span className="text-xs font-medium">{project.locationName}</span>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin size={14} className="text-orange-500/50" />
                               <span className="text-xs font-medium">{project.status}</span>
                             </div>
                           </td>
 
-                          <td className="p-6 text-right space-x-2 item-center flex">
+                          <td className="px-3 py-4 text-right space-x-2 item-center flex">
                             {/* NEW: Reject/Return Button */}
                            {/* <button
                               onClick={() =>
@@ -224,7 +209,7 @@ const PendingApprovals = () => {
                               onClick={() => navigate("/ReviewForApproval", { 
                                 state: { preFill: { ...project, assetType: project.equipmentCategory || project.assetType } } 
                               })}
-                              className="bg-orange-600 hover:bg-orange-700 text-white ml-6 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg "
+                               className="bg-orange-600 hover:bg-orange-700 text-white ml-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.16em] transition-all shadow-lg "
                             >
                              {String(project?.status || "")
                                .toLowerCase()
@@ -237,18 +222,9 @@ const PendingApprovals = () => {
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-slate-800 rounded-[3rem] bg-slate-900/10">
-                <ShieldAlert size={48} className="text-slate-800 mb-4" />
-                <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">No Pending Approvals</p>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      </ControlCenterTableShell>
+    </>
   );
 };
 

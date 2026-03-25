@@ -226,7 +226,7 @@ const InspectedEquipment = () => {
               </div>
             ) : filteredRows.length > 0 ? (
               <div className="overflow-hidden rounded-[2.5rem] border border-slate-800 bg-slate-900/40 shadow-2xl backdrop-blur-md">
-                <div className="overflow-x-auto">
+                <div className="table-scroll-region overflow-x-auto">
                   <table className="w-full border-collapse text-left">
                     <thead>
                       <tr className="border-b border-slate-800 bg-slate-950/50">

@@ -215,7 +215,7 @@ const UserPage = () => {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="table-scroll-region overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-900/60 border-b border-slate-800">

@@ -1,11 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Bell, MessageSquare } from "lucide-react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import { db } from "../Auth/firebase";
 
 const SEEN_KEY_PREFIX = "inspectpro-chat-seen";
+const CLEARED_KEY_PREFIX = "inspectpro-chat-cleared";
 
 const getSeenStorageKey = (uid) => `${SEEN_KEY_PREFIX}:${uid}`;
+const getClearedStorageKey = (uid) => `${CLEARED_KEY_PREFIX}:${uid}`;
 
 const getMillis = (value) => {
   if (!value) return 0;
@@ -28,14 +31,17 @@ const formatTimeAgo = (value) => {
 };
 
 const MessageBell = ({ user }) => {
+  const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
   const [open, setOpen] = useState(false);
   const [seenMap, setSeenMap] = useState({});
+  const [clearedMap, setClearedMap] = useState({});
 
   useEffect(() => {
     if (!user?.uid) {
       setThreads([]);
       setSeenMap({});
+      setClearedMap({});
       return undefined;
     }
 
@@ -44,6 +50,15 @@ const MessageBell = ({ user }) => {
       setSeenMap(stored ? JSON.parse(stored) : {});
     } catch {
       setSeenMap({});
+    }
+
+    try {
+      const storedCleared = window.localStorage.getItem(
+        getClearedStorageKey(user.uid),
+      );
+      setClearedMap(storedCleared ? JSON.parse(storedCleared) : {});
+    } catch {
+      setClearedMap({});
     }
 
     const threadsRef =
@@ -83,9 +98,19 @@ const MessageBell = ({ user }) => {
     }
   }, [open, threads, user?.uid]);
 
-  const unreadThreads = useMemo(
+  const visibleThreads = useMemo(
     () =>
       threads.filter((thread) => {
+        const lastMessageMillis = getMillis(thread.lastMessageAt);
+        const clearedMillis = Number(clearedMap[thread.id] || 0);
+        return lastMessageMillis > clearedMillis;
+      }),
+    [clearedMap, threads],
+  );
+
+  const unreadThreads = useMemo(
+    () =>
+      visibleThreads.filter((thread) => {
         const lastMessageMillis = getMillis(thread.lastMessageAt);
         const seenMillis = Number(seenMap[thread.id] || 0);
         return (
@@ -94,10 +119,86 @@ const MessageBell = ({ user }) => {
           lastMessageMillis > seenMillis
         );
       }),
-    [seenMap, threads, user?.uid],
+    [seenMap, user?.uid, visibleThreads],
   );
 
-  const recentThreads = useMemo(() => threads.slice(0, 5), [threads]);
+  const recentThreads = useMemo(() => visibleThreads.slice(0, 5), [visibleThreads]);
+
+  const persistSeenMap = (nextSeenMap) => {
+    setSeenMap(nextSeenMap);
+    try {
+      window.localStorage.setItem(
+        getSeenStorageKey(user.uid),
+        JSON.stringify(nextSeenMap),
+      );
+    } catch {
+      // Ignore storage write failures.
+    }
+  };
+
+  const persistClearedMap = (nextClearedMap) => {
+    setClearedMap(nextClearedMap);
+    try {
+      window.localStorage.setItem(
+        getClearedStorageKey(user.uid),
+        JSON.stringify(nextClearedMap),
+      );
+    } catch {
+      // Ignore storage write failures.
+    }
+  };
+
+  const resolveNotificationRoute = (thread) => {
+    const projectRef = thread.projectDocId || thread.projectId || thread.id;
+    const role = String(user?.role || "");
+
+    if (!projectRef) return "";
+    if (role === "Admin" || role === "Manager" || role === "External_Reviewer") {
+      return `/admin/project/${projectRef}`;
+    }
+    if (role === "Lead Inspector") {
+      return `/review/${projectRef}`;
+    }
+    return `/review/${projectRef}`;
+  };
+
+  const handleNotificationClick = (thread) => {
+    if (!user?.uid) return;
+
+    const lastMessageMillis = getMillis(thread.lastMessageAt);
+    const nextSeenMap = {
+      ...seenMap,
+      [thread.id]: lastMessageMillis,
+    };
+    persistSeenMap(nextSeenMap);
+
+    const route = resolveNotificationRoute(thread);
+    setOpen(false);
+    if (route) navigate(route);
+  };
+
+  const handleClearNotifications = () => {
+    if (!user?.uid || visibleThreads.length === 0) return;
+
+    const nextClearedMap = visibleThreads.reduce(
+      (accumulator, thread) => {
+        accumulator[thread.id] = getMillis(thread.lastMessageAt);
+        return accumulator;
+      },
+      { ...clearedMap },
+    );
+
+    const nextSeenMap = visibleThreads.reduce(
+      (accumulator, thread) => {
+        accumulator[thread.id] = getMillis(thread.lastMessageAt);
+        return accumulator;
+      },
+      { ...seenMap },
+    );
+
+    persistClearedMap(nextClearedMap);
+    persistSeenMap(nextSeenMap);
+  };
 
   return (
     <div className="relative">
@@ -127,8 +228,16 @@ const MessageBell = ({ user }) => {
                 {unreadThreads.length > 0
                   ? `${unreadThreads.length} unread conversation${unreadThreads.length > 1 ? "s" : ""}`
                   : "No unread chat messages"}
-              </h3>
-            </div>
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearNotifications}
+                disabled={recentThreads.length === 0}
+                className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300 transition hover:border-orange-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Clear
+              </button>
           </div>
 
           <div className="mt-4 space-y-3">
@@ -136,13 +245,15 @@ const MessageBell = ({ user }) => {
               recentThreads.map((thread) => {
                 const isUnread = unreadThreads.some((item) => item.id === thread.id);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={thread.id}
+                    onClick={() => handleNotificationClick(thread)}
                     className={`rounded-2xl border px-4 py-3 ${
                       isUnread
                         ? "border-orange-500/30 bg-orange-500/5"
                         : "border-slate-800 bg-slate-950/70"
-                    }`}
+                    } w-full text-left transition hover:border-orange-500/40 hover:bg-slate-950`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-start gap-3">
@@ -163,7 +274,7 @@ const MessageBell = ({ user }) => {
                         {formatTimeAgo(thread.lastMessageAt)}
                       </span>
                     </div>
-                  </div>
+                  </button>
                 );
               })
             ) : (

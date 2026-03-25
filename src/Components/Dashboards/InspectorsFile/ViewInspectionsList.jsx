@@ -35,6 +35,7 @@ import InspectorSidebar from "./InspectorSidebar";
 import { useAuth } from "../../Auth/AuthContext"; // Ensure useAuth is imported
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
+import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 
 const ViewInspectionsList = () => {
   const { user } = useAuth(); // Get current logged-in inspector
@@ -299,65 +300,43 @@ const ViewInspectionsList = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-       {user?.role === "Manager" ? <ManagerNavbar /> : <InspectorNavbar />}
+    <>
       {ConfirmDialog}
-      <div className="flex">
-        {user?.role === "Manager" ? <ManagerSidebar /> : <InspectorSidebar />}
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
-          <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
-              <div>
-                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white flex items-center gap-3">
-                  <Briefcase className="text-orange-500" /> My Assigned Tasks
-                </h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
-                  Personal Worklist / Technical Deployment
-                </p>
-              </div>
-
-              <div className="relative w-full md:w-80 group">
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-orange-500 transition-colors"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  placeholder="Search assignments..."
-                  className="w-full bg-slate-900/50 border border-slate-800 p-4 pl-12 rounded-2xl text-xs focus:border-orange-500 outline-none transition-all backdrop-blur-md"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center py-20">
-                <Activity className="animate-spin text-orange-500" />
-              </div>
-            ) : filteredProjects.length > 0 ? (
-              <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+      <ControlCenterTableShell
+        navbar={user?.role === "Manager" ? <ManagerNavbar /> : <InspectorNavbar />}
+        sidebar={user?.role === "Manager" ? <ManagerSidebar /> : <InspectorSidebar />}
+        title="My Assigned Tasks"
+        subtitle="Track active assignments, returned reports, and ready-for-review work."
+        icon={<Briefcase size={18} />}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search assignments..."
+        summary={`${filteredProjects.length} Assignment${filteredProjects.length === 1 ? "" : "s"}`}
+        loading={loading}
+        hasData={filteredProjects.length > 0}
+        emptyTitle="No Assignments Found"
+        emptyDescription="Assignments routed to your profile will appear here with their workflow status and next action."
+      >
+        <div className="table-scroll-region max-h-[68vh] overflow-auto">
+          <table className="w-full min-w-[840px] text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-slate-800 bg-slate-950/50">
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <tr className="border-b border-slate-800/80 bg-[#0b1326]">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Project Identity
                         </th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Client
                         </th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Facility
                         </th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Status
                         </th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Feedback
                         </th>
-                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
+                        <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Action
                         </th>
                       </tr>
@@ -368,7 +347,7 @@ const ViewInspectionsList = () => {
                           key={project.id}
                           className="group hover:bg-white/5 transition-colors"
                         >
-                          <td className="p-6">
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-4">
                               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 shadow-inner">
                                 <Briefcase size={18} />
@@ -383,7 +362,7 @@ const ViewInspectionsList = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="p-6 text-xs text-slate-300 font-semibold uppercase">
+                          <td className="px-3 py-4 text-[11px] text-slate-300 font-semibold uppercase">
                             <div className="flex items-center gap-2">
                               <Users size={14} className="text-slate-600" />
                               <div>
@@ -393,7 +372,7 @@ const ViewInspectionsList = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin
                                 size={14}
@@ -404,7 +383,7 @@ const ViewInspectionsList = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin
                                 size={14}
@@ -415,24 +394,24 @@ const ViewInspectionsList = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="p-6">
+                          <td className="px-3 py-4">
                             <p className="text-xs text-slate-300 max-w-xs break-words">
                               {getReturnFeedback(project)}
                             </p>
                           </td>
 
-                          <td className="p-6 text-right">
+                          <td className="px-3 py-4 text-right">
                             {getInspectionActionState(project) === "active" ? (
                               <button
                                 onClick={() => handleOpenInspection(project)}
-                                className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+                                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.16em] transition-all shadow-lg shadow-orange-900/20 active:scale-95"
                               >
                                 {getInspectionActionLabel(project)}
                               </button>
                             ) : (
                               <button
                                 onClick={() => handleViewInspection(project)}
-                                className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-900/20 active:scale-95"
+                                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.16em] transition-all shadow-lg shadow-orange-900/20 active:scale-95"
                               >
                                 View
                               </button>
@@ -442,23 +421,9 @@ const ViewInspectionsList = () => {
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-slate-800 rounded-[3rem] bg-slate-900/10">
-                <ShieldAlert size={48} className="text-slate-800 mb-4" />
-                <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">
-                  No assignments found
-                </p>
-                <p className="text-slate-700 text-[10px] mt-2 uppercase tracking-tighter">
-                  Please contact your admin for task forwarding
-                </p>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      </ControlCenterTableShell>
+    </>
   );
 };
 

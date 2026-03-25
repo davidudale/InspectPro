@@ -251,7 +251,7 @@ const ClientManager = () => {
             </div>
 
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
-              <div className="overflow-x-auto">
+              <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-950/50">
@@ -416,4 +416,3 @@ const ClientManager = () => {
 };
 
 export default ClientManager;
-

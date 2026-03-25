@@ -189,9 +189,16 @@ const ManagerSidebar = () => {
   }, []);
 
   return (
+    <>
+    <div
+      onClick={() => setIsMobileExpanded(false)}
+      className={`fixed inset-0 z-30 bg-slate-950/70 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
+        isMobileExpanded ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+      }`}
+    />
     <aside
-      className={`h-screen fixed border-r border-slate-800 bg-slate-900/20 transition-all duration-300 flex flex-col ${
-        isMobileExpanded ? "w-64" : "w-16"
+      className={`fixed z-40 flex h-screen max-w-[85vw] flex-col border-r border-slate-800 bg-slate-900/95 backdrop-blur-xl transition-all duration-300 ${
+        isMobileExpanded ? "w-64 shadow-2xl shadow-black/40" : "w-16"
       } lg:w-64`}
     >
       <div className="p-4 lg:p-6 border-b border-slate-800/50">
@@ -221,7 +228,7 @@ const ManagerSidebar = () => {
         </div>
       </div>
       {/* Example Sidebar Icons for Mobile */}
-      <nav className="flex-1 bg-slate-900 overflow-y-auto py-4 px-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto bg-slate-900 px-3 py-4 space-y-1">
         {sidebarLinks.map((link, index) => {
           const hasSubLinks = !!link.subLinks;
           const isOpen = openDropdown === link.name;
@@ -235,7 +242,7 @@ const ManagerSidebar = () => {
               {/* Main Link or Dropdown Trigger */}
               <div
                 onClick={() =>
-                  hasSubLinks ? toggleDropdown(link.name) : navigate(link.href)
+                    hasSubLinks ? toggleDropdown(link.name) : (navigate(link.href), setIsMobileExpanded(false))
                 }
                 className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all group
                   ${isActive ? "bg-orange-600/10 text-orange-500" : "text-slate-400 hover:bg-slate-800/50 hover:text-white"}`}
@@ -268,7 +275,10 @@ const ManagerSidebar = () => {
                   {link.subLinks.map((sub, subIdx) => (
                     <button
                       key={subIdx}
-                      onClick={() => navigate(sub.href)}
+                      onClick={() => {
+                        navigate(sub.href);
+                        setIsMobileExpanded(false);
+                      }}
                       className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
                         ${
                           location.pathname === sub.href
@@ -287,6 +297,7 @@ const ManagerSidebar = () => {
         })}
       </nav>
     </aside>
+    </>
   );
 };
 

@@ -110,6 +110,7 @@ const InspectionLogs = () => {
                <div className="py-40 flex justify-center"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500"></div></div>
             ) : phase === 1 ? (
               <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md">
+                <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-slate-950/50 border-b border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                     <tr>
@@ -137,6 +138,7 @@ const InspectionLogs = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 animate-in zoom-in-95 duration-300">
