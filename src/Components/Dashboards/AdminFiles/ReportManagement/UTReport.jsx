@@ -29,6 +29,7 @@ import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 import html2pdf from "html2pdf.js";
 
@@ -458,7 +459,7 @@ const UTReport = ({
                 "",
             },
           });
-          toast.info("Previous Visual report loaded for correction.");
+          toast.info("Previous ultrasonic test report loaded for correction.");
         } else if (projectData?.status) {
           setReportData((prev) => ({
             ...prev,
@@ -570,7 +571,7 @@ const UTReport = ({
       handleChange("general", field, url);
       toast.success(`${label} uploaded.`);
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, `Unable to upload ${label.toLowerCase()}.`));
     }
   };
 
@@ -580,7 +581,7 @@ const UTReport = ({
       updateObservation(obsId, "photo", url);
       toast.success("Observation photo uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the observation photo."));
     }
   };
 
@@ -766,7 +767,7 @@ const UTReport = ({
       appendPhotosToChecklistItem(itemId, [url]);
       toast.success("Checklist photo uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the checklist photo."));
     }
   };
 
@@ -780,7 +781,7 @@ const UTReport = ({
       appendPhotosToChecklistItem(itemId, urls);
       toast.success("Checklist photos uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the checklist photos."));
     }
   };
 
@@ -790,7 +791,7 @@ const UTReport = ({
       appendPhotosToPipeSupportItem(itemId, [url]);
       toast.success("Pipe support photo uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the pipe support photo."));
     }
   };
 
@@ -804,7 +805,7 @@ const UTReport = ({
       appendPhotosToPipeSupportItem(itemId, urls);
       toast.success("Pipe support photos uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the pipe support photos."));
     }
   };
 
@@ -817,7 +818,7 @@ const UTReport = ({
       appendPhotosToSpecialConsiderationItem(itemId, [url]);
       toast.success("Special consideration photo uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the special consideration photo."));
     }
   };
 
@@ -831,7 +832,7 @@ const UTReport = ({
       appendPhotosToSpecialConsiderationItem(itemId, urls);
       toast.success("Special consideration photos uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the special consideration photos."));
     }
   };
 
@@ -841,7 +842,7 @@ const UTReport = ({
       handleChange("signoff", field, url);
       toast.success(`${label} uploaded.`);
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, `Unable to upload ${label.toLowerCase()}.`));
     }
   };
 
@@ -1458,7 +1459,7 @@ const UTReport = ({
       setReportData((prev) => ({ ...prev, status: saveStatus }));
       toast.success("Ultrasonic Test report saved.");
     } catch (error) {
-      toast.error(`Error saving report: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to save the ultrasonic test report."));
     } finally {
       setIsSaving(false);
     }
@@ -1519,7 +1520,7 @@ const UTReport = ({
       setReportData((prev) => ({ ...prev, status: pendingConfirmationStatus }));
       toast.success("Report sent for confirmation.");
     } catch (error) {
-      toast.error(`Error sending for confirmation: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to send the report for confirmation."));
     } finally {
       setIsSaving(false);
     }
@@ -2612,7 +2613,7 @@ export const UTWebView = ({
         .save();
     } catch (error) {
       console.error("PDF export failed:", error);
-      toast.error("Failed to download PDF.");
+      toast.error("Unable to download the PDF.");
     } finally {
       setIsPdfExportMode(false);
       setIsDownloadingPdf(false);

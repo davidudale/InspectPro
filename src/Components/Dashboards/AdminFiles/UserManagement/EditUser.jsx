@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { ArrowLeft, Save, User } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
@@ -26,7 +27,7 @@ const EditUser = () => {
         if (userDoc.exists()) {
           setFormData(userDoc.data());
         } else {
-          toast.error("User not found");
+          toast.error("User not found.");
           navigate("/admin/users");
         }
       } catch (error) {
@@ -48,10 +49,10 @@ const EditUser = () => {
         role: formData.role,
         email: formData.email
       });
-      toast.success("Profile Updated Successfully");
+      toast.success("Profile updated successfully.");
       navigate("/admin/users");
     } catch (error) {
-      toast.error("Failed to update: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to update the profile."));
     }
   };
 

@@ -6,6 +6,7 @@ import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from "fi
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../../Auth/AuthContext";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import {
   ClipboardCheck, ArrowLeft, Save, Activity, Tag, Plus,
   Trash2, MapPin, FileText, User, ShieldCheck, Briefcase
@@ -27,7 +28,7 @@ const AddInspectionTemplate = () => {
         const querySnapshot = await getDocs(q);
         setProjects(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       } catch (error) {
-        toast.error("Manifest Directory sync failed");
+        toast.error("Unable to sync the manifest directory.");
       }
     };
     fetchProjects();
@@ -75,7 +76,7 @@ const AddInspectionTemplate = () => {
       } else {
         setInspectionItems([createNewRow(selected, 0)]);
       }
-      toast.success(`Project Context Synced: ${selected.projectName}`);
+      toast.success(`Project context synced: ${selected.projectName}.`);
     } else {
       setInspectionItems([createNewRow()]);
     }
@@ -110,10 +111,10 @@ const AddInspectionTemplate = () => {
         inspectorId: user?.uid,
         timestamp: serverTimestamp(),
       });
-      toast.success("Technical Manifest Deployed");
+      toast.success("Technical manifest created.");
       navigate("/admin/inspections");
     } catch (error) {
-      toast.error("Database Error: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to create the technical manifest."));
     } finally {
       setLoading(false);
     }

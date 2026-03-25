@@ -24,6 +24,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const LocationManager = () => {
@@ -129,16 +130,16 @@ const LocationManager = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "locations", locationId));
-      toast.success("Facility record deleted");
+      toast.success("Facility deleted.");
     } catch (err) {
-      toast.error("Delete operation failed");
+      toast.error("Unable to delete the facility.");
     }
   };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!newLocation.clientId)
-      return toast.warn("Facility must be assigned to a Client.");
+      return toast.warn("Please assign the facility to a client.");
 
     setIsSubmitting(true);
     try {
@@ -162,17 +163,17 @@ const LocationManager = () => {
           ...locationPayload,
           updatedAt: serverTimestamp(),
         });
-        toast.success("Facility Updated");
+        toast.success("Facility updated.");
       } else {
         await addDoc(collection(db, "locations"), {
           ...newLocation,
           createdAt: serverTimestamp(),
         });
-        toast.success("Facility Registered and Linked to Client");
+        toast.success("Facility created and linked to the client.");
       }
       closeModal();
     } catch (err) {
-      toast.error("Operation failed");
+      toast.error(getToastErrorMessage(error, "Unable to save the facility."));
     } finally {
       setIsSubmitting(false);
     }

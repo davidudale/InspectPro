@@ -24,6 +24,7 @@ import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 
 const Aut = ({
@@ -246,10 +247,10 @@ const Aut = ({
         },
         { merge: true },
       );
-      toast.success("Inspection Data Saved to Firebase");
+      toast.success("Inspection data saved.");
       setReportMode(true); 
     } catch (error) {
-      toast.error("Error saving report: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to save the report."));
     } finally {
       setIsSaving(false);
     }

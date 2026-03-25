@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 import { Lock, Palette, Save } from "lucide-react";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { auth } from "../../Auth/firebase";
 import InspectorNavbar from "./InspectorNavbar";
 import InspectorSidebar from "./InspectorSidebar";
@@ -63,7 +64,7 @@ const UserPreferences = () => {
       setConfirmPassword("");
       toast.success("Password updated successfully.");
     } catch (error) {
-      toast.error(error?.message || "Failed to update password.");
+      toast.error(getToastErrorMessage(error, "Unable to update the password."));
     } finally {
       setIsUpdatingPassword(false);
     }

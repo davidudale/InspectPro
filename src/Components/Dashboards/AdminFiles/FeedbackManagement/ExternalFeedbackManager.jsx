@@ -19,6 +19,7 @@ import {
   Clock3,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { db } from "../../../Auth/firebase";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
@@ -106,7 +107,7 @@ const ExternalFeedbackManager = () => {
       });
       toast.success(`Feedback marked as ${nextStatus}.`);
     } catch (error) {
-      toast.error(`Failed to update feedback: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to update the feedback."));
     } finally {
       setUpdatingId("");
     }
@@ -128,7 +129,7 @@ const ExternalFeedbackManager = () => {
       await deleteDoc(doc(db, "external_feedback", item.id));
       toast.success("Feedback deleted.");
     } catch (error) {
-      toast.error(`Failed to delete feedback: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to delete the feedback."));
     } finally {
       setUpdatingId("");
     }

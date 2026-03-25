@@ -30,6 +30,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 // Expanded list including major Oil & Gas equipment categories
@@ -187,9 +188,9 @@ const EquipmentManager = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "equipment", id));
-      toast.error(`${tag} Removed successfully`);
+      toast.success(`${tag} removed successfully.`);
     } catch (err) {
-      toast.error("Deletion failed");
+      toast.error("Unable to delete the equipment.");
     }
   };
 
@@ -239,7 +240,7 @@ const EquipmentManager = () => {
           ...newAsset,
           updatedAt: serverTimestamp(),
         });
-        toast.success("Equipment updated");
+        toast.success("Equipment updated.");
       } else {
         await addDoc(collection(db, "equipment"), {
           ...newAsset,
@@ -253,11 +254,11 @@ const EquipmentManager = () => {
                 timestamp: serverTimestamp(),
               });
         
-        toast.success("New Equipment added");
+        toast.success("Equipment added.");
       }
       handleCloseModal();
     } catch (err) {
-      toast.error("Database sync failed");
+      toast.error(getToastErrorMessage(error, "Unable to save the equipment."));
     } finally {
       setIsSubmitting(false);
     }
@@ -287,7 +288,7 @@ const EquipmentManager = () => {
 
     setTempValue("");
     setAddingField(null);
-    toast.info("Custom option added");
+    toast.info("Custom option added.");
   };
 
   const handleCloseModal = () => {

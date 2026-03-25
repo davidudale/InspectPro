@@ -93,9 +93,9 @@ const ProjectList = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "projects", projectId));
-      toast.success(`${name} deleted from database`);
+      toast.success(`${name} deleted.`);
     } catch (error) {
-      toast.error("Deletion failed: Admin permissions required");
+      toast.error("You need admin permission to delete this project.");
     }
   };
 

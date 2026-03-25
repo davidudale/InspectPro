@@ -41,7 +41,7 @@ const ViewInspection = () => {
 
     // Implementation Note: In a production environment, you would upload to Firebase Storage 
     // and save the URL. For this structure, we use a placeholder toast.
-    toast.info("Uploading evidence to secure cloud...");
+    toast.info("Uploading evidence...");
     
     // Simulate successful upload and update local state
     const updatedItems = [...data.items];

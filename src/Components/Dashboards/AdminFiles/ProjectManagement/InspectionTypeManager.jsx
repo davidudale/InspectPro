@@ -205,7 +205,7 @@ const InspectionTypeManager = () => {
       // Reset and close
       setCustomStandard({ title: "", fullName: "" });
       setIsAddingStandard(false);
-      toast.success("New standard added to local session");
+      toast.success("New standard added to the current session.");
     }
   };
 
@@ -241,9 +241,9 @@ const InspectionTypeManager = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "inspection_types", typeId));
-      toast.success("Standard deleted");
+      toast.success("Standard deleted.");
     } catch (err) {
-      toast.error("Delete operation failed");
+      toast.error("Unable to delete the standard.");
     }
   };
 
@@ -313,17 +313,17 @@ const InspectionTypeManager = () => {
           ...typePayload,
           updatedAt: serverTimestamp(),
         });
-        toast.success("Standard updated successfully");
+        toast.success("Standard updated successfully.");
       } else {
         await addDoc(collection(db, "inspection_types"), {
           ...resolvedType,
           createdAt: serverTimestamp(),
         });
-        toast.success("New standard registered");
+        toast.success("New standard registered.");
       }
       handleCloseModal();
     } catch (err) {
-      toast.error("Transaction failed");
+      toast.error("Unable to save the standard.");
     } finally {
       setIsSubmitting(false);
     }

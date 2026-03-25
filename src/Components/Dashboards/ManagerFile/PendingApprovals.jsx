@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { useConfirmDialog } from "../../Common/ConfirmDialog";
 
 import { useAuth } from "../../Auth/AuthContext";
@@ -113,9 +114,9 @@ const PendingApprovals = () => {
         lastUpdated: serverTimestamp(),
         returnNote: "Manager requested review/corrections",
       });
-      toast.warning(`Project ${name} reverted to field status`);
+      toast.warning(`Project ${name} returned to field status.`);
     } catch (error) {
-      toast.error("Status update failed: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to update the project status."));
     }
   };
 

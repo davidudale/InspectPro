@@ -6,6 +6,7 @@ import { auth, db } from "../Auth/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../utils/toast";
 import { useConfirmDialog } from "../Common/ConfirmDialog";
 
 const Register = () => {
@@ -36,7 +37,7 @@ const Register = () => {
       }
       // Create a user document in Firestore with the role
 
-      toast.success("Registration Successful! Please log in.");
+      toast.success("Registration successful. Please sign in.");
       await openConfirm({
         title: "Registration Successful",
         message: "Registration Successful! Please log in.",
@@ -47,7 +48,7 @@ const Register = () => {
       navigate("/admin-dashboard");
     } catch (error) {
       console.error(error.message);
-      toast.error(error.message);
+      toast.error(getToastErrorMessage(error, "Unable to complete registration."));
     }
   };
 

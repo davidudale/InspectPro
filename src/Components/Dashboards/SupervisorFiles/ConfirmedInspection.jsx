@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { useAuth } from "../../Auth/AuthContext";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
@@ -88,7 +89,7 @@ const ConfirmedInspections = () => {
     const assignedManagerName = managerName || "Manager";
 
     try {
-      toast.info(`Authorizing ${projectName}...`);
+      toast.info(`Forwarding ${projectName} for approval...`);
 
       // This UPDATES the existing project document
       await updateDoc(projectRef, {
@@ -98,10 +99,10 @@ const ConfirmedInspections = () => {
         lastUpdated: serverTimestamp(),
       });
 
-      toast.success(`Project Authorized and Forwarded to ${assignedManagerName}`);
+      toast.success(`Project forwarded to ${assignedManagerName}.`);
     } catch (error) {
       console.error("Update Error:", error);
-      toast.error("Failed to update project status: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to update the project status."));
     }
   };
 
@@ -206,4 +207,3 @@ const ConfirmedInspections = () => {
 };
 
 export default ConfirmedInspections;
-

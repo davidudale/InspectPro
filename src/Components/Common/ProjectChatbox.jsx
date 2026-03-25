@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { ChevronDown, MessageSquare, Send, Users } from "lucide-react";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../utils/toast";
 import { db } from "../Auth/firebase";
 
 const getDisplayName = (user) =>
@@ -145,7 +146,7 @@ const ProjectChatbox = ({
         setProjects([]);
         setProjectsLoading(false);
         setProjectsError(error.message || "Unable to load project threads.");
-        toast.error(`Project chat unavailable: ${error.message || "Unable to load project threads."}`);
+        toast.error(getToastErrorMessage(error, "Unable to load project chat."));
       },
     );
 
@@ -194,7 +195,7 @@ const ProjectChatbox = ({
         setMessages([]);
         setMessagesLoading(false);
         setMessagesError(error.message || "Unable to load messages.");
-        toast.error(`Project messages unavailable: ${error.message || "Unable to load messages."}`);
+        toast.error(getToastErrorMessage(error, "Unable to load messages."));
       },
     );
 
@@ -251,9 +252,9 @@ const ProjectChatbox = ({
       });
       await batch.commit();
       setDraft("");
-      toast.success("Message sent");
+      toast.success("Message sent.");
     } catch (error) {
-      toast.error(`Message failed: ${error.message || "Unable to send message."}`);
+      toast.error(getToastErrorMessage(error, "Unable to send the message."));
     } finally {
       setIsSending(false);
     }
@@ -299,9 +300,9 @@ const ProjectChatbox = ({
       await threadBatch.commit();
 
       setDraft("");
-      toast.success("Project chat cleared");
+      toast.success("Project chat cleared.");
     } catch (error) {
-      toast.error(`Unable to clear chat: ${error.message || "Please try again."}`);
+      toast.error(getToastErrorMessage(error, "Unable to clear the project chat."));
     } finally {
       setIsClearing(false);
     }

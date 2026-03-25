@@ -9,6 +9,7 @@ import {
   Send,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import ExternalNavbar from "./ExternalNavbar";
@@ -117,9 +118,9 @@ const Feedback = () => {
         ...prev,
         [projectKey]: { subject: "", message: "" },
       }));
-      toast.success("Feedback sent to admin.");
+      toast.success("Feedback sent to the admin.");
     } catch (error) {
-      toast.error(`Failed to send feedback: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to send feedback."));
     } finally {
       setSubmittingProjectId("");
     }

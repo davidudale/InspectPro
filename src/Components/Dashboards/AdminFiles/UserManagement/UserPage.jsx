@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
 const DEFAULT_ROLE = "Inspector";
@@ -120,7 +121,7 @@ const UserPage = () => {
           updatedAt: serverTimestamp(),
         });
 
-        toast.success("User profile updated");
+        toast.success("User profile updated.");
       } else {
         const userCredential = await createUserWithEmailAndPassword(
           secondaryAuth,
@@ -142,7 +143,7 @@ const UserPage = () => {
         });
 
         await secondaryAuth.signOut();
-        toast.success("User profile created");
+        toast.success("User profile created.");
       }
 
       handleCloseModal();
@@ -153,7 +154,7 @@ const UserPage = () => {
       } else if (error.code === "auth/weak-password") {
         toast.error("Password must be at least 6 characters.");
       } else {
-        toast.error("Deployment failure: " + error.message);
+        toast.error(getToastErrorMessage(error, "Unable to save the user profile."));
       }
     } finally {
       setIsSubmitting(false);
@@ -177,9 +178,9 @@ const UserPage = () => {
 
     try {
       await deleteDoc(doc(db, "users", id));
-      toast.success("User profile removed from directory");
+      toast.success("User profile deleted.");
     } catch (error) {
-      toast.error("Access denied: Deletion failed");
+      toast.error("You do not have permission to delete this user.");
     }
   };
 

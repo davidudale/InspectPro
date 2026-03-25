@@ -11,6 +11,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 
@@ -76,9 +77,9 @@ const ClientManager = () => {
         throw new Error(data?.error?.message || "Upload failed");
       }
       setNewClient({ ...newClient, logo: data.secure_url });
-      toast.success("Client Logo Added");
+      toast.success("Client logo uploaded.");
     } catch (err) {
-      toast.error(`Cloudinary upload failed: ${err.message}`);
+      toast.error(getToastErrorMessage(err, "Unable to upload the client logo."));
     } finally {
       setIsUploading(false);
     }
@@ -109,11 +110,11 @@ const ClientManager = () => {
         const blockers = [];
         if (!linkedLocations.empty) blockers.push(`${linkedLocations.size} linked location(s)`);
         if (!linkedProjects.empty) blockers.push(`${linkedProjects.size} linked project(s)`);
-        toast.error(`Delete blocked: ${blockers.join(" and ")} still reference this client.`);
+        toast.error(`This client cannot be deleted because ${blockers.join(" and ")} still reference it.`);
         return;
       }
     } catch (err) {
-      toast.error(`Reference check failed: ${err.message}`);
+      toast.error(getToastErrorMessage(err, "Unable to verify client references."));
       return;
     }
 
@@ -134,9 +135,9 @@ const ClientManager = () => {
         type: "warning",
         timestamp: serverTimestamp(),
       });
-      toast.success("Client record Deleted");
+      toast.success("Client deleted.");
     } catch (err) {
-      toast.error(`Deletion failed: ${err.message}`);
+      toast.error(getToastErrorMessage(err, "Unable to delete the client."));
     }
   };
 
@@ -166,7 +167,7 @@ const ClientManager = () => {
           type: "info",
           timestamp: serverTimestamp(),
         });
-        toast.success("Client Profile Updated");
+        toast.success("Client profile updated.");
       } else {
         await addDoc(collection(db, "clients"), {
           ...clientPayload,
@@ -180,11 +181,11 @@ const ClientManager = () => {
           type: "info",
           timestamp: serverTimestamp(),
         });
-        toast.success("Client Authorized: Proceed to Location Mapping");
+        toast.success("Client created. You can continue to location mapping.");
       }
       closeModal();
     } catch (err) {
-      toast.error(`Database transaction failed: ${err.message}`);
+      toast.error(getToastErrorMessage(err, "Unable to save the client profile."));
     } finally {
       setIsSaving(false);
     }

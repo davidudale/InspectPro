@@ -4,6 +4,7 @@ import AdminSidebar from "../../AdminSidebar";
 import { db } from "../../../Auth/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 
 const CompanyProfile = () => {
   const [formData, setFormData] = useState({
@@ -38,7 +39,7 @@ const CompanyProfile = () => {
           });
         }
       } catch (error) {
-        toast.error("Failed to load company profile");
+        toast.error(getToastErrorMessage(error, "Unable to load the company profile."));
       } finally {
         setLoading(false);
       }
@@ -59,9 +60,9 @@ const CompanyProfile = () => {
         },
         { merge: true },
       );
-      toast.success("Company profile saved");
+      toast.success("Company profile saved.");
     } catch (error) {
-      toast.error("Failed to save company profile");
+      toast.error(getToastErrorMessage(error, "Unable to save the company profile."));
     } finally {
       setSaving(false);
     }

@@ -31,6 +31,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 
 const ProjectEdit = () => {
@@ -177,7 +178,7 @@ const ProjectEdit = () => {
         setProjectDocId(resolvedDoc.id);
         setSetupData((prev) => ({ ...prev, ...resolvedDoc.data() }));
       } catch (error) {
-        toast.error("Failed to load project.");
+        toast.error(getToastErrorMessage(error, "Unable to load the project."));
       } finally {
         setLoading(false);
       }
@@ -249,7 +250,7 @@ const ProjectEdit = () => {
       toast.success("Project updated successfully.");
       navigate("/admin/projects");
     } catch (error) {
-      toast.error("Update failed: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to update the project."));
     } finally {
       setIsUpdating(false);
     }

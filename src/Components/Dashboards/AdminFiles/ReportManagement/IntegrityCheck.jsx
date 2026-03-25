@@ -29,6 +29,7 @@ import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 import html2pdf from "html2pdf.js";
 
@@ -337,7 +338,7 @@ const IntegrityCheck = ({
                 "",
             },
           });
-          toast.info("Previous Integrity Check report loaded for correction.");
+          toast.info("Previous integrity check report loaded for correction.");
         } else if (projectData?.status) {
           setReportData((prev) => ({
             ...prev,
@@ -449,7 +450,7 @@ const IntegrityCheck = ({
       handleChange("general", field, url);
       toast.success(`${label} uploaded.`);
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, `Unable to upload ${label.toLowerCase()}.`));
     }
   };
 
@@ -459,7 +460,7 @@ const IntegrityCheck = ({
       updateObservation(obsId, "photo", url);
       toast.success("Observation photo uploaded.");
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to upload the observation photo."));
     }
   };
 
@@ -469,7 +470,7 @@ const IntegrityCheck = ({
       handleChange("signoff", field, url);
       toast.success(`${label} uploaded.`);
     } catch (error) {
-      toast.error(`Upload failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, `Unable to upload ${label.toLowerCase()}.`));
     }
   };
 
@@ -781,7 +782,7 @@ const IntegrityCheck = ({
       setReportData((prev) => ({ ...prev, status: saveStatus }));
       toast.success("Integrity Check report saved.");
     } catch (error) {
-      toast.error(`Error saving report: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to save the integrity check report."));
     } finally {
       setIsSaving(false);
     }
@@ -842,7 +843,7 @@ const IntegrityCheck = ({
       setReportData((prev) => ({ ...prev, status: pendingConfirmationStatus }));
       toast.success("Report sent for confirmation.");
     } catch (error) {
-      toast.error(`Error sending for confirmation: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to send the report for confirmation."));
     } finally {
       setIsSaving(false);
     }
@@ -1728,7 +1729,7 @@ export const IntegrityWebView = ({
         .save();
     } catch (error) {
       console.error("PDF export failed:", error);
-      toast.error("Failed to download PDF.");
+      toast.error("Unable to download the PDF.");
     } finally {
       setIsDownloadingPdf(false);
     }

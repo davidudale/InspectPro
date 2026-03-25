@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import InspectorNavbar from "./InspectorNavbar";
 import InspectorSidebar from "./InspectorSidebar";
@@ -157,9 +158,9 @@ const ViewInspectionsList = () => {
     if (!confirmed) return;
     try {
       await deleteDoc(doc(db, "projects", projectId));
-      toast.error(`Assignment purged`);
+      toast.success("Assignment deleted.");
     } catch (error) {
-      toast.error("Administrative permissions required for deletion.");
+      toast.error(getToastErrorMessage(error, "You need admin permission to delete this assignment."));
     }
   };
 
@@ -286,7 +287,7 @@ const ViewInspectionsList = () => {
       },
     });
 
-    toast.info(`Initializing ${technique} Manifest...`);
+    toast.info(`Preparing the ${technique} manifest...`);
   };
   const handleViewInspection = (project) => {
     navigate(`/review/${project.id || project.projectId}`, {

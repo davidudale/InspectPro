@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
@@ -137,9 +138,9 @@ const SubInspectionsList = () => {
         lastUpdated: serverTimestamp(),
         returnNote: "Lead Inspector requested review/corrections",
       });
-      toast.warning(`Project ${name} reverted to field status`);
+      toast.warning(`Project ${name} returned to field status.`);
     } catch (error) {
-      toast.error("Status update failed: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to update the project status."));
     }
   };
 
@@ -183,7 +184,7 @@ const SubInspectionsList = () => {
         },
       });
     } catch (error) {
-      toast.error(`Failed to set status: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to update the project status."));
     }
   };
 
@@ -292,7 +293,6 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
-
 
 
 

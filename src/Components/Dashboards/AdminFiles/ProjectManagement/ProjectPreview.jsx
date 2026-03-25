@@ -256,6 +256,16 @@ const ReportDownloadView = ({
           base.pidImage ||
           project?.report?.general?.pidImage ||
           "",
+        inspectedEquipmentImage:
+          baseGeneral.inspectedEquipmentImage ||
+          base.inspectedEquipmentImage ||
+          project?.report?.general?.inspectedEquipmentImage ||
+          "",
+        inspectedEquipmentImageNote:
+          baseGeneral.inspectedEquipmentImageNote ||
+          base.inspectedEquipmentImageNote ||
+          project?.report?.general?.inspectedEquipmentImageNote ||
+          "",
         utCalibrationCert:
           baseGeneral.utCalibrationCert ||
           base.utCalibrationCert ||

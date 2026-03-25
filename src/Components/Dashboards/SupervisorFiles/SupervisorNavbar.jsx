@@ -3,6 +3,7 @@ import { Menu, X, FileText, LogOut, User } from "lucide-react";
 import { auth } from "../../Auth/firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../Auth/AuthContext";
 import MessageBell from "../../Common/MessageBell";
@@ -34,10 +35,10 @@ const SupervisorNavbar = () => {
     try {
       await signOut(auth);
       console.log("User signed out successfully");
-      toast.success("Logged out successfully");
+      toast.success("Signed out successfully.");
       navigate("/login", { replace: true });
     } catch (error) {
-      toast.error("Error signing out: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to sign out."));
     }
   };
   return (

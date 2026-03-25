@@ -24,6 +24,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
@@ -397,9 +398,9 @@ const DetailedReport = ({
       const newObs = [...reportData.observations];
       newObs[idx].photoRef = d.secure_url;
       setReportData({ ...reportData, observations: newObs });
-      toast.success("Evidence linked to component");
+      toast.success("Evidence linked to the component.");
     } catch (err) {
-      toast.error("Upload failed");
+      toast.error("Unable to upload the evidence.");
     }
   };
 
@@ -522,15 +523,15 @@ const DetailedReport = ({
 
       toast.success(
         isFinalizing
-          ? `Manifest sent for Confirmation ${user.role}`
-          : "Technical draft synced",
+          ? `Manifest sent for confirmation by ${user.role}.`
+          : "Technical draft synced.",
       );
         
         
       if (isFinalizing)  setReportMode(true);
     } catch (error) {
       console.error("Technical Fault:", error);
-      toast.error(`Sync Failure: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to sync the report."));
     } finally {
       setIsSaving(false);
     }

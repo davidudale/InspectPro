@@ -29,6 +29,7 @@ import {
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 
 const buildUniqueCode = (prefix) => {
@@ -183,7 +184,7 @@ const ProjectSetup = () => {
       !setupData.externalReviewerId ||
       !setupData.managerId
     ) {
-      toast.warn("Incomplete Manifest: Ensure Client, Asset, Inspector, Lead Inspector, External Reviewer, and Manager are assigned.");
+      toast.warn("Complete the manifest before continuing. Assign the client, asset, inspector, lead inspector, external reviewer, and manager.");
       return;
     }
 
@@ -246,10 +247,10 @@ const ProjectSetup = () => {
         );
       }
 
-      toast.success(`Project Successfully Forwarded to ${setupData.inspectorName}`);
+      toast.success(`Project forwarded to ${setupData.inspectorName}.`);
       navigate("/admin/projects");
     } catch (error) {
-      toast.error("Deployment Failure: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to forward the project."));
     } finally {
       setIsSubmitting(false);
       setShowPreview(false);

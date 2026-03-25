@@ -6,6 +6,7 @@ import { auth, db } from "../Auth/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../utils/toast";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -32,7 +33,7 @@ const Login = () => {
         else navigate("/inspectionDashboard");
       }
     } catch (error) {
-      toast.error("Login failed: " + error.message);
+      toast.error(getToastErrorMessage(error, "Unable to sign in."));
     } finally {
       setIsLoading(false); // Stop loading regardless of outcome
     }

@@ -17,6 +17,7 @@ import { ChevronLeft, Activity, ShieldCheck, CheckCircle, RotateCcw } from "luci
 import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
 import { toast } from "react-toastify";
+import { getToastErrorMessage } from "../../../utils/toast";
 import { useAuth } from "../../Auth/AuthContext";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
@@ -98,7 +99,7 @@ const ReviewForConfirmation = () => {
 
   const handleSaveReport = async () => {
     if (!targetProjectId) {
-      return toast.error("Technical Error: Project Reference Missing");
+      return toast.error("Project reference is missing.");
     }
     if (!reportData) {
       return toast.error("No report data to save.");
@@ -136,7 +137,7 @@ const ReviewForConfirmation = () => {
 
       toast.success("Report saved.");
     } catch (error) {
-      toast.error(`Save failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to save the report."));
     } finally {
       setIsSavingReport(false);
     }
@@ -147,7 +148,7 @@ const ReviewForConfirmation = () => {
       setLoading(true);
       try {
         if (!targetProjectId) {
-          toast.error("Manifest ID missing.");
+          toast.error("Manifest ID is missing.");
           return;
         }
 
@@ -184,7 +185,7 @@ const ReviewForConfirmation = () => {
         }
       } catch (err) {
         console.error("Fetch Error:", err);
-        toast.error("Database handshake failed.");
+        toast.error("Unable to load the inspection record.");
       } finally {
         setLoading(false);
       }
@@ -195,7 +196,7 @@ const ReviewForConfirmation = () => {
 
   const handleConfirmProject = async () => {
     if (!targetProjectId) {
-      return toast.error("Technical Error: Project Reference Missing");
+      return toast.error("Project reference is missing.");
     }
 
     setIsSaving(true);
@@ -235,11 +236,11 @@ const ReviewForConfirmation = () => {
         updatedAt: serverTimestamp(),
       });
 
-      toast.success(`Project passed and forwarded to ${assignedManagerName}`);
+      toast.success(`Project forwarded to ${assignedManagerName}.`);
       navigate("/ConfirmedInspection");
     } catch (error) {
       console.error("Confirm Error:", error);
-      toast.error(`Authorization Failure: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to forward the project."));
     } finally {
       setIsSaving(false);
     }
@@ -249,7 +250,7 @@ const ReviewForConfirmation = () => {
     const feedback = returnFeedback.trim();
 
     if (!targetProjectId) {
-      return toast.error("Technical Error: Project Reference Missing");
+      return toast.error("Project reference is missing.");
     }
     if (!feedback) {
       return toast.error("Please provide feedback for the inspector.");
@@ -319,13 +320,13 @@ const ReviewForConfirmation = () => {
         timestamp: serverTimestamp(),
       });
 
-      toast.warning("Report returned to inspector");
+      toast.warning("Report returned to the inspector.");
       setShowReturnModal(false);
       setReturnFeedback("");
       navigate("/SubInspection_view");
     } catch (error) {
       console.error("Return Error:", error);
-      toast.error(`Return failed: ${error.message}`);
+      toast.error(getToastErrorMessage(error, "Unable to return the report."));
     } finally {
       setIsReturning(false);
     }
@@ -379,13 +380,13 @@ const ReviewForConfirmation = () => {
                     {isSavingReport ? "Saving..." : "Save"} 
                   </button>
                 )}*/}
-                {/*<button
+                <button
                   onClick={handleModifyReport}
                   disabled={isSaving || isReturning || isSavingReport}
                   className="bg-slate-700 hover:bg-slate-600 text-white px-8 py-2 rounded-xl text-xs font-bold uppercase shadow-lg active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                 >
-                  Modify
-                </button>*/}
+                  Open Form View
+                </button>
                 <button
                   onClick={handleConfirmProject}
                   disabled={isSaving || isReturning || isSavingReport}
