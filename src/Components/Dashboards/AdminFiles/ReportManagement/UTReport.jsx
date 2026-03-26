@@ -3294,7 +3294,7 @@ export const UTWebView = ({
                 Technical Inspection Report
               </div>
               <div className="mt-16 text-[58px] font-extrabold leading-[1.08] tracking-tight text-blue-700">
-                Ultrasonic Testing (UT)
+                Ultrasonic Thickness Inspection 
               </div>
               <div className="mt-4 text-[50px] font-extrabold leading-none tracking-tight text-blue-600">
                 Report
