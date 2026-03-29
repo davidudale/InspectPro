@@ -303,6 +303,9 @@ const InspectedEquipment = () => {
                     <thead className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-sm">
                       <tr className="border-b border-slate-800 bg-slate-950/50">
                         <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                          S/N
+                        </th>
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
                           Equipment
                         </th>
                         <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
@@ -337,15 +340,18 @@ const InspectedEquipment = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-slate-950/80">
                               <td
-                                 colSpan="8"
+                                 colSpan="9"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
                               </td>
                             </tr>
                           ) : null}
-                          {group.items.map((row) => (
+                          {group.items.map((row, index) => (
                         <tr key={row.id} className="group transition-colors hover:bg-white/5">
+                          <td className="px-3 py-4 text-xs font-bold text-slate-400">
+                            {index + 1}
+                          </td>
                           <td className="px-3 py-4">
                             <div className="flex items-center gap-3">
                               <div className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-orange-500 shadow-inner transition-all group-hover:border-orange-500/50">

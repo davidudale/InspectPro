@@ -278,6 +278,9 @@ const UserPage = () => {
                     <thead>
                       <tr className="bg-slate-900/60 border-b border-slate-800">
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                          S/N
+                        </th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
                           Full Name
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
@@ -300,18 +303,21 @@ const UserPage = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-slate-950/80">
                               <td
-                                colSpan="5"
+                                colSpan="6"
                                 className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
                               </td>
                             </tr>
                           ) : null}
-                        {group.items.map((user) => (
+                        {group.items.map((user, index) => (
                           <tr
                             key={user.id}
                             className="hover:bg-slate-800/20 transition-colors group"
                           >
+                            <td className="p-4 text-sm font-bold text-slate-400">
+                              {index + 1}
+                            </td>
                             <td className="p-4">
                               <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 rounded-xl bg-orange-600/20 flex items-center justify-center text-orange-500 font-bold border border-orange-500/20 shadow-inner">

@@ -292,6 +292,9 @@ const Feedback = () => {
             <thead>
               <tr className="border-b border-slate-800/80 bg-[#0b1326]">
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  S/N
+                </th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
                   Project Identity
                 </th>
                 <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
@@ -317,14 +320,14 @@ const Feedback = () => {
                   {groupBy !== TABLE_GROUP_NONE ? (
                     <tr className="bg-[#08101f]">
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                       >
                         {group.label} ({group.items.length})
                       </td>
                     </tr>
                   ) : null}
-                  {group.items.map((project) => {
+                  {group.items.map((project, index) => {
                 const latestDecision =
                   latestDecisionByProject.get(project.id) ||
                   latestDecisionByProject.get(project.projectId || "");
@@ -334,6 +337,9 @@ const Feedback = () => {
 
                 return (
                   <tr key={project.id} className="group hover:bg-white/5 transition-colors">
+                    <td className="px-3 py-4 text-xs font-bold text-slate-400">
+                      {index + 1}
+                    </td>
                     <td className="px-3 py-4">
                       <div className="flex items-center gap-4">
                         <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 shadow-inner">
