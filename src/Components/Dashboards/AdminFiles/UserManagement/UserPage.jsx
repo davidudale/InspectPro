@@ -1,7 +1,8 @@
-import { React, useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AdminNavbar from "../../AdminNavbar";
 import { PlusCircle, Edit2, Trash2, User, X, Save, Lock } from "lucide-react";
 import AdminSidebar from "../../AdminSidebar";
+import TableQueryControls from "../../../Common/TableQueryControls";
 import { db, secondaryAuth } from "../../../Auth/firebase";
 import {
   collection,
@@ -16,6 +17,7 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 const DEFAULT_ROLE = "Inspector";
 const ROLE_OPTIONS = [
@@ -66,6 +68,8 @@ const UserPage = () => {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -184,6 +188,35 @@ const UserPage = () => {
     }
   };
 
+  const filteredUsers = useMemo(
+    () =>
+      [...users]
+        .filter((user) => {
+          const matchesRole =
+            roleFilter === "all" || String(user.role || DEFAULT_ROLE) === roleFilter;
+          return matchesRole;
+        })
+        .sort(
+          (a, b) =>
+            toMillis(getRowTimestamp(b)) -
+            toMillis(getRowTimestamp(a)),
+        ),
+    [roleFilter, users],
+  );
+
+  const groupedUsers = useMemo(
+    () =>
+      groupRowsByOption(filteredUsers, groupBy, [
+        {
+          value: "role",
+          label: "Role",
+          getValue: (user) => user.role || DEFAULT_ROLE,
+          emptyLabel: DEFAULT_ROLE,
+        },
+      ]),
+    [filteredUsers, groupBy],
+  );
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
@@ -216,6 +249,30 @@ const UserPage = () => {
                   </p>
                 </div>
               ) : (
+                <>
+                  <TableQueryControls
+                    filters={[
+                      {
+                        key: "role",
+                        label: "Role Filter",
+                        value: roleFilter,
+                        onChange: setRoleFilter,
+                        options: [
+                          { value: "all", label: "All Roles" },
+                          ...ROLE_OPTIONS.map((role) => ({
+                            value: role,
+                            label: role,
+                          })),
+                        ],
+                      },
+                    ]}
+                    groupBy={groupBy}
+                    onGroupByChange={setGroupBy}
+                    groupOptions={[
+                      { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                      { value: "role", label: "Role" },
+                    ]}
+                  />
                 <div className="table-scroll-region overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
@@ -238,13 +295,19 @@ const UserPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {[...users]
-                        .sort(
-                          (a, b) =>
-                            toMillis(getRowTimestamp(b)) -
-                            toMillis(getRowTimestamp(a)),
-                        )
-                        .map((user) => (
+                      {groupedUsers.map((group) => (
+                        <React.Fragment key={group.key}>
+                          {groupBy !== TABLE_GROUP_NONE ? (
+                            <tr className="bg-slate-950/80">
+                              <td
+                                colSpan="5"
+                                className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              >
+                                {group.label} ({group.items.length})
+                              </td>
+                            </tr>
+                          ) : null}
+                        {group.items.map((user) => (
                           <tr
                             key={user.id}
                             className="hover:bg-slate-800/20 transition-colors group"
@@ -309,9 +372,12 @@ const UserPage = () => {
                             </td>
                           </tr>
                         ))}
+                        </React.Fragment>
+                      ))}
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </div>
           </div>

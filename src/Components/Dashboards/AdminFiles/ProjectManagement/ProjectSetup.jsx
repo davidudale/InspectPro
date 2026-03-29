@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import {
   collection,
@@ -41,6 +41,7 @@ const buildUniqueCode = (prefix) => {
 const ProjectSetup = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- Master Directory State ---
@@ -155,6 +156,30 @@ const ProjectSetup = () => {
       unsubManagers();
     };
   }, []);
+
+  useEffect(() => {
+    const schedulerPrefill = location.state?.schedulerPrefill;
+    if (!schedulerPrefill) return;
+
+    setSetupData((prev) => ({
+      ...prev,
+      clientId: schedulerPrefill.clientId || prev.clientId,
+      clientName: schedulerPrefill.clientName || prev.clientName,
+      locationId: schedulerPrefill.locationId || prev.locationId,
+      locationName: schedulerPrefill.locationName || prev.locationName,
+      inspectionTypeId: schedulerPrefill.inspectionTypeId || prev.inspectionTypeId,
+      inspectionTypeCode:
+        schedulerPrefill.inspectionTypeCode || prev.inspectionTypeCode,
+      inspectionTypeName:
+        schedulerPrefill.inspectionTypeName || prev.inspectionTypeName,
+      selectedTechnique:
+        schedulerPrefill.selectedTechnique || prev.selectedTechnique,
+      equipmentId: schedulerPrefill.equipmentId || prev.equipmentId,
+      equipmentTag: schedulerPrefill.equipmentTag || prev.equipmentTag,
+      equipmentCategory:
+        schedulerPrefill.equipmentCategory || prev.equipmentCategory,
+    }));
+  }, [location.state]);
 
   // --- 2. Relationship Filter Logic ---
   const availableLocations = locations.filter(

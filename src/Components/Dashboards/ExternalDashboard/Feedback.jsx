@@ -6,7 +6,10 @@ import {
   Search,
   ShieldAlert,
   Clock3,
-  Send,
+  CheckCircle2,
+  XCircle,
+  MapPin,
+  ClipboardCheck
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../utils/toast";
@@ -14,6 +17,9 @@ import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import ExternalNavbar from "./ExternalNavbar";
 import ExternalSideBar from "./ExternalSideBar";
+import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
+import TableQueryControls from "../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -24,13 +30,29 @@ const formatDateTime = (value) => {
   return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleString();
 };
 
+const toMillis = (value) => {
+  if (!value) return 0;
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (typeof value?.toDate === "function") return value.toDate().getTime();
+  return 0;
+};
+
 const Feedback = () => {
   const { user } = useAuth();
   const [projects, setProjects] = useState([]);
+  const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [decisionFilter, setDecisionFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
-  const [feedbackForms, setFeedbackForms] = useState({});
   const [submittingProjectId, setSubmittingProjectId] = useState("");
+  const [rejectingProject, setRejectingProject] = useState(null);
+  const [rejectionFeedback, setRejectionFeedback] = useState("");
 
   useEffect(() => {
     if (!user?.uid) {
@@ -58,45 +80,131 @@ const Feedback = () => {
     return () => unsubscribe();
   }, [user?.uid]);
 
+  useEffect(() => {
+    if (!user?.uid) {
+      setFeedbackEntries([]);
+      return undefined;
+    }
+
+    const feedbackRef = query(
+      collection(db, "external_feedback"),
+      where("externalReviewerId", "==", user.uid),
+    );
+
+    const unsubscribe = onSnapshot(feedbackRef, (snapshot) => {
+      setFeedbackEntries(
+        snapshot.docs.map((docItem) => ({
+          id: docItem.id,
+          ...docItem.data(),
+        })),
+      );
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const latestDecisionByProject = useMemo(() => {
+    const nextMap = new Map();
+
+    feedbackEntries.forEach((entry) => {
+      const projectDocId = String(entry.projectDocId || "").trim();
+      const projectCode = String(entry.projectId || "").trim();
+      const entryTimestamp = toMillis(entry.createdAt);
+      const latestForDoc = projectDocId ? nextMap.get(projectDocId) : null;
+      const latestForCode = projectCode ? nextMap.get(projectCode) : null;
+
+      if (projectDocId && (!latestForDoc || entryTimestamp >= toMillis(latestForDoc.createdAt))) {
+        nextMap.set(projectDocId, entry);
+      }
+
+      if (projectCode && (!latestForCode || entryTimestamp >= toMillis(latestForCode.createdAt))) {
+        nextMap.set(projectCode, entry);
+      }
+    });
+
+    return nextMap;
+  }, [feedbackEntries]);
+
   const filteredProjects = useMemo(
     () =>
       projects.filter((project) => {
         const term = searchTerm.trim().toLowerCase();
-        if (!term) return true;
-        return (
+        const matchesSearch =
+          !term ||
           String(project.projectName || "").toLowerCase().includes(term) ||
           String(project.projectId || "").toLowerCase().includes(term) ||
-          String(project.clientName || project.client || "")
+          String(
+            project.selectedTechnique ||
+              project.reportTemplate ||
+              project.inspectionTypeCode ||
+              project.inspectionTypeName ||
+              "",
+          )
             .toLowerCase()
-            .includes(term)
-        );
+            .includes(term);
+        const latestDecision =
+          latestDecisionByProject.get(project.id) ||
+          latestDecisionByProject.get(project.projectId || "");
+        const matchesDecision =
+          decisionFilter === "all" ||
+          String(latestDecision?.decision || "Pending").toLowerCase() === decisionFilter;
+        return matchesSearch && matchesDecision;
       }),
-    [projects, searchTerm],
+    [decisionFilter, latestDecisionByProject, projects, searchTerm],
   );
 
-  const handleFormChange = (projectId, field, value) => {
-    setFeedbackForms((prev) => ({
-      ...prev,
-      [projectId]: {
-        subject: prev[projectId]?.subject || "",
-        message: prev[projectId]?.message || "",
-        [field]: value,
-      },
-    }));
-  };
+  const groupedProjects = useMemo(
+    () =>
+      groupRowsByOption(filteredProjects, groupBy, [
+        {
+          value: "decision",
+          label: "Decision",
+          getValue: (project) => {
+            const latestDecision =
+              latestDecisionByProject.get(project.id) ||
+              latestDecisionByProject.get(project.projectId || "");
+            return latestDecision?.decision || "Pending";
+          },
+          emptyLabel: "Pending",
+        },
+        {
+          value: "requiredTechnique",
+          label: "Required Technique",
+          getValue: (project) =>
+            project.selectedTechnique ||
+            project.reportTemplate ||
+            project.inspectionTypeCode ||
+            project.inspectionTypeName,
+          emptyLabel: "General Inspection",
+        },
+      ]),
+    [filteredProjects, groupBy, latestDecisionByProject],
+  );
 
-  const handleSubmitFeedback = async (project) => {
+  const handleDecision = async (project, decision, rejectionMessage = "") => {
     const projectKey = project.id;
-    const form = feedbackForms[projectKey] || { subject: "", message: "" };
-    const subject = String(form.subject || "").trim();
-    const message = String(form.message || "").trim();
-
-    if (!subject || !message || !user?.uid) {
-      toast.error("Please enter both subject and message.");
+    if (!user?.uid) {
+      toast.error("You must be signed in to submit a decision.");
       return;
     }
 
-    setSubmittingProjectId(projectKey);
+    const normalizedDecision = decision === "Rejected" ? "Rejected" : "Approved";
+    const normalizedFeedback = String(rejectionMessage || "").trim();
+    if (normalizedDecision === "Rejected" && !normalizedFeedback) {
+      toast.error("Please provide feedback before rejecting.");
+      return;
+    }
+    const submittingKey = `${projectKey}:${normalizedDecision}`;
+    const subject =
+      normalizedDecision === "Approved"
+        ? "External review approved"
+        : "External review rejected";
+    const message =
+      normalizedDecision === "Approved"
+        ? "The external reviewer approved this report package."
+        : normalizedFeedback;
+
+    setSubmittingProjectId(submittingKey);
     try {
       await addDoc(collection(db, "external_feedback"), {
         projectDocId: project.id,
@@ -110,198 +218,256 @@ const Feedback = () => {
         adminRecipient: "Admin",
         subject,
         message,
+        decision: normalizedDecision,
         status: "New",
         createdAt: serverTimestamp(),
       });
 
-      setFeedbackForms((prev) => ({
-        ...prev,
-        [projectKey]: { subject: "", message: "" },
-      }));
-      toast.success("Feedback sent to the admin.");
+      toast.success(`Project ${normalizedDecision.toLowerCase()} and sent to admin.`);
+      if (normalizedDecision === "Rejected") {
+        setRejectingProject(null);
+        setRejectionFeedback("");
+      }
     } catch (error) {
-      toast.error(getToastErrorMessage(error, "Unable to send feedback."));
+      toast.error(getToastErrorMessage(error, "Unable to submit your decision."));
     } finally {
       setSubmittingProjectId("");
     }
   };
 
+  const openRejectModal = (project) => {
+    setRejectingProject(project);
+    setRejectionFeedback("");
+  };
+
+  const closeRejectModal = () => {
+    if (submittingProjectId) return;
+    setRejectingProject(null);
+    setRejectionFeedback("");
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <ExternalNavbar />
-      <div className="flex flex-1">
-        <ExternalSideBar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
-              <div>
-                <h1 className="text-3xl font-bold uppercase tracking-tighter text-white flex items-center gap-3">
-                  <MessageSquareText className="text-orange-500" /> Feedback Desk
-                </h1>
-                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.3em] mt-2">
-                  Approved Projects Only
-                </p>
-              </div>
+    <>
+      <ControlCenterTableShell
+        navbar={<ExternalNavbar />}
+        sidebar={<ExternalSideBar />}
+        title="Feedback Desk"
+        icon={<MessageSquareText size={18} />}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by ID, required technique, or project name..."
+        summary={`${filteredProjects.length} Approved Project${filteredProjects.length === 1 ? "" : "s"}`}
+        loading={loading}
+        hasData={filteredProjects.length > 0}
+        emptyTitle="No Approved Project Feedback Found"
+        emptyDescription="Approved projects assigned to your reviewer profile will appear here for approval or rejection."
+        toolbar={
+          <TableQueryControls
+            filters={[
+              {
+                key: "decision",
+                label: "Decision Filter",
+                value: decisionFilter,
+                onChange: setDecisionFilter,
+                options: [
+                  { value: "all", label: "All Decisions" },
+                  { value: "pending", label: "Pending" },
+                  { value: "approved", label: "Approved" },
+                  { value: "rejected", label: "Rejected" },
+                ],
+              },
+            ]}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            groupOptions={[
+              { value: TABLE_GROUP_NONE, label: "No Grouping" },
+              { value: "decision", label: "Decision" },
+              { value: "requiredTechnique", label: "Required Technique" },
+            ]}
+          />
+        }
+      >
+        <div className="table-scroll-region max-h-[68vh] overflow-auto">
+          <table className="w-full min-w-[1040px] text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-800/80 bg-[#0b1326]">
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Project Identity
+                </th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Required Technique
+                </th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Facility
+                </th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Timeline for Review
+                </th>
+                <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Decision
+                </th>
+                <th className="px-3 py-3 text-right text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50">
+              {groupedProjects.map((group) => (
+                <React.Fragment key={group.key}>
+                  {groupBy !== TABLE_GROUP_NONE ? (
+                    <tr className="bg-[#08101f]">
+                      <td
+                        colSpan="6"
+                        className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                      >
+                        {group.label} ({group.items.length})
+                      </td>
+                    </tr>
+                  ) : null}
+                  {group.items.map((project) => {
+                const latestDecision =
+                  latestDecisionByProject.get(project.id) ||
+                  latestDecisionByProject.get(project.projectId || "");
+                const decisionText = latestDecision?.decision || "Pending";
+                const isApproved = String(decisionText).toLowerCase() === "approved";
+                const isRejected = String(decisionText).toLowerCase() === "rejected";
 
-              <div className="relative w-full xl:w-80 group">
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-orange-500 transition-colors"
-                  size={16}
-                />
-                <input
-                  type="text"
-                  placeholder="Search by ID, Client, or Project Name..."
-                  className="w-full bg-slate-900/50 border border-slate-800 p-4 pl-12 rounded-2xl text-xs focus:border-orange-500 outline-none transition-all shadow-inner backdrop-blur-md"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="rounded-[2.5rem] border border-slate-800 bg-slate-900/30 px-8 py-24 text-center text-sm text-slate-500">
-                Loading approved projects...
-              </div>
-            ) : filteredProjects.length > 0 ? (
-              <div className="grid gap-6">
-                {filteredProjects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="rounded-[2rem] border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md"
-                  >
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-orange-500">
-                            <Briefcase size={18} />
-                          </div>
-                          <div>
-                            <h2 className="text-lg font-bold text-white">
-                              {project.projectName || "Unnamed Project"}
-                            </h2>
-                            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-slate-500">
-                              {project.projectId || project.id}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                          <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3">
-                            <p className="font-bold uppercase tracking-[0.18em] text-slate-500">
-                              Client
-                            </p>
-                            <p className="mt-2 text-slate-200">
-                              {project.clientName || project.client || "N/A"}
-                            </p>
-                          </div>
-                          
-                          <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3">
-                            <p className="font-bold uppercase tracking-[0.18em] text-slate-500">
-                              Approved At
-                            </p>
-                            <p className="mt-2 text-slate-200">
-                              {formatDateTime(
-                                project.approvedAt ||
-                                  project.confirmedAt ||
-                                  project.updatedAt,
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
-                        <div className="flex items-center gap-2">
-                          <Clock3 size={14} className="text-orange-400" />
-                          <span className="font-bold uppercase tracking-[0.18em]">
-                            Review Timeline
-                          </span>
-                        </div>
-                        <p className="mt-2 text-slate-300">
-                          Returned: {formatDateTime(project.returnedAt)}
-                        </p>
-                        <p className="mt-1 text-slate-300">
-                          Confirmed: {formatDateTime(project.confirmedAt)}
-                        </p>
-                      </div>
-                    </div>
-
-                    
-
-                    <div className="mt-6 rounded-[1.75rem] border border-orange-500/20 bg-slate-950/80 p-6">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-3 text-orange-400">
-                          <MessageSquareText size={18} />
+                return (
+                  <tr key={project.id} className="group hover:bg-white/5 transition-colors">
+                    <td className="px-3 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 shadow-inner">
+                          <Briefcase size={18} />
                         </div>
                         <div>
-                          <h3 className="text-base font-bold text-white">
-                            Send Feedback to Admin
-                          </h3>
-                          <p className="mt-1 text-sm text-slate-400">
-                            Share a project-specific comment, issue, or recommendation with admin.
+                          <p className="text-sm font-bold text-white uppercase group-hover:text-orange-500 transition-colors">
+                            {project.projectName || "Unnamed Project"}
+                          </p>
+                          <p className="text-[9px] font-mono text-slate-500 uppercase">
+                            {project.projectId || project.id}
                           </p>
                         </div>
                       </div>
-
-                      <div className="mt-5 grid gap-4">
-                        <div className="grid gap-2">
-                          <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
-                            Subject
-                          </label>
-                          <input
-                            type="text"
-                            value={feedbackForms[project.id]?.subject || ""}
-                            onChange={(e) =>
-                              handleFormChange(project.id, "subject", e.target.value)
-                            }
-                            placeholder="Enter feedback subject"
-                            className="w-full rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-                          />
+                    </td>
+                    <td className="px-3 py-4 text-[11px] text-slate-300 font-semibold uppercase">
+                        <div className="flex items-center gap-2">
+                          <ClipboardCheck size={14} className="text-slate-600" />
+                          <div>
+                            <p className="text-xs font-semibold text-slate-300 uppercase">
+                              {project.selectedTechnique ||
+                                project.reportTemplate ||
+                                project.inspectionTypeCode ||
+                                project.inspectionTypeName ||
+                                "General Inspection"}
+                            </p>
+                          </div>
                         </div>
-
-                        <div className="grid gap-2">
-                          <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
-                            Message
-                          </label>
-                          <textarea
-                            rows={5}
-                            value={feedbackForms[project.id]?.message || ""}
-                            onChange={(e) =>
-                              handleFormChange(project.id, "message", e.target.value)
-                            }
-                            placeholder="Write your project feedback to admin..."
-                            className="w-full resize-none rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-                          />
-                        </div>
-
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleSubmitFeedback(project)}
-                            disabled={submittingProjectId === project.id}
-                            className="inline-flex items-center gap-2 rounded-2xl bg-orange-600 px-5 py-3 text-sm font-bold uppercase tracking-[0.2em] text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-slate-700"
-                          >
-                            <Send size={16} />
-                            {submittingProjectId === project.id ? "Sending..." : "Send to Admin"}
-                          </button>
-                        </div>
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="flex items-center gap-2 text-slate-400">
+                        <MapPin size={14} className="text-orange-500/50" />
+                        <span className="text-xs font-medium">
+                          {project.locationName || project.location || "N/A"}
+                        </span>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-32 border-2 border-dashed border-slate-800 rounded-[3rem] bg-slate-900/10">
-                <ShieldAlert size={48} className="text-slate-800 mb-4" />
-                <p className="text-slate-500 font-bold uppercase tracking-widest text-sm">
-                  No Approved Project Feedback Found
-                </p>
-              </div>
-            )}
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="min-w-[210px] rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+                        
+                        <p className="mt-2 text-slate-300">
+                          Approved: {formatDateTime(project.approvedAt || project.confirmedAt || project.updatedAt)}
+                        </p>
+                        
+                      </div>
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="min-w-[180px]">
+                        <span
+                          className={`inline-flex rounded-full px-3 py-2 text-[9px] font-black uppercase tracking-[0.16em] ${
+                            isApproved
+                              ? "bg-emerald-500/10 text-emerald-300"
+                              : isRejected
+                                ? "bg-rose-500/10 text-rose-300"
+                                : "bg-slate-800 text-slate-300"
+                          }`}
+                        >
+                          {decisionText}
+                        </span>
+                        <p className="mt-2 text-xs text-slate-500 max-w-xs break-words">
+                          {latestDecision
+                            ? `Submitted ${formatDateTime(latestDecision.createdAt)}`
+                            : "No decision submitted yet."}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-3 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDecision(project, "Approved")}
+                          disabled={submittingProjectId === `${project.id}:Approved`}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.16em] transition-all shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-700"
+                        >
+                          {submittingProjectId === `${project.id}:Approved`
+                            ? "Approving..."
+                            : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openRejectModal(project)}
+                          disabled={submittingProjectId === `${project.id}:Rejected`}
+                          className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.16em] transition-all shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:bg-slate-700"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+                  })}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </ControlCenterTableShell>
+      {rejectingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-xl rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white">Reject Report</h3>
+            <p className="mt-1 text-xs uppercase tracking-wider text-slate-400">
+              Share feedback for {rejectingProject.projectName || rejectingProject.projectId || "this project"} before rejecting.
+            </p>
+            <textarea
+              value={rejectionFeedback}
+              onChange={(e) => setRejectionFeedback(e.target.value)}
+              placeholder="State clearly why this report is being rejected and what should be corrected..."
+              className="mt-4 h-36 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm text-slate-200 outline-none focus:border-rose-500"
+            />
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeRejectModal}
+                disabled={submittingProjectId === `${rejectingProject.id}:Rejected`}
+                className="rounded-lg border border-slate-600 px-4 py-2 text-xs font-bold uppercase text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDecision(rejectingProject, "Rejected", rejectionFeedback)}
+                disabled={submittingProjectId === `${rejectingProject.id}:Rejected`}
+                className="rounded-lg bg-rose-600 px-5 py-2 text-xs font-bold uppercase text-white hover:bg-rose-700 disabled:opacity-50"
+              >
+                {submittingProjectId === `${rejectingProject.id}:Rejected`
+                  ? "Submitting..."
+                  : "Submit Rejection"}
+              </button>
+            </div>
           </div>
-        </main>
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };
 

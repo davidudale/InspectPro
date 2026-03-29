@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { db } from "../../../Auth/firebase";
 import { 
   collection, onSnapshot, query, addDoc, getDocs,
@@ -10,10 +10,12 @@ import {
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import TableQueryControls from "../../../Common/TableQueryControls";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 const ClientManager = () => {
   const EMPTY_CLIENT = {
@@ -42,6 +44,8 @@ const ClientManager = () => {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [industryFilter, setIndustryFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -197,27 +201,46 @@ const ClientManager = () => {
     setNewClient(EMPTY_CLIENT);
   };
 
-  const filteredClients = clients
-    .filter((c) => {
-      const name = (c.name || "").toLowerCase();
-      const industry = (c.industry || "").toLowerCase();
-      const email = (c.email || "").toLowerCase();
-      const phone = (c.phone || "").toLowerCase();
-      const address = (c.address || "").toLowerCase();
-      const website = (c.website || "").toLowerCase();
-      const term = searchTerm.toLowerCase();
-      return (
-        name.includes(term) ||
-        industry.includes(term) ||
-        email.includes(term) ||
-        phone.includes(term) ||
-        address.includes(term) ||
-        website.includes(term)
+  const filteredClients = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+
+    return clients
+      .filter((client) => {
+        const matchesSearch =
+          String(client.name || "").toLowerCase().includes(term) ||
+          String(client.industry || "").toLowerCase().includes(term) ||
+          String(client.email || "").toLowerCase().includes(term) ||
+          String(client.phone || "").toLowerCase().includes(term) ||
+          String(client.address || "").toLowerCase().includes(term) ||
+          String(client.website || "").toLowerCase().includes(term);
+        const matchesIndustry =
+          industryFilter === "all" ||
+          String(client.industry || "").toLowerCase() === industryFilter;
+
+        return matchesSearch && matchesIndustry;
+      })
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
       );
-    })
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-    );
+  }, [clients, searchTerm, industryFilter]);
+
+  const groupedClients = useMemo(
+    () =>
+      groupRowsByOption(filteredClients, groupBy, [
+        {
+          value: "industry",
+          label: "Industry",
+          getValue: (client) => client.industry,
+          emptyLabel: "Unassigned Industry",
+        },
+      ]),
+    [filteredClients, groupBy],
+  );
+
+  const industryOptions = useMemo(
+    () => Array.from(new Set(clients.map((client) => client.industry).filter(Boolean))).sort(),
+    [clients],
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -252,6 +275,29 @@ const ClientManager = () => {
             </div>
 
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
+              <TableQueryControls
+                filters={[
+                  {
+                    key: "industry",
+                    label: "Industry Filter",
+                    value: industryFilter,
+                    onChange: setIndustryFilter,
+                    options: [
+                      { value: "all", label: "All Industries" },
+                      ...industryOptions.map((industry) => ({
+                        value: industry.toLowerCase(),
+                        label: industry,
+                      })),
+                    ],
+                  },
+                ]}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                groupOptions={[
+                  { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                  { value: "industry", label: "Industry" },
+                ]}
+              />
               <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -279,7 +325,19 @@ const ClientManager = () => {
                       </tr>
                     ) : (
                     <>
-                    {filteredClients.map((client) => (
+                    {groupedClients.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {groupBy !== TABLE_GROUP_NONE ? (
+                          <tr className="bg-slate-950/80">
+                            <td
+                              colSpan="6"
+                              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                            >
+                              {group.label} ({group.items.length})
+                            </td>
+                          </tr>
+                        ) : null}
+                    {group.items.map((client) => (
                       <tr key={client.id} className="group hover:bg-white/5 transition-colors">
                         <td className="p-6">
                           <div className="flex items-center gap-4">
@@ -335,6 +393,8 @@ const ClientManager = () => {
                           </div>
                         </td>
                       </tr>
+                    ))}
+                      </React.Fragment>
                     ))}
                     </>
                     )}

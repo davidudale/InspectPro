@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { auth, db } from "../../../Auth/firebase";
 import {
   collection,
@@ -29,9 +29,20 @@ import {
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import ManagerNavbar from "../../ManagerFile/ManagerNavbar";
+import ManagerSidebar from "../../ManagerFile/ManagerSidebar";
+import SupervisorNavbar from "../../SupervisorFiles/SupervisorNavbar";
+import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
+import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
+import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
+import ExternalNavbar from "../../ExternalDashboard/ExternalNavbar";
+import ExternalSideBar from "../../ExternalDashboard/ExternalSideBar";
+import TableQueryControls from "../../../Common/TableQueryControls";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
+import { useAuth } from "../../../Auth/AuthContext";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 // Expanded list including major Oil & Gas equipment categories
 
@@ -63,6 +74,7 @@ const baseStatuses = ["In-Service", "Out-of-Service", "Mothballed", "Decommissio
 const baseServices = ["Hydrocarbon", "Steam", "Cooling Water", "Flare Gas", "Lube Oil"];
 
 const EquipmentManager = () => {
+  const { user } = useAuth();
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -80,12 +92,37 @@ const EquipmentManager = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [editingId, setEditingId] = useState(null);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
   const [assetTypes, setAssetTypes] = useState(baseAssetTypes);
 
   const [statuses, setStatuses] = useState(baseStatuses);
   const [services, setServices] = useState(baseServices);
+  const role = user?.role || "Admin";
+  const isSupervisorRole = role === "Lead Inspector";
+  const isExternalRole = role === "External_Reviewer";
+  const Navbar =
+    role === "Admin"
+      ? AdminNavbar
+      : role === "Manager"
+        ? ManagerNavbar
+        : isExternalRole
+          ? ExternalNavbar
+          : isSupervisorRole
+            ? SupervisorNavbar
+            : InspectorNavbar;
+  const Sidebar =
+    role === "Admin"
+      ? AdminSidebar
+      : role === "Manager"
+        ? ManagerSidebar
+        : isExternalRole
+          ? ExternalSideBar
+          : isSupervisorRole
+            ? SupervisorSidebar
+            : InspectorSidebar;
 
   // --- NEW: TOGGLE STATES ---
   const [addingField, setAddingField] = useState(null); // 'type', 'service', or 'status'
@@ -258,7 +295,7 @@ const EquipmentManager = () => {
       }
       handleCloseModal();
     } catch (err) {
-      toast.error(getToastErrorMessage(error, "Unable to save the equipment."));
+      toast.error(getToastErrorMessage(err, "Unable to save the equipment."));
     } finally {
       setIsSubmitting(false);
     }
@@ -305,23 +342,57 @@ const EquipmentManager = () => {
     });
   };
 
-  const filteredEquipment = equipment
-    .filter(
-      (asset) =>
-        asset.tagNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.assetType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        asset.materialSpec.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-    );
+  const filteredEquipment = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase();
+
+    return equipment
+      .filter((asset) => {
+        const matchesSearch =
+          String(asset.tagNumber || "").toLowerCase().includes(normalizedSearch) ||
+          String(asset.assetType || "").toLowerCase().includes(normalizedSearch) ||
+          String(asset.materialSpec || "").toLowerCase().includes(normalizedSearch);
+        const matchesStatus =
+          statusFilter === "all" ||
+          String(asset.status || "").toLowerCase() === statusFilter;
+
+        return matchesSearch && matchesStatus;
+      })
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      );
+  }, [equipment, searchTerm, statusFilter]);
+
+  const groupedEquipment = useMemo(
+    () =>
+      groupRowsByOption(filteredEquipment, groupBy, [
+        {
+          value: "status",
+          label: "Status",
+          getValue: (asset) => asset.status,
+          emptyLabel: "Unassigned Status",
+        },
+        {
+          value: "service",
+          label: "Service",
+          getValue: (asset) => asset.service,
+          emptyLabel: "Unassigned Service",
+        },
+        {
+          value: "category",
+          label: "Category",
+          getValue: (asset) =>
+            assetTypes.find((type) => type.label === asset.assetType)?.category || "N/A",
+        },
+      ]),
+    [assetTypes, filteredEquipment, groupBy],
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <AdminNavbar />
+      <Navbar />
       {ConfirmDialog}
       <div className="flex flex-1">
-        <AdminSidebar />
+        <Sidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-10 gap-6">
@@ -361,6 +432,31 @@ const EquipmentManager = () => {
 
             {/* TABULAR INTERFACE */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
+              <TableQueryControls
+                filters={[
+                  {
+                    key: "status",
+                    label: "Status Filter",
+                    value: statusFilter,
+                    onChange: setStatusFilter,
+                    options: [
+                      { value: "all", label: "All Statuses" },
+                      ...statuses.map((status) => ({
+                        value: status.toLowerCase(),
+                        label: status,
+                      })),
+                    ],
+                  },
+                ]}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                groupOptions={[
+                  { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                  { value: "status", label: "Status" },
+                  { value: "service", label: "Service" },
+                  { value: "category", label: "Category" },
+                ]}
+              />
               <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -383,12 +479,24 @@ const EquipmentManager = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {filteredEquipment.map((asset) => (
-                      <tr
-                        key={asset.id}
-                        className="group hover:bg-white/5 transition-colors"
-                      >
-                        <td className="p-6">
+                    {groupedEquipment.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {groupBy !== TABLE_GROUP_NONE ? (
+                          <tr className="bg-slate-950/80">
+                            <td
+                              colSpan="5"
+                              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                            >
+                              {group.label} ({group.items.length})
+                            </td>
+                          </tr>
+                        ) : null}
+                        {group.items.map((asset) => (
+                          <tr
+                            key={asset.id}
+                            className="group hover:bg-white/5 transition-colors"
+                          >
+                          <td className="p-6">
                           <div className="flex items-center gap-4">
                             <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500">
                               <Cog size={18} />
@@ -442,7 +550,7 @@ const EquipmentManager = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="p-6 text-right">
+                          <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleOpenEdit(asset)}
@@ -463,8 +571,10 @@ const EquipmentManager = () => {
                               <Trash2 size={14} />
                             </button>
                           </div>
-                        </td>
-                      </tr>
+                          </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

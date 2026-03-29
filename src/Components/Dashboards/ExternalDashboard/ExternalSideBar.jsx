@@ -2,11 +2,14 @@ import React, { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
+  FolderOpen,
   MessageSquareMore,
   ChevronDown,
+  FileText,
   Menu,
   X,
   Wrench,
+  CalendarClock,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -26,15 +29,33 @@ const sidebarLinks = [
     href: "/external-reviewer-projects",
   },
   {
-    name: "Inspected Equipment",
+    name: "Equipment Management",
     icon: <Wrench size={20} />,
-    href: "/external-reviewer-equipment",
+    subLinks: [
+      //{
+      //  name: "Add Equipment",
+      //  icon: <Wrench size={16} />,
+      //  href: "/equipment",
+      //},
+     {
+        name: "Inspected Equipment",
+        icon: <FolderOpen size={16} />,
+        href: "/external-reviewer-equipment",
+      },
+      
+      {
+        name: "Schedule Inspection",
+        icon: <CalendarClock size={16} />,
+        href: "/next-inspections",
+      },
+    ],
   },
-  {
-    name: "Feedback",
-    icon: <MessageSquareMore size={20} />,
-    href: "/external-reviewer-feedback",
-  },
+ //{
+ //  name: "Feedback",
+ //  icon: <MessageSquareMore size={20} />,
+ //  href: "/external-reviewer-feedback",
+ //},
+ 
  
  
 ];

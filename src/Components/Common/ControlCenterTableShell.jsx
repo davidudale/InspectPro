@@ -20,6 +20,7 @@ const ControlCenterTableShell = ({
   hasData = false,
   emptyTitle = "No Records Found",
   emptyDescription = "",
+  toolbar,
   children,
 }) => {
   return (
@@ -101,6 +102,7 @@ const ControlCenterTableShell = ({
                     </div>
 
                     <div className="mt-5 overflow-hidden rounded-[1rem] border border-slate-800/80 bg-[#060b17] sm:rounded-[1.5rem]">
+                      {toolbar}
                       {children}
                     </div>
                   </div>

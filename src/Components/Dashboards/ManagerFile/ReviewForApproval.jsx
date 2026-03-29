@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../Auth/firebase";
-import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { ChevronLeft, ShieldCheck, Check } from "lucide-react";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../utils/toast";
@@ -10,6 +17,7 @@ import ManagerNavbar from "./ManagerNavbar";
 import ManagerSidebar from "./ManagerSidebar";
 import ReportDownloadView from "./ReportDownloadView";
 import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
+import { buildScheduleFromProject } from "../../../utils/inspectionScheduling";
 
 const ReviewForApproval = () => {
   const { user } = useAuth();
@@ -103,14 +111,53 @@ const ReviewForApproval = () => {
     setIsSaving(true);
     try {
       const projectRef = doc(db, "projects", projectId);
+      const approvedAt = new Date();
+      const preFillProject = {
+        ...(location.state?.preFill || {}),
+        id: projectId,
+      };
+      let inspectionTypeData = null;
+
+      if (preFillProject.inspectionTypeId) {
+        const inspectionTypeSnap = await getDoc(
+          doc(db, "inspection_types", preFillProject.inspectionTypeId),
+        );
+        if (inspectionTypeSnap.exists()) {
+          inspectionTypeData = {
+            id: inspectionTypeSnap.id,
+            ...inspectionTypeSnap.data(),
+          };
+        }
+      }
 
       await updateDoc(projectRef, {
         status: "Approved",
         confirmedBy: user?.name || user?.email || "Manager",
-        approvedAt: serverTimestamp(),
+        approvedAt,
         confirmedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+
+      const { scheduleDoc, equipmentSnapshot } = buildScheduleFromProject({
+        project: preFillProject,
+        inspectionType: inspectionTypeData,
+        approvedAt,
+        approvedBy: user?.name || user?.email || "Manager",
+      });
+
+      if (scheduleDoc.equipmentId) {
+        await addDoc(collection(db, "inspection_schedules"), {
+          ...scheduleDoc,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        await updateDoc(doc(db, "equipment", scheduleDoc.equipmentId), {
+          lastInspection: equipmentSnapshot.lastInspection,
+          nextInspection: equipmentSnapshot.nextInspection,
+          updatedAt: serverTimestamp(),
+        });
+      }
 
       toast.success("Project approved successfully.");
       navigate("/Pending_approval");

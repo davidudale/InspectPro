@@ -37,12 +37,16 @@ import { useAuth } from "../../Auth/AuthContext"; // Ensure useAuth is imported
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
+import TableQueryControls from "../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 
 const ViewInspectionsList = () => {
   const { user } = useAuth(); // Get current logged-in inspector
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
   const toMillis = (value) => {
@@ -164,17 +168,6 @@ const ViewInspectionsList = () => {
     }
   };
 
-  const filteredProjects = projects
-    .filter(
-      (p) =>
-        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) || // Use clientName from setupData
-        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(a)) - toMillis(getRowTimestamp(b)),
-    );
-
   const getInspectionActionState = (project) => {
     const status = (project?.status || "").toLowerCase();
     if (
@@ -224,6 +217,37 @@ const ViewInspectionsList = () => {
     if (project?.inspectionStartedAt) return "Continue Inspection";
     return "Start Inspection";
   };
+
+  const filteredProjects = projects
+    .filter(
+      (project) =>
+        project.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .filter(
+      (project) =>
+        statusFilter === "all" ||
+        String(getInspectorStatusLabel(project)).toLowerCase() === statusFilter,
+    )
+    .sort(
+      (a, b) => toMillis(getRowTimestamp(a)) - toMillis(getRowTimestamp(b)),
+    );
+
+  const groupedProjects = groupRowsByOption(filteredProjects, groupBy, [
+    {
+      value: "status",
+      label: "Status",
+      getValue: (project) => getInspectorStatusLabel(project),
+      emptyLabel: "Pending",
+    },
+    {
+      value: "client",
+      label: "Client",
+      getValue: (project) => project.clientName,
+      emptyLabel: "Unassigned Client",
+    },
+  ]);
 
   const handleOpenInspection = async (project) => {
     const label = getInspectionActionLabel(project);
@@ -317,6 +341,34 @@ const ViewInspectionsList = () => {
         hasData={filteredProjects.length > 0}
         emptyTitle="No Assignments Found"
         emptyDescription="Assignments routed to your profile will appear here with their workflow status and next action."
+        toolbar={
+          <TableQueryControls
+            filters={[
+              {
+                key: "status",
+                label: "Status Filter",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { value: "all", label: "All Statuses" },
+                  ...Array.from(
+                    new Set(projects.map((project) => getInspectorStatusLabel(project)).filter(Boolean)),
+                  ).map((status) => ({
+                    value: String(status).toLowerCase(),
+                    label: status,
+                  })),
+                ],
+              },
+            ]}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            groupOptions={[
+              { value: TABLE_GROUP_NONE, label: "No Grouping" },
+              { value: "status", label: "Status" },
+              { value: "client", label: "Client" },
+            ]}
+          />
+        }
       >
         <div className="table-scroll-region max-h-[68vh] overflow-auto">
           <table className="w-full min-w-[840px] text-left border-collapse">
@@ -343,7 +395,19 @@ const ViewInspectionsList = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {filteredProjects.map((project) => (
+                      {groupedProjects.map((group) => (
+                        <React.Fragment key={group.key}>
+                          {groupBy !== TABLE_GROUP_NONE ? (
+                            <tr className="bg-[#08101f]">
+                              <td
+                                colSpan="6"
+                                className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              >
+                                {group.label} ({group.items.length})
+                              </td>
+                            </tr>
+                          ) : null}
+                          {group.items.map((project) => (
                         <tr
                           key={project.id}
                           className="group hover:bg-white/5 transition-colors"
@@ -419,6 +483,8 @@ const ViewInspectionsList = () => {
                             )}
                           </td>
                         </tr>
+                          ))}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

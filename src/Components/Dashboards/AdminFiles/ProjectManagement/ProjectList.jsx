@@ -11,6 +11,8 @@ import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 import ControlCenterTableShell from "../../../Common/ControlCenterTableShell";
+import TableQueryControls from "../../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 const ProjectList = () => {
   const formatDate = (value) => {
@@ -64,6 +66,8 @@ const ProjectList = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
@@ -99,23 +103,6 @@ const ProjectList = () => {
     }
   };
 
-  const filteredProjects = useMemo(() => {
-    const normalizedSearch = searchTerm.toLowerCase();
-
-    return [...projects]
-      .filter(
-        (p) =>
-          p.projectName?.toLowerCase().includes(normalizedSearch) ||
-          (p.clientName || p.client || "")
-            .toLowerCase()
-            .includes(normalizedSearch) ||
-          p.projectId?.toLowerCase().includes(normalizedSearch),
-      )
-      .sort(
-        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-      );
-  }, [projects, searchTerm]);
-
   const getOperationalStatus = (project) => {
     const topLevelStatus = String(project?.status || "").trim();
     const reportStatus = String(project?.report?.status || "").trim();
@@ -143,6 +130,53 @@ const ProjectList = () => {
     return "Planned";
   };
 
+  const filteredProjects = useMemo(() => {
+    const normalizedSearch = searchTerm.toLowerCase();
+
+    return [...projects]
+      .filter(
+        (project) =>
+          project.projectName?.toLowerCase().includes(normalizedSearch) ||
+          (project.clientName || project.client || "")
+            .toLowerCase()
+            .includes(normalizedSearch) ||
+          project.projectId?.toLowerCase().includes(normalizedSearch),
+      )
+      .filter(
+        (project) =>
+          statusFilter === "all" ||
+          String(getOperationalStatus(project)).toLowerCase() === statusFilter,
+      )
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      );
+  }, [projects, searchTerm, statusFilter]);
+
+  const groupedProjects = useMemo(
+    () =>
+      groupRowsByOption(filteredProjects, groupBy, [
+        {
+          value: "status",
+          label: "Operational Status",
+          getValue: (project) => getOperationalStatus(project),
+          emptyLabel: "Unknown Status",
+        },
+        {
+          value: "client",
+          label: "Client",
+          getValue: (project) => project.clientName || project.client,
+          emptyLabel: "Unassigned Client",
+        },
+      ]),
+    [filteredProjects, groupBy],
+  );
+
+  const statusOptions = useMemo(
+    () =>
+      Array.from(new Set(projects.map((project) => getOperationalStatus(project)).filter(Boolean))),
+    [projects],
+  );
+
   return (
     <>
       {ConfirmDialog}
@@ -160,6 +194,32 @@ const ProjectList = () => {
         hasData={filteredProjects.length > 0}
         emptyTitle="No Active Projects Found"
         emptyDescription="Projects created in setup will appear here for editing, deletion, and preview."
+        toolbar={
+          <TableQueryControls
+            filters={[
+              {
+                key: "status",
+                label: "Status Filter",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { value: "all", label: "All Statuses" },
+                  ...statusOptions.map((status) => ({
+                    value: status.toLowerCase(),
+                    label: status,
+                  })),
+                ],
+              },
+            ]}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            groupOptions={[
+              { value: TABLE_GROUP_NONE, label: "No Grouping" },
+              { value: "status", label: "Operational Status" },
+              { value: "client", label: "Client" },
+            ]}
+          />
+        }
       >
         <div className="flex items-center justify-end border-b border-slate-800/80 bg-slate-950/20 px-4 py-4">
           <button 
@@ -184,18 +244,30 @@ const ProjectList = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {filteredProjects.map((project) => {
-                        const operationalStatus = getOperationalStatus(project);
-                        const projectStartDate = getProjectStartDate(project);
-                        const projectEndDate = getProjectEndDate(project);
-                        const reportViewCode =
-                          String(project?.status || "").trim().toLowerCase() === "approved"
-                            ? "External"
-                            : "Internal";
-                        const isInProgress = operationalStatus
-                          .toLowerCase()
-                          .startsWith("in progress");
-                        return (
+                      {groupedProjects.map((group) => (
+                        <React.Fragment key={group.key}>
+                          {groupBy !== TABLE_GROUP_NONE ? (
+                            <tr className="bg-[#08101f]">
+                              <td
+                                colSpan="8"
+                                className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              >
+                                {group.label} ({group.items.length})
+                              </td>
+                            </tr>
+                          ) : null}
+                          {group.items.map((project) => {
+                            const operationalStatus = getOperationalStatus(project);
+                            const projectStartDate = getProjectStartDate(project);
+                            const projectEndDate = getProjectEndDate(project);
+                            const reportViewCode =
+                              String(project?.status || "").trim().toLowerCase() === "approved"
+                                ? "External"
+                                : "Internal";
+                            const isInProgress = operationalStatus
+                              .toLowerCase()
+                              .startsWith("in progress");
+                            return (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
                           <td className="px-3 py-4">
                             <div className="flex items-center gap-4">
@@ -277,7 +349,10 @@ const ProjectList = () => {
                             <MoreVertical size={16} className="text-slate-800 group-hover:hidden inline-block ml-auto" />
                           </td>
                         </tr>
-                      )})}
+                            );
+                          })}
+                        </React.Fragment>
+                      ))}
                     </tbody>
                   </table>
         </div>

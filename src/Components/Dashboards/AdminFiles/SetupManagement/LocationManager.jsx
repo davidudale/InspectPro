@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { db } from "../../../Auth/firebase";
 import {
   collection,
@@ -23,9 +23,11 @@ import {
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import TableQueryControls from "../../../Common/TableQueryControls";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 const LocationManager = () => {
   const toMillis = (value) => {
@@ -48,6 +50,8 @@ const LocationManager = () => {
   const [locations, setLocations] = useState([]);
   const [clients, setClients] = useState([]); // Master Client Location
   const [searchTerm, setSearchTerm] = useState("");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -195,17 +199,52 @@ const LocationManager = () => {
     });
   };
 
-  const filteredLocations = locations
-    .filter((l) => {
-      const name = (l.name || "").toLowerCase();
-      const clientName = (l.clientName || "").toLowerCase();
-      const region = (l.region || "").toLowerCase();
-      const term = searchTerm.toLowerCase();
-      return name.includes(term) || clientName.includes(term) || region.includes(term);
-    })
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-    );
+  const filteredLocations = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+
+    return locations
+      .filter((location) => {
+        const matchesSearch =
+          String(location.name || "").toLowerCase().includes(term) ||
+          String(location.clientName || "").toLowerCase().includes(term) ||
+          String(location.region || "").toLowerCase().includes(term);
+        const matchesClient =
+          clientFilter === "all" ||
+          String(location.clientName || "").toLowerCase() === clientFilter;
+
+        return matchesSearch && matchesClient;
+      })
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      );
+  }, [locations, searchTerm, clientFilter]);
+
+  const groupedLocations = useMemo(
+    () =>
+      groupRowsByOption(filteredLocations, groupBy, [
+        {
+          value: "client",
+          label: "Client",
+          getValue: (location) => location.clientName,
+          emptyLabel: "Unassigned Client",
+        },
+        {
+          value: "region",
+          label: "Region",
+          getValue: (location) => location.region,
+          emptyLabel: "Unassigned Region",
+        },
+      ]),
+    [filteredLocations, groupBy],
+  );
+
+  const clientOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(locations.map((location) => location.clientName).filter(Boolean)),
+      ).sort(),
+    [locations],
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -251,6 +290,30 @@ const LocationManager = () => {
             </div>
 
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
+              <TableQueryControls
+                filters={[
+                  {
+                    key: "client",
+                    label: "Client Filter",
+                    value: clientFilter,
+                    onChange: setClientFilter,
+                    options: [
+                      { value: "all", label: "All Clients" },
+                      ...clientOptions.map((clientName) => ({
+                        value: clientName.toLowerCase(),
+                        label: clientName,
+                      })),
+                    ],
+                  },
+                ]}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                groupOptions={[
+                  { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                  { value: "client", label: "Client" },
+                  { value: "region", label: "Region" },
+                ]}
+              />
               <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -277,11 +340,23 @@ const LocationManager = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {filteredLocations.map((loc) => (
-                      <tr
-                        key={loc.id}
-                        className="group hover:bg-white/5 transition-colors"
-                      >
+                    {groupedLocations.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {groupBy !== TABLE_GROUP_NONE ? (
+                          <tr className="bg-slate-950/80">
+                            <td
+                              colSpan="6"
+                              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                            >
+                              {group.label} ({group.items.length})
+                            </td>
+                          </tr>
+                        ) : null}
+                        {group.items.map((loc) => (
+                          <tr
+                            key={loc.id}
+                            className="group hover:bg-white/5 transition-colors"
+                          >
                         <td className="p-6">
                           <div className="flex items-center gap-4">
                             <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 shadow-inner">
@@ -339,7 +414,9 @@ const LocationManager = () => {
                             </button>
                           </div>
                         </td>
-                      </tr>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

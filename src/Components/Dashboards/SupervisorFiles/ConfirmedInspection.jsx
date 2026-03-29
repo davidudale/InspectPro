@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import {
@@ -29,12 +29,16 @@ import SupervisorSidebar from "./SupervisorSidebar";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
+import TableQueryControls from "../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 
 const ConfirmedInspections = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [clientFilter, setClientFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
   const isPassedForwardedStatus = (status = "") =>
     String(status).startsWith("Passed and Forwarded to ");
@@ -106,11 +110,40 @@ const ConfirmedInspections = () => {
     }
   };
 
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter(
+        (project) =>
+          (
+            project.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            project.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            project.projectId?.toLowerCase().includes(searchTerm.toLowerCase())
+          ) &&
+          (
+            clientFilter === "all" ||
+            String(project.clientName || "").toLowerCase() === clientFilter
+          ),
+      ),
+    [projects, searchTerm, clientFilter],
+  );
+
+  const groupedProjects = useMemo(
+    () =>
+      groupRowsByOption(filteredProjects, groupBy, [
+        {
+          value: "client",
+          label: "Client",
+          getValue: (project) => project.clientName,
+          emptyLabel: "Unassigned Client",
+        },
+        {
+          value: "status",
+          label: "Status",
+          getValue: (project) => project.status,
+          emptyLabel: "Pending",
+        },
+      ]),
+    [filteredProjects, groupBy],
   );
 
   return (
@@ -124,11 +157,36 @@ const ConfirmedInspections = () => {
       onSearchChange={setSearchTerm}
       searchPlaceholder="Search confirmed inspections..."
       summary={`${filteredProjects.length} Confirmed Item${filteredProjects.length === 1 ? "" : "s"}`}
-      
       loading={loading}
       hasData={filteredProjects.length > 0}
       emptyTitle="No Pending Confirmations"
       emptyDescription="Confirmed and forwarded inspections will appear here after lead review."
+      toolbar={
+        <TableQueryControls
+          filters={[
+            {
+              key: "client",
+              label: "Client Filter",
+              value: clientFilter,
+              onChange: setClientFilter,
+              options: [
+                { value: "all", label: "All Clients" },
+                ...Array.from(new Set(projects.map((project) => project.clientName).filter(Boolean))).map((client) => ({
+                  value: String(client).toLowerCase(),
+                  label: client,
+                })),
+              ],
+            },
+          ]}
+          groupBy={groupBy}
+          onGroupByChange={setGroupBy}
+          groupOptions={[
+            { value: TABLE_GROUP_NONE, label: "No Grouping" },
+            { value: "client", label: "Client" },
+            { value: "status", label: "Status" },
+          ]}
+        />
+      }
     >
       <div className="table-scroll-region max-h-[68vh] overflow-auto">
         <table className="w-full min-w-[800px] text-left border-collapse">
@@ -149,7 +207,19 @@ const ConfirmedInspections = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {filteredProjects.map((project) => (
+                      {groupedProjects.map((group) => (
+                        <React.Fragment key={group.key}>
+                          {groupBy !== TABLE_GROUP_NONE ? (
+                            <tr className="bg-[#08101f]">
+                              <td
+                                colSpan="4"
+                                className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              >
+                                {group.label} ({group.items.length})
+                              </td>
+                            </tr>
+                          ) : null}
+                      {group.items.map((project) => (
                         <tr
                           key={project.id}
                           className="group hover:bg-white/5 transition-colors"
@@ -198,6 +268,8 @@ const ConfirmedInspections = () => {
                             </button>*/}
                           </td>
                         </tr>
+                      ))}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

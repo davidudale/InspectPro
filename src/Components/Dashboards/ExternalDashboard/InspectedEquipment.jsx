@@ -20,6 +20,8 @@ import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import ExternalNavbar from "./ExternalNavbar";
 import ExternalSideBar from "./ExternalSideBar";
+import TableQueryControls from "../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 
 function getInspectionEndDate(project) {
   const normalizedStatus = String(project?.status || "").trim().toLowerCase();
@@ -46,6 +48,8 @@ const InspectedEquipment = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingEquipment, setLoadingEquipment] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -113,7 +117,12 @@ const InspectedEquipment = () => {
           id: `${project.id}-${project.equipmentId || project.equipmentTag || "equipment"}`,
           projectDocId: project.id,
           projectId: project.projectId || project.id,
-          projectName: project.projectName || "Untitled Project",
+          requiredTechnique:
+            project.selectedTechnique ||
+            project.reportTemplate ||
+            project.inspectionTypeCode ||
+            project.inspectionTypeName ||
+            "General Inspection",
           clientName: project.clientName || project.client || "N/A",
           locationName: project.locationName || project.location || "N/A",
           status: project.status || "Pending",
@@ -125,6 +134,10 @@ const InspectedEquipment = () => {
             project.timestamp ||
             null,
           inspectionEndDate: getInspectionEndDate(project),
+          nextInspectionDate:
+            linkedEquipment?.nextInspection?.dueDate ||
+            project?.nextInspectionDate ||
+            null,
           tagReference:
             linkedEquipment?.tagNumber ||
             project.equipmentTag ||
@@ -145,6 +158,9 @@ const InspectedEquipment = () => {
             linkedEquipment?.service ||
             linkedEquipment?.status ||
             "N/A",
+          countdown: getCountdownDetails(
+            linkedEquipment?.nextInspection?.dueDate || project?.nextInspectionDate || null,
+          ),
         };
       })
       .filter((row) => row.tagReference !== "N/A" || row.equipmentName !== "N/A");
@@ -159,7 +175,7 @@ const InspectedEquipment = () => {
 
         return [
           row.projectName,
-          row.projectId,
+          row.requiredTechnique,
           row.clientName,
           row.locationName,
           row.tagReference,
@@ -167,13 +183,44 @@ const InspectedEquipment = () => {
           row.equipmentType,
           row.status,
           row.service,
+          row.countdown?.label,
         ].some((value) => String(value || "").toLowerCase().includes(term));
-      })
+      }) 
+      .filter(
+        (row) =>
+          statusFilter === "all" ||
+          String(row.status || "").toLowerCase() === statusFilter,
+      )
       .sort(
         (left, right) =>
           toMillis(right.inspectionStartDate) - toMillis(left.inspectionStartDate),
       );
-  }, [equipmentRows, searchTerm]);
+  }, [equipmentRows, searchTerm, statusFilter]);
+
+  const groupedRows = useMemo(
+    () =>
+      groupRowsByOption(filteredRows, groupBy, [
+        {
+          value: "status",
+          label: "Status",
+          getValue: (row) => row.status,
+          emptyLabel: "Pending",
+        },
+        {
+          value: "client",
+          label: "Client",
+          getValue: (row) => row.clientName,
+          emptyLabel: "Unassigned Client",
+        },
+        {
+          value: "equipmentType",
+          label: "Equipment Type",
+          getValue: (row) => row.equipmentType,
+          emptyLabel: "Unknown Type",
+        },
+      ]),
+    [filteredRows, groupBy],
+  );
 
   const metrics = useMemo(() => {
     const approvedEquipment = equipmentRows.filter((row) =>
@@ -226,27 +273,55 @@ const InspectedEquipment = () => {
               </div>
             ) : filteredRows.length > 0 ? (
               <div className="overflow-hidden rounded-[2.5rem] border border-slate-800 bg-slate-900/40 shadow-2xl backdrop-blur-md">
-                <div className="table-scroll-region overflow-x-auto">
-                  <table className="w-full border-collapse text-left">
-                    <thead>
+                <TableQueryControls
+                  filters={[
+                    {
+                      key: "status",
+                      label: "Status Filter",
+                      value: statusFilter,
+                      onChange: setStatusFilter,
+                      options: [
+                        { value: "all", label: "All Statuses" },
+                        ...Array.from(new Set(equipmentRows.map((row) => row.status).filter(Boolean))).map((status) => ({
+                          value: String(status).toLowerCase(),
+                          label: status,
+                        })),
+                      ],
+                    },
+                  ]}
+                  groupBy={groupBy}
+                  onGroupByChange={setGroupBy}
+                  groupOptions={[
+                    { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                    { value: "status", label: "Status" },
+                    { value: "client", label: "Client" },
+                    { value: "equipmentType", label: "Equipment Type" },
+                  ]}
+                />
+                <div className="table-scroll-region max-h-[68vh] overflow-auto">
+                  <table className="min-w-[1120px] w-full border-collapse text-left">
+                    <thead className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-sm">
                       <tr className="border-b border-slate-800 bg-slate-950/50">
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
                           Equipment
                         </th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Project
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                          Required Technique
                         </th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Client
-                        </th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
                           Location
                         </th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Start Date
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                          Inspection Start Date
                         </th>
-                        <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          End Date
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                          Inspection End Date
+                        </th>
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                          Next Inspection Date
+                        </th>
+                        <th className="px-3 py-3 text-[9px] font-black uppercase tracking-[0.22em] text-slate-500">
+                          Countdown Timer
                         </th>
                        {/* <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-500">
                           Status
@@ -257,15 +332,27 @@ const InspectedEquipment = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {filteredRows.map((row) => (
+                      {groupedRows.map((group) => (
+                        <React.Fragment key={group.key}>
+                          {groupBy !== TABLE_GROUP_NONE ? (
+                            <tr className="bg-slate-950/80">
+                              <td
+                                 colSpan="8"
+                                className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              >
+                                {group.label} ({group.items.length})
+                              </td>
+                            </tr>
+                          ) : null}
+                          {group.items.map((row) => (
                         <tr key={row.id} className="group transition-colors hover:bg-white/5">
-                          <td className="p-6">
-                            <div className="flex items-center gap-4">
-                              <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 text-orange-500 shadow-inner transition-all group-hover:border-orange-500/50">
-                                <Wrench size={18} />
+                          <td className="px-3 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 text-orange-500 shadow-inner transition-all group-hover:border-orange-500/50">
+                                <Wrench size={16} />
                               </div>
-                              <div>
-                                <p className="text-sm font-bold uppercase tracking-tight text-white transition-colors group-hover:text-orange-500">
+                              <div className="min-w-0">
+                                <p className="max-w-[180px] truncate text-xs font-bold uppercase tracking-tight text-white transition-colors group-hover:text-orange-500 sm:text-sm">
                                   {row.equipmentName}
                                 </p>
                                 <p className="mt-0.5 font-mono text-[9px] uppercase text-slate-500">
@@ -277,35 +364,38 @@ const InspectedEquipment = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="p-6">
-                            <p className="text-xs font-semibold uppercase text-slate-300">
-                              {row.projectName}
+                          <td className="px-3 py-4">
+                            <p className="max-w-[170px] truncate text-[11px] font-semibold uppercase text-slate-300 sm:text-xs">
+                              {row.requiredTechnique}
                             </p>
                             <p className="font-mono text-[9px] uppercase text-slate-500">
                               {row.projectId}
                             </p>
                           </td>
-                          <td className="p-6">
-                            <div className="flex items-center gap-2">
-                              <Building2 size={14} className="text-slate-600" />
-                              <span className="text-xs font-medium uppercase text-slate-300">
-                                {row.clientName}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-6">
+                          
+                          <td className="px-3 py-4">
                             <div className="flex items-center gap-2 text-slate-400">
-                              <MapPin size={14} className="text-orange-500/50" />
-                              <span className="text-xs font-medium">
+                              <MapPin size={13} className="shrink-0 text-orange-500/50" />
+                              <span className="max-w-[150px] truncate text-[11px] font-medium sm:text-xs">
                                 {row.locationName}
                               </span>
                             </div>
                           </td>
-                          <td className="p-6 text-xs font-medium text-slate-300">
+                          <td className="px-3 py-4 text-[11px] font-medium text-slate-300 sm:text-xs">
                             {formatDate(row.inspectionStartDate)}
                           </td>
-                          <td className="p-6 text-xs font-medium text-slate-300">
+                          <td className="px-3 py-4 text-[11px] font-medium text-slate-300 sm:text-xs">
                             {row.inspectionEndDate ? formatDate(row.inspectionEndDate) : "Pending"}
+                          </td>
+                          <td className="px-3 py-4 text-[11px] font-medium text-slate-300 sm:text-xs">
+                            {row.nextInspectionDate ? formatDate(row.nextInspectionDate) : "Not Scheduled"}
+                          </td>
+                          <td className="px-3 py-4">
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] sm:text-[9px] ${row.countdown.classes}`}
+                            >
+                              {row.countdown.label}
+                            </span>
                           </td>
                           {/*<td className="p-6">
                             <StatusBadge status={row.status} />
@@ -319,6 +409,8 @@ const InspectedEquipment = () => {
                             </button>
                           </td>*/}
                         </tr>
+                          ))}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>
@@ -395,6 +487,56 @@ const formatDate = (value) => {
   }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleDateString();
+};
+
+const getCountdownDetails = (value) => {
+  if (!value) {
+    return {
+      label: "Not Scheduled",
+      classes: "border-slate-700 bg-slate-800/40 text-slate-300",
+    };
+  }
+
+  const dueDate =
+    typeof value?.toDate === "function"
+      ? value.toDate()
+      : value instanceof Date
+        ? value
+        : new Date(value);
+
+  if (Number.isNaN(dueDate.getTime())) {
+    return {
+      label: "Not Scheduled",
+      classes: "border-slate-700 bg-slate-800/40 text-slate-300",
+    };
+  }
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dueDay = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const diffDays = Math.ceil((dueDay.getTime() - startOfToday.getTime()) / 86400000);
+
+  if (diffDays < 0) {
+    return {
+      label: `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"}`,
+      classes: "border-rose-500/30 bg-rose-500/10 text-rose-300",
+    };
+  }
+
+  if (diffDays === 0) {
+    return {
+      label: "Due Today",
+      classes: "border-amber-500/30 bg-amber-500/10 text-amber-300",
+    };
+  }
+
+  return {
+    label: `${diffDays} day${diffDays === 1 ? "" : "s"} left`,
+    classes:
+      diffDays <= 30
+        ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
+  };
 };
 
 const toMillis = (value) => {

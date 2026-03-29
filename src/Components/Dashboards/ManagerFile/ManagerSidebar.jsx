@@ -57,6 +57,11 @@ const sidebarLinks = [
         icon: <ClipboardPlus size={16} />,
         href: "/projects",
       },
+      {
+        name: "Next Inspection Scheduler",
+        icon: <ClipboardList size={16} />,
+        href: "/next-inspections",
+      },
     ],
   },
 

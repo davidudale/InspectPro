@@ -50,6 +50,7 @@ import ProjectsReviewing from "./Components/Dashboards/ExternalDashboard/Project
 import Feedback from "./Components/Dashboards/ExternalDashboard/Feedback.jsx";
 import ExternalFeedbackManager from "./Components/Dashboards/AdminFiles/FeedbackManagement/ExternalFeedbackManager.jsx";
 import InspectedEquipment from "./Components/Dashboards/ExternalDashboard/InspectedEquipment.jsx";
+import NextInspectionScheduler from "./Components/Dashboards/ProjectScheduler/NextInspectionScheduler.jsx";
 function App() {
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
@@ -465,8 +466,16 @@ function App() {
         <Route
           path="/equipment"
           element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
+            <ProtectedRoute allowedRoles={["Admin", "External_Reviewer"]}>
               <EquipmentManager />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/next-inspections"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "Manager", "External_Reviewer"]}>
+              <NextInspectionScheduler />
             </ProtectedRoute>
           }
         />
@@ -546,7 +555,8 @@ function App() {
                 "Admin",
               ]}
             >
-              <ReportPlaceholder title="Equipment Status Report" />
+              <EquipmentManager />
+              {/*<ReportPlaceholder title="Equipment Status Report" />*/}
             </ProtectedRoute>
           }
         />

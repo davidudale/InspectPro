@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import AdminNavbar from "../../AdminNavbar";
 import {
   PlusCircle, Search, ArrowLeft, Cog, Zap, X, Package, Ruler, Layers
@@ -7,6 +7,8 @@ import AdminSidebar from "../../AdminSidebar";
 import { db } from "../../../Auth/firebase";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import TableQueryControls from "../../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 const InspectionLogs = () => {
   const [inspections, setInspections] = useState([]);
@@ -14,6 +16,8 @@ const InspectionLogs = () => {
   const [masterInspectionTypes, setMasterInspectionTypes] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const navigate = useNavigate();
 
   const [phase, setPhase] = useState(1); 
@@ -86,6 +90,39 @@ const InspectionLogs = () => {
     });
   };
 
+  const filteredEquipment = useMemo(
+    () =>
+      equipment.filter((asset) => {
+        const matchesSearch = String(asset.tagNumber || "")
+          .toUpperCase()
+          .includes(searchTerm.toUpperCase());
+        const matchesStatus =
+          statusFilter === "all" ||
+          String(asset.status || "").toLowerCase() === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [equipment, searchTerm, statusFilter],
+  );
+
+  const groupedEquipment = useMemo(
+    () =>
+      groupRowsByOption(filteredEquipment, groupBy, [
+        {
+          value: "status",
+          label: "Status",
+          getValue: (asset) => asset.status,
+          emptyLabel: "Unknown Status",
+        },
+        {
+          value: "assetType",
+          label: "Equipment Type",
+          getValue: (asset) => asset.assetType,
+          emptyLabel: "Unknown Type",
+        },
+      ]),
+    [filteredEquipment, groupBy],
+  );
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
@@ -110,6 +147,30 @@ const InspectionLogs = () => {
                <div className="py-40 flex justify-center"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-orange-500"></div></div>
             ) : phase === 1 ? (
               <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md">
+                <TableQueryControls
+                  filters={[
+                    {
+                      key: "status",
+                      label: "Status Filter",
+                      value: statusFilter,
+                      onChange: setStatusFilter,
+                      options: [
+                        { value: "all", label: "All Statuses" },
+                        ...Array.from(new Set(equipment.map((asset) => asset.status).filter(Boolean))).map((status) => ({
+                          value: String(status).toLowerCase(),
+                          label: status,
+                        })),
+                      ],
+                    },
+                  ]}
+                  groupBy={groupBy}
+                  onGroupByChange={setGroupBy}
+                  groupOptions={[
+                    { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                    { value: "status", label: "Status" },
+                    { value: "assetType", label: "Equipment Type" },
+                  ]}
+                />
                 <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-slate-950/50 border-b border-slate-800 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -120,7 +181,19 @@ const InspectionLogs = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {equipment.filter(e => e.tagNumber.includes(searchTerm.toUpperCase())).map(asset => (
+                    {groupedEquipment.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {groupBy !== TABLE_GROUP_NONE ? (
+                          <tr className="bg-slate-950/80">
+                            <td
+                              colSpan="3"
+                              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                            >
+                              {group.label} ({group.items.length})
+                            </td>
+                          </tr>
+                        ) : null}
+                    {group.items.map(asset => (
                       <tr key={asset.id} onClick={() => { setSelectedEquip(asset.tagNumber); setPhase(2); }} className="group hover:bg-white/5 cursor-pointer transition-colors">
                         <td className="p-6">
                            <div className="flex items-center gap-4">
@@ -135,6 +208,8 @@ const InspectionLogs = () => {
                           <span className="px-2 py-1 rounded text-[8px] font-black uppercase border border-emerald-500/30 text-emerald-500 bg-emerald-500/5">{asset.status}</span>
                         </td>
                       </tr>
+                    ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
@@ -14,12 +14,16 @@ import {
 import { useAuth } from "../../Auth/AuthContext";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
+import TableQueryControls from "../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 
 const ApprovedProjects = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [techniqueFilter, setTechniqueFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
 
   const toMillis = (value) => {
@@ -90,18 +94,44 @@ const ApprovedProjects = () => {
     return () => unsubscribe();
   }, [user]);
 
-  const filteredProjects = projects
-    .filter((project) => {
-      const searchValue = searchTerm.toLowerCase();
-      return (
-        String(project.projectName || "").toLowerCase().includes(searchValue) ||
-        String(project.clientName || "").toLowerCase().includes(searchValue) ||
-        String(project.projectId || "").toLowerCase().includes(searchValue) ||
-        String(resolveTechnique(project)).toLowerCase().includes(searchValue) ||
-        String(project.locationName || "").toLowerCase().includes(searchValue)
-      );
-    })
-    .sort((a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)));
+  const filteredProjects = useMemo(
+    () =>
+      projects
+        .filter((project) => {
+          const searchValue = searchTerm.toLowerCase();
+          const matchesSearch =
+            String(project.projectName || "").toLowerCase().includes(searchValue) ||
+            String(project.clientName || "").toLowerCase().includes(searchValue) ||
+            String(project.projectId || "").toLowerCase().includes(searchValue) ||
+            String(resolveTechnique(project)).toLowerCase().includes(searchValue) ||
+            String(project.locationName || "").toLowerCase().includes(searchValue);
+          const matchesTechnique =
+            techniqueFilter === "all" ||
+            String(resolveTechnique(project)).toLowerCase() === techniqueFilter;
+          return matchesSearch && matchesTechnique;
+        })
+        .sort((a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a))),
+    [projects, searchTerm, techniqueFilter],
+  );
+
+  const groupedProjects = useMemo(
+    () =>
+      groupRowsByOption(filteredProjects, groupBy, [
+        {
+          value: "client",
+          label: "Client",
+          getValue: (project) => project.clientName,
+          emptyLabel: "Unassigned Client",
+        },
+        {
+          value: "technique",
+          label: "Technique",
+          getValue: (project) => resolveTechnique(project),
+          emptyLabel: "Unknown Technique",
+        },
+      ]),
+    [filteredProjects, groupBy],
+  );
 
   const approvedCount = filteredProjects.length;
 
@@ -163,9 +193,32 @@ const ApprovedProjects = () => {
                 ) : filteredProjects.length > 0 ? (
                   <div className="rounded-[1.75rem] border border-slate-800/80 bg-[#070d1c] p-4 sm:p-6">
                     <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-5 sm:flex-row sm:items-center sm:justify-between">
-                      
-
-                      
+                      <TableQueryControls
+                        filters={[
+                          {
+                            key: "technique",
+                            label: "Technique Filter",
+                            value: techniqueFilter,
+                            onChange: setTechniqueFilter,
+                            options: [
+                              { value: "all", label: "All Techniques" },
+                              ...Array.from(
+                                new Set(projects.map((project) => resolveTechnique(project)).filter(Boolean)),
+                              ).map((technique) => ({
+                                value: String(technique).toLowerCase(),
+                                label: technique,
+                              })),
+                            ],
+                          },
+                        ]}
+                        groupBy={groupBy}
+                        onGroupByChange={setGroupBy}
+                        groupOptions={[
+                          { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                          { value: "client", label: "Client" },
+                          { value: "technique", label: "Technique" },
+                        ]}
+                      />
                     </div>
 
                     <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-slate-800/80 bg-[#060b17]">
@@ -198,7 +251,19 @@ const ApprovedProjects = () => {
                           </thead>
 
                           <tbody>
-                            {filteredProjects.map((project) => (
+                            {groupedProjects.map((group) => (
+                              <React.Fragment key={group.key}>
+                                {groupBy !== TABLE_GROUP_NONE ? (
+                                  <tr className="bg-[#08101f]">
+                                    <td
+                                      colSpan="7"
+                                      className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                                    >
+                                      {group.label} ({group.items.length})
+                                    </td>
+                                  </tr>
+                                ) : null}
+                            {group.items.map((project) => (
                               <tr
                                 key={project.id}
                                 className="border-b border-slate-800/60 transition-colors hover:bg-white/[0.03]"
@@ -263,6 +328,8 @@ const ApprovedProjects = () => {
                                   </button>
                                 </td>
                               </tr>
+                            ))}
+                              </React.Fragment>
                             ))}
                           </tbody>
                         </table>

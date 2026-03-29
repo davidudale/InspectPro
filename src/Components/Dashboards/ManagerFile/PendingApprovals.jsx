@@ -29,6 +29,8 @@ import { useAuth } from "../../Auth/AuthContext";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
+import TableQueryControls from "../../Common/TableQueryControls";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 
 const PendingApprovals = () => {
   const toMillis = (value) => {
@@ -53,6 +55,8 @@ const PendingApprovals = () => {
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
@@ -124,12 +128,32 @@ const PendingApprovals = () => {
     .filter(
       (p) =>
         p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+          p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    .filter(
+      (project) =>
+        statusFilter === "all" ||
+        String(project.status || "").toLowerCase() === statusFilter,
     )
     .sort(
       (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
     );
+
+  const groupedProjects = groupRowsByOption(filteredProjects, groupBy, [
+    {
+      value: "status",
+      label: "Status",
+      getValue: (project) => project.status,
+      emptyLabel: "Unknown Status",
+    },
+    {
+      value: "client",
+      label: "Client",
+      getValue: (project) => project.clientName,
+      emptyLabel: "Unassigned Client",
+    },
+  ]);
 
   return (
     <>
@@ -144,11 +168,36 @@ const PendingApprovals = () => {
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search reviews..."
         summary={`${filteredProjects.length} Pending Approval${filteredProjects.length === 1 ? "" : "s"}`}
-        
         loading={loading}
         hasData={filteredProjects.length > 0}
         emptyTitle="No Pending Approvals"
         emptyDescription="Reports forwarded to management for approval will appear here."
+        toolbar={
+          <TableQueryControls
+            filters={[
+              {
+                key: "status",
+                label: "Status Filter",
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { value: "all", label: "All Statuses" },
+                  ...Array.from(new Set(projects.map((project) => project.status).filter(Boolean))).map((status) => ({
+                    value: String(status).toLowerCase(),
+                    label: status,
+                  })),
+                ],
+              },
+            ]}
+            groupBy={groupBy}
+            onGroupByChange={setGroupBy}
+            groupOptions={[
+              { value: TABLE_GROUP_NONE, label: "No Grouping" },
+              { value: "status", label: "Status" },
+              { value: "client", label: "Client" },
+            ]}
+          />
+        }
       >
         <div className="table-scroll-region max-h-[68vh] overflow-auto">
           <table className="w-full min-w-[840px] text-left border-collapse">
@@ -162,7 +211,19 @@ const PendingApprovals = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/50">
-                      {filteredProjects.map((project) => (
+                      {groupedProjects.map((group) => (
+                        <React.Fragment key={group.key}>
+                          {groupBy !== TABLE_GROUP_NONE ? (
+                            <tr className="bg-[#08101f]">
+                              <td
+                                colSpan="5"
+                                className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              >
+                                {group.label} ({group.items.length})
+                              </td>
+                            </tr>
+                          ) : null}
+                      {group.items.map((project) => (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
                           <td className="px-3 py-4">
                             <div className="flex items-center gap-4">
@@ -220,6 +281,8 @@ const PendingApprovals = () => {
                             </button>
                           </td>
                         </tr>
+                      ))}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

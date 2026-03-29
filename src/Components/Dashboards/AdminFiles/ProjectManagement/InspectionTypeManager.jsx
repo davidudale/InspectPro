@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { db } from "../../../Auth/firebase";
 import {
   collection,
@@ -21,8 +21,15 @@ import {
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import TableQueryControls from "../../../Common/TableQueryControls";
 import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
+import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
+import {
+  DEFAULT_INSPECTION_INTERVAL_UNIT,
+  DEFAULT_INSPECTION_INTERVAL_VALUE,
+  INSPECTION_INTERVAL_UNITS,
+} from "../../../../utils/inspectionScheduling";
 
 const InspectionTypeManager = () => {
   const toMillis = (value) => {
@@ -40,6 +47,8 @@ const InspectionTypeManager = () => {
     row?.updatedAt || row?.createdAt || row?.timestamp || 0;
   const [types, setTypes] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -91,6 +100,8 @@ const InspectionTypeManager = () => {
     fullName: "",
     category: "Static Equipment",
     defaultStandard: "ASME Section VIII",
+    defaultIntervalValue: DEFAULT_INSPECTION_INTERVAL_VALUE,
+    defaultIntervalUnit: DEFAULT_INSPECTION_INTERVAL_UNIT,
     requiredTechniques: ["Visual"],
   });
 
@@ -342,6 +353,8 @@ const InspectionTypeManager = () => {
       fullName: "",
       category: "Static Equipment",
       defaultStandard: "ASME Section VIII",
+      defaultIntervalValue: DEFAULT_INSPECTION_INTERVAL_VALUE,
+      defaultIntervalUnit: DEFAULT_INSPECTION_INTERVAL_UNIT,
       requiredTechniques: ["Visual"],
     });
   };
@@ -422,16 +435,43 @@ const InspectionTypeManager = () => {
     </div>
   );
 
-  const filteredTypes = types
-    .filter((t) => {
-      const title = (t.title || "").toLowerCase();
-      const fullName = (t.fullName || "").toLowerCase();
-      const term = searchTerm.toLowerCase();
-      return title.includes(term) || fullName.includes(term);
-    })
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
-    );
+  const filteredTypes = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+
+    return types
+      .filter((type) => {
+        const matchesSearch =
+          String(type.title || "").toLowerCase().includes(term) ||
+          String(type.fullName || "").toLowerCase().includes(term);
+        const matchesCategory =
+          categoryFilter === "all" ||
+          String(type.category || "").toLowerCase() === categoryFilter;
+
+        return matchesSearch && matchesCategory;
+      })
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      );
+  }, [types, searchTerm, categoryFilter]);
+
+  const groupedTypes = useMemo(
+    () =>
+      groupRowsByOption(filteredTypes, groupBy, [
+        {
+          value: "category",
+          label: "Category",
+          getValue: (type) => type.category,
+          emptyLabel: "Unassigned Category",
+        },
+        {
+          value: "standard",
+          label: "Default Standard",
+          getValue: (type) => type.defaultStandard,
+          emptyLabel: "No Standard",
+        },
+      ]),
+    [filteredTypes, groupBy],
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -477,6 +517,30 @@ const InspectionTypeManager = () => {
 
             {/* TABULAR INTERFACE */}
             <div className="bg-slate-900/40 border border-slate-800 rounded-[2.5rem] overflow-hidden backdrop-blur-md shadow-2xl">
+              <TableQueryControls
+                filters={[
+                  {
+                    key: "category",
+                    label: "Category Filter",
+                    value: categoryFilter,
+                    onChange: setCategoryFilter,
+                    options: [
+                      { value: "all", label: "All Categories" },
+                      ...categories.map((category) => ({
+                        value: category.toLowerCase(),
+                        label: category,
+                      })),
+                    ],
+                  },
+                ]}
+                groupBy={groupBy}
+                onGroupByChange={setGroupBy}
+                groupOptions={[
+                  { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                  { value: "category", label: "Category" },
+                  { value: "standard", label: "Default Standard" },
+                ]}
+              />
               <div className="table-scroll-region overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -493,17 +557,32 @@ const InspectionTypeManager = () => {
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         Inspections
                       </th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Interval
+                      </th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50">
-                    {filteredTypes.map((type) => (
-                      <tr
-                        key={type.id}
-                        className="group hover:bg-white/5 transition-colors"
-                      >
+                    {groupedTypes.map((group) => (
+                      <React.Fragment key={group.key}>
+                        {groupBy !== TABLE_GROUP_NONE ? (
+                          <tr className="bg-slate-950/80">
+                            <td
+                              colSpan="6"
+                              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                            >
+                              {group.label} ({group.items.length})
+                            </td>
+                          </tr>
+                        ) : null}
+                        {group.items.map((type) => (
+                          <tr
+                            key={type.id}
+                            className="group hover:bg-white/5 transition-colors"
+                          >
                         <td className="p-6">
                           <span className="text-sm font-bold text-white uppercase group-hover:text-orange-500 transition-colors">
                             {type.title}
@@ -527,6 +606,12 @@ const InspectionTypeManager = () => {
                             {type.requiredTechniques}
                           </span>
                         </td>
+                        <td className="p-6">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-800 px-2 py-1 rounded">
+                            {type.defaultIntervalValue || DEFAULT_INSPECTION_INTERVAL_VALUE}{" "}
+                            {type.defaultIntervalUnit || DEFAULT_INSPECTION_INTERVAL_UNIT}
+                          </span>
+                        </td>
                         <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
@@ -547,7 +632,9 @@ const InspectionTypeManager = () => {
                             </button>
                           </div>
                         </td>
-                      </tr>
+                          </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -684,6 +771,48 @@ const InspectionTypeManager = () => {
                     setNewType({ ...newType, defaultStandard: vac })
                   }
                 />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                    Default Interval Value
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none focus:border-orange-500"
+                    value={newType.defaultIntervalValue}
+                    onChange={(e) =>
+                      setNewType({
+                        ...newType,
+                        defaultIntervalValue: Number(e.target.value) || 1,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                    Default Interval Unit
+                  </label>
+                  <select
+                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white outline-none focus:border-orange-500"
+                    value={newType.defaultIntervalUnit}
+                    onChange={(e) =>
+                      setNewType({
+                        ...newType,
+                        defaultIntervalUnit: e.target.value,
+                      })
+                    }
+                  >
+                    {INSPECTION_INTERVAL_UNITS.map((unit) => (
+                      <option key={unit.value} value={unit.value}>
+                        {unit.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               {/* Multi-Select Techniques Section */}

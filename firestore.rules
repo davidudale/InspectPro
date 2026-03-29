@@ -247,7 +247,24 @@ service cloud.firestore {
 
     match /equipment/{equipmentId} {
       allow read: if isLeadOrAbove();
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isManagerOrAbove() || isExternalReviewer();
+      allow delete: if isManagerOrAbove();
+    }
+
+    match /inspection_schedules/{scheduleId} {
+      allow read: if isAdmin() ||
+                    isManager() ||
+                    isLeadInspector() ||
+                    (
+                      isExternalReviewer() &&
+                      resource.data.externalReviewerId == request.auth.uid
+                    );
+      allow create, update: if isManagerOrAbove() ||
+                              (
+                                isExternalReviewer() &&
+                                request.resource.data.externalReviewerId == request.auth.uid
+                              );
+      allow delete: if isAdmin();
     }
 
     match /inspection_types/{typeId} {
