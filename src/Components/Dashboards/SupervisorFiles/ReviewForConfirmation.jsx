@@ -46,27 +46,63 @@ const ReviewForConfirmation = () => {
     "";
 
   const getTechniqueType = () => {
-    const raw = (
-      reportData?.general?.selectedTechnique ||
-      reportData?.technique ||
-      location.state?.preFill?.reportTemplate ||
-      location.state?.preFill?.selectedTechnique ||
-      ""
-    ).toLowerCase();
+    const normalize = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
 
-    if (raw.includes("pressure vessel") || raw.includes("integrity")) return "integrity";
-    if (raw.includes("detailed")) return "detailed";
-    if (
-      raw.includes("utreport") ||
-      raw.includes("ut report") ||
-      raw.includes("manual ut") ||
-      raw.includes("ultrasonic test")
-    ) return "ut";
-    if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
-    if (raw.includes("mut")) return "mut";
-    if (raw.includes("visual") || raw.includes("vt") || raw.includes("visual testing")) return "visual";
-    if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray")) return "visual";
-    return "visual";
+    const candidates = [
+      reportData?.type,
+      reportData?.general?.inspectionTypeName,
+      reportData?.general?.inspectionType,
+      reportData?.general?.selectedTechnique,
+      reportData?.technique,
+      location.state?.preFill?.inspectionTypeName,
+      location.state?.preFill?.inspectionType,
+      location.state?.preFill?.reportTemplate,
+      location.state?.preFill?.selectedTechnique,
+    ]
+      .map(normalize)
+      .filter(Boolean);
+
+    const techniqueMap = {
+      integrity: [
+        "pressure vessel",
+        "integrity",
+        "integrity check",
+        "integrity check report",
+      ],
+      detailed: ["detailed", "detailed report", "detailed inspection report"],
+      ut: [
+        "ut",
+        "utreport",
+        "ut report",
+        "manual ut",
+        "ultrasonic test",
+        "ultrasonic test report",
+      ],
+      aut: ["aut", "corrosion mapping"],
+      mut: ["mut", "manual ut report"],
+      visual: [
+        "visual",
+        "vt",
+        "visual testing",
+        "visual testing (vt)",
+        "radiography",
+        "rt",
+        "x-ray",
+      ],
+    };
+
+    const matchedEntry = candidates
+      .map((candidate) => [
+        candidate,
+        Object.entries(techniqueMap).find(([, labels]) => labels.includes(candidate))?.[0],
+      ])
+      .find(([, technique]) => technique);
+
+    return matchedEntry?.[1] || "visual";
   };
 
   const resolveEditRoute = () => {
@@ -76,7 +112,7 @@ const ReviewForConfirmation = () => {
 
     if (techniqueType === "integrity") return isAdminPath ? `${base}/integrity` : `${base}/integrity-check`;
     if (techniqueType === "detailed") return isAdminPath ? `${base}/detailed` : `${base}/Detailed-report`;
-    if (techniqueType === "ut") return isAdminPath ? `${base}/utreport` : `${base}/utreport`;
+    if (techniqueType === "ut") return `${base}/utreport`;
     if (techniqueType === "aut") return `${base}/aut-report`;
     if (techniqueType === "mut") return isAdminPath ? `${base}/mut` : `${base}/mut-report`;
     return isAdminPath ? `${base}/visual` : `${base}/visual-report`;
@@ -84,6 +120,17 @@ const ReviewForConfirmation = () => {
 
   const handleModifyReport = () => {
     const editRoute = resolveEditRoute();
+    const techniqueCandidates = [
+      reportData?.type,
+      reportData?.general?.inspectionTypeName,
+      reportData?.general?.inspectionType,
+      reportData?.general?.selectedTechnique,
+      reportData?.technique,
+      location.state?.preFill?.inspectionTypeName,
+      location.state?.preFill?.inspectionType,
+      location.state?.preFill?.reportTemplate,
+      location.state?.preFill?.selectedTechnique,
+    ].filter(Boolean);
     const preFill = {
       ...(location.state?.preFill || {}),
       id: resolvedProjectDocId || targetProjectId,
@@ -93,6 +140,13 @@ const ReviewForConfirmation = () => {
         targetProjectId,
       reportId: reportData?.reportId || reportData?.general?.reportId || "",
     };
+
+    console.log("ReviewForConfirmation Open Form View", {
+      techniqueType: getTechniqueType(),
+      editRoute,
+      techniqueCandidates,
+      reportType: reportData?.type || "",
+    });
 
     navigate(editRoute, { state: { preFill } });
   };

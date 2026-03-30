@@ -254,23 +254,23 @@ const ProjectReviewing = () => {
       emptyDescription="Approved projects assigned to your reviewer profile will appear here."
       toolbar={
         <TableQueryControls
-          filters={[
-            {
-              key: "client",
-              label: "Client Filter",
-              value: clientFilter,
-              onChange: setClientFilter,
-              options: [
-                { value: "all", label: "All Clients" },
-                ...Array.from(
-                  new Set(projects.map((project) => project.clientName || project.client).filter(Boolean)),
-                ).map((client) => ({
-                  value: String(client).toLowerCase(),
-                  label: client,
-                })),
-              ],
-            },
-          ]}
+        filters={[
+           {
+             key: "client",
+             label: "Client Filter",
+             value: clientFilter,
+             onChange: setClientFilter,
+             options: [
+               { value: "all", label: "All Clients" },
+               ...Array.from(
+                 new Set(projects.map((project) => project.clientName || project.client).filter(Boolean)),
+               ).map((client) => ({
+                 value: String(client).toLowerCase(),
+                 label: client,
+               })),
+             ],
+           },
+         ]}
           groupBy={groupBy}
           onGroupByChange={setGroupBy}
           groupOptions={[

@@ -15,6 +15,7 @@ import {
   Briefcase,
   Search,
   MapPin,
+  Clock,
   ShieldAlert,
   Activity,
   RotateCcw, // Icon for returning to inspector
@@ -51,6 +52,16 @@ const PendingApprovals = () => {
     row?.timestamp ||
     row?.startDate ||
     0;
+  const formatTimestamp = (value) => {
+    if (!value) return "N/A";
+    const parsed =
+      typeof value?.toDate === "function"
+        ? value.toDate()
+        : value instanceof Date
+          ? value
+          : new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleString();
+  };
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
@@ -206,6 +217,7 @@ const PendingApprovals = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Project Identity</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Client</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Approval Actions</th>
                       </tr>
@@ -216,7 +228,7 @@ const PendingApprovals = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="5"
+                                colSpan="6"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -241,6 +253,14 @@ const PendingApprovals = () => {
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin size={14} className="text-orange-500/50" />
                               <span className="text-xs font-medium">{project.locationName}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <Clock size={14} className="text-orange-500/50" />
+                              <span className="text-xs font-medium">
+                                {formatTimestamp(getRowTimestamp(project))}
+                              </span>
                             </div>
                           </td>
                           <td className="px-3 py-4">

@@ -60,6 +60,16 @@ const ViewInspectionsList = () => {
     if (typeof value?.toDate === "function") return value.toDate().getTime();
     return 0;
   };
+  const formatTimestamp = (value) => {
+    if (!value) return "N/A";
+    const parsed =
+      typeof value?.toDate === "function"
+        ? value.toDate()
+        : value instanceof Date
+          ? value
+          : new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleString();
+  };
   const getRowTimestamp = (row) =>
     row?.updatedAt ||
     row?.lastUpdated ||
@@ -86,7 +96,7 @@ const ViewInspectionsList = () => {
   if (user?.role === "Manager" || user?.role === "Admin") {
     q = query(
       collection(db, "projects"),
-      orderBy("startDate", "asc")
+      orderBy("startDate", "desc")
     );
   } 
   // Inspectors see all their assignments so status remains visible across workflow stages.
@@ -94,7 +104,7 @@ const ViewInspectionsList = () => {
     q = query(
       collection(db, "projects"),
       where("inspectorId", "==", user.uid),
-      orderBy("startDate", "asc")
+      orderBy("startDate", "desc")
     );
   }
 
@@ -231,7 +241,7 @@ const ViewInspectionsList = () => {
         String(getInspectorStatusLabel(project)).toLowerCase() === statusFilter,
     )
     .sort(
-      (a, b) => toMillis(getRowTimestamp(a)) - toMillis(getRowTimestamp(b)),
+      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
     );
 
   const groupedProjects = groupRowsByOption(filteredProjects, groupBy, [
@@ -384,6 +394,9 @@ const ViewInspectionsList = () => {
                           Facility
                         </th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                          Inspection Date
+                        </th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
                           Status
                         </th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
@@ -400,7 +413,7 @@ const ViewInspectionsList = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="6"
+                                colSpan="7"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -445,6 +458,17 @@ const ViewInspectionsList = () => {
                               />
                               <span className="text-xs font-medium">
                                 {project.locationName}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <Clock
+                                size={14}
+                                className="text-orange-500/50"
+                              />
+                              <span className="text-xs font-medium">
+                                {formatTimestamp(getRowTimestamp(project))}
                               </span>
                             </div>
                           </td>

@@ -261,7 +261,7 @@ const ProjectList = () => {
                             const projectStartDate = getProjectStartDate(project);
                             const projectEndDate = getProjectEndDate(project);
                             const reportViewCode =
-                              String(project?.status || "").trim().toLowerCase() === "approved"
+                              String(project?.status || "").trim().toLowerCase() === "External Reviewing"
                                 ? "External"
                                 : "Internal";
                             const isInProgress = operationalStatus

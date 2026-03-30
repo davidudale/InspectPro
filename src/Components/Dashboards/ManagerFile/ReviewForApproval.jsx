@@ -42,26 +42,63 @@ const ReviewForApproval = () => {
     .startsWith("passed and forwarded");
 
   const getTechniqueType = () => {
-    // Resolve template type from prefilled project metadata.
-    const raw = (
-      location.state?.preFill?.reportTemplate ||
-      location.state?.preFill?.selectedTechnique ||
-      ""
-    ).toLowerCase();
+    const normalize = (value) =>
+      String(value || "")
+        .toLowerCase()
+        .replace(/\s+/g, " ")
+        .trim();
 
-    if (raw.includes("pressure vessel") || raw.includes("integrity")) return "integrity";
-    if (raw.includes("detailed")) return "detailed";
-    if (
-      raw.includes("utreport") ||
-      raw.includes("ut report") ||
-      raw.includes("manual ut") ||
-      raw.includes("ultrasonic test")
-    ) return "ut";
-    if (raw.includes("aut") || raw.includes("corrosion mapping")) return "aut";
-    if (raw.includes("mut")) return "mut";
-    if (raw.includes("visual") || raw.includes("vt") || raw.includes("visual testing")) return "visual";
-    if (raw.includes("radiography") || raw.includes("rt") || raw.includes("x-ray")) return "visual";
-    return "visual";
+    const candidates = [
+      location.state?.preFill?.report?.type,
+      location.state?.preFill?.report?.general?.inspectionTypeName,
+      location.state?.preFill?.report?.general?.inspectionType,
+      location.state?.preFill?.report?.general?.selectedTechnique,
+      location.state?.preFill?.report?.technique,
+      location.state?.preFill?.inspectionTypeName,
+      location.state?.preFill?.inspectionType,
+      location.state?.preFill?.reportTemplate,
+      location.state?.preFill?.selectedTechnique,
+    ]
+      .map(normalize)
+      .filter(Boolean);
+
+    const techniqueMap = {
+      integrity: [
+        "pressure vessel",
+        "integrity",
+        "integrity check",
+        "integrity check report",
+      ],
+      detailed: ["detailed", "detailed report", "detailed inspection report"],
+      ut: [
+        "ut",
+        "utreport",
+        "ut report",
+        "manual ut",
+        "ultrasonic test",
+        "ultrasonic test report",
+      ],
+      aut: ["aut", "corrosion mapping"],
+      mut: ["mut", "manual ut report"],
+      visual: [
+        "visual",
+        "vt",
+        "visual testing",
+        "visual testing (vt)",
+        "radiography",
+        "rt",
+        "x-ray",
+      ],
+    };
+
+    const matchedEntry = candidates
+      .map((candidate) => [
+        candidate,
+        Object.entries(techniqueMap).find(([, labels]) => labels.includes(candidate))?.[0],
+      ])
+      .find(([, technique]) => technique);
+
+    return matchedEntry?.[1] || "visual";
   };
 
   const resolveEditRoute = () => {
@@ -80,6 +117,17 @@ const ReviewForApproval = () => {
   const handleModifyReport = () => {
     // Preserve current prefill payload when switching into report editor.
     const editRoute = resolveEditRoute();
+    const techniqueCandidates = [
+      location.state?.preFill?.report?.type,
+      location.state?.preFill?.report?.general?.inspectionTypeName,
+      location.state?.preFill?.report?.general?.inspectionType,
+      location.state?.preFill?.report?.general?.selectedTechnique,
+      location.state?.preFill?.report?.technique,
+      location.state?.preFill?.inspectionTypeName,
+      location.state?.preFill?.inspectionType,
+      location.state?.preFill?.reportTemplate,
+      location.state?.preFill?.selectedTechnique,
+    ].filter(Boolean);
     const preserveForwardedStatusOnSave = currentStatus
       .toLowerCase()
       .startsWith("passed and forwarded");
@@ -90,6 +138,13 @@ const ReviewForApproval = () => {
       status: currentStatus,
       preserveForwardedStatusOnSave,
     };
+
+    console.log("ReviewForApproval Open Form View", {
+      techniqueType: getTechniqueType(),
+      editRoute,
+      techniqueCandidates,
+      reportType: location.state?.preFill?.report?.type || "",
+    });
 
     navigate(editRoute, { state: { preFill } });
   };

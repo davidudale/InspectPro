@@ -46,6 +46,11 @@ const sidebarLinks = [
         href: "/projects",
       },
       {
+        name: "External Feedback",
+        icon: <MessageSquareText size={16} />,
+        href: "/admin/external-feedback",
+      },
+      {
         name: "Next Inspection Scheduler",
         icon: <ClipboardList size={16} />,
         href: "/next-inspections",
@@ -96,11 +101,7 @@ const sidebarLinks = [
         icon: <FileText size={16} />,
         href: "/reports/next-day-plan",
       },
-      {
-        name: "External Feedback",
-        icon: <MessageSquareText size={16} />,
-        href: "/admin/external-feedback",
-      },
+      
     ],
   },
 

@@ -51,11 +51,11 @@ const baseAssetTypes = [
   { label: "Pressure Vessel (V)", prefix: "V-", category: "Static" },
   { label: "Heat Exchanger (E)", prefix: "E-", category: "Static" },
   { label: "Storage Tank (T)", prefix: "T-", category: "Static" },
-  { label: "Distillation Column (C)", prefix: "C-", category: "Static" },
-  { label: "Fired Heater / Furnace (F)", prefix: "F-", category: "Static" },
-  { label: "Reactors (R)", prefix: "R-", category: "Static" },
-  { label: "Separator (S)", prefix: "S-", category: "Static" },
-  { label: "Boiler (B)", prefix: "B-", category: "Static" },
+  //{ label: "Distillation Column (C)", prefix: "C-", category: "Static" },
+  //{ label: "Fired Heater / Furnace (F)", prefix: "F-", category: "Static" },
+  //{ label: "Reactors (R)", prefix: "R-", category: "Static" },
+  //{ label: "Separator (S)", prefix: "S-", category: "Static" },
+  //{ label: "Boiler (B)", prefix: "B-", category: "Static" },
   // Rotating Equipment
   { label: "Centrifugal Pump (P)", prefix: "P-", category: "Rotating" },
   { label: "Reciprocating Pump (RP)", prefix: "RP-", category: "Rotating" },
@@ -64,10 +64,10 @@ const baseAssetTypes = [
   { label: "Gas Turbine (GT)", prefix: "GT-", category: "Rotating" },
   { label: "Steam Turbine (ST)", prefix: "ST-", category: "Rotating" },
   // Piping & Others
-  { label: "Piping Circuit (PI)", prefix: "PI-", category: "Piping" },
+  //{ label: "Piping Circuit (PI)", prefix: "PI-", category: "Piping" },
   { label: "Flare Stack (FS)", prefix: "FS-", category: "Infrastructure" },
-  { label: "Pig Launcher/Receiver (PL)", prefix: "PL-", category: "Piping" },
-  { label: "Christmas Tree (XT)", prefix: "XT-", category: "Subsea/Wellhead" },
+  //{ label: "Pig Launcher/Receiver (PL)", prefix: "PL-", category: "Piping" },
+ // { label: "Christmas Tree (XT)", prefix: "XT-", category: "Subsea/Wellhead" },
 ];
 
 const baseStatuses = ["In-Service", "Out-of-Service", "Mothballed", "Decommissioned"];

@@ -209,6 +209,7 @@ function App() {
           }
         />
         
+        
         <Route
           path="/review/:id"
           element={
@@ -323,7 +324,7 @@ function App() {
         <Route
           path="/admin/reports/utreport"
           element={
-            <ProtectedRoute allowedRoles={["Manager", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Lead Inspector", "Manager", "Admin"]}>
               <UTReport />
             </ProtectedRoute>
           }

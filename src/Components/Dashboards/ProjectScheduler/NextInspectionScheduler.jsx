@@ -119,6 +119,7 @@ const NextInspectionScheduler = () => {
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
   const [clients, setClients] = useState([]);
+  const [assignedClientIds, setAssignedClientIds] = useState([]);
   const [locations, setLocations] = useState([]);
   const [masterEquipment, setMasterEquipment] = useState([]);
   const [inspectionTypes, setInspectionTypes] = useState([]);
@@ -141,7 +142,7 @@ const NextInspectionScheduler = () => {
         )
       : query(
           collection(db, "inspection_schedules"),
-          orderBy("dueDate", "asc"),
+          orderBy("dueDate", "desc"),
         );
 
     const unsubscribe = onSnapshot(
@@ -166,28 +167,28 @@ const NextInspectionScheduler = () => {
 
   useEffect(() => {
     const unsubClients = onSnapshot(
-      query(collection(db, "clients"), orderBy("name", "asc")),
+      query(collection(db, "clients"), orderBy("name", "desc")),
       (snapshot) => {
         setClients(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       },
     );
 
     const unsubLocations = onSnapshot(
-      query(collection(db, "locations"), orderBy("name", "asc")),
+      query(collection(db, "locations"), orderBy("name", "desc")),
       (snapshot) => {
         setLocations(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       },
     );
 
     const unsubEquipment = onSnapshot(
-      query(collection(db, "equipment"), orderBy("tagNumber", "asc")),
+      query(collection(db, "equipment"), orderBy("tagNumber", "desc")),
       (snapshot) => {
         setMasterEquipment(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       },
     );
 
     const unsubInspectionTypes = onSnapshot(
-      query(collection(db, "inspection_types"), orderBy("title", "asc")),
+      query(collection(db, "inspection_types"), orderBy("title", "desc")),
       (snapshot) => {
         setInspectionTypes(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       },
@@ -200,6 +201,38 @@ const NextInspectionScheduler = () => {
       unsubInspectionTypes();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid || isAdmin) {
+      setAssignedClientIds([]);
+      return undefined;
+    }
+
+    const assignmentField = isExternalReviewer ? "externalReviewerId" : "managerId";
+    const assignedProjectsQuery = query(
+      collection(db, "projects"),
+      where(assignmentField, "==", user.uid),
+    );
+
+    const unsubscribe = onSnapshot(
+      assignedProjectsQuery,
+      (snapshot) => {
+        const nextClientIds = Array.from(
+          new Set(
+            snapshot.docs
+              .map((projectDoc) => projectDoc.data()?.clientId)
+              .filter(Boolean),
+          ),
+        );
+        setAssignedClientIds(nextClientIds);
+      },
+      () => {
+        setAssignedClientIds([]);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [isAdmin, isExternalReviewer, user?.uid]);
 
   const Navbar = isExternalReviewer
     ? ExternalNavbar
@@ -250,12 +283,7 @@ const NextInspectionScheduler = () => {
           getValue: (schedule) => statusLabel[schedule.derivedStatus] || "Scheduled",
           emptyLabel: "Scheduled",
         },
-        {
-          value: "client",
-          label: "Client",
-          getValue: (schedule) => schedule.clientName,
-          emptyLabel: "Unassigned Client",
-        },
+        
         {
           value: "technique",
           label: "Technique",
@@ -276,6 +304,12 @@ const NextInspectionScheduler = () => {
       ),
     [editorState.clientId, editorState.clientName, locations],
   );
+
+  const availableClients = useMemo(() => {
+    if (isAdmin) return clients;
+    if (!assignedClientIds.length) return [];
+    return clients.filter((client) => assignedClientIds.includes(client.id));
+  }, [assignedClientIds, clients, isAdmin]);
 
   const selectedInspectionType = useMemo(
     () =>
@@ -339,7 +373,7 @@ const NextInspectionScheduler = () => {
   };
 
   const handleClientSelect = (clientId) => {
-    const selectedClient = clients.find((client) => client.id === clientId);
+    const selectedClient = availableClients.find((client) => client.id === clientId);
     setEditorState((current) => ({
       ...current,
       clientId,
@@ -550,7 +584,7 @@ const NextInspectionScheduler = () => {
               groupOptions={[
                 { value: TABLE_GROUP_NONE, label: "No Grouping" },
                 { value: "status", label: "Status" },
-                { value: "client", label: "Client" },
+                
                 { value: "technique", label: "Technique" },
               ]}
             />
@@ -618,20 +652,20 @@ const NextInspectionScheduler = () => {
                           </div>
                           <div>
                             <p className="text-xs font-black uppercase text-white sm:text-sm">
-                              {schedule.equipmentTag || "Unknown Tag"}
+                              {schedule.equipmentCategory || "Equipment"}
                             </p>
                             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                              {schedule.equipmentCategory || "Equipment"}
+                              {schedule.equipmentTag || "Unknown Tag"}
                             </p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-4 align-top">
                         <p className="text-xs font-bold text-slate-200 sm:text-sm">
+                         {schedule.selectedTechnique || "General Technique"} 
+                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
                           {schedule.inspectionTypeCode || schedule.inspectionTypeName || "Inspection"}
                         </p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.14em] text-slate-500">
-                          {schedule.selectedTechnique || "General Technique"}
                         </p>
                       </td>
                       <td className="px-3 py-4 align-top">
@@ -775,7 +809,7 @@ const NextInspectionScheduler = () => {
                       <option value="">Select equipment</option>
                       {masterEquipment.map((equipment) => (
                         <option key={equipment.id} value={equipment.id}>
-                          {equipment.tagNumber || equipment.description || equipment.assetType || equipment.id}
+                          {equipment.description || equipment.assetType || equipment.id}
                         </option>
                       ))}
                     </select>
@@ -803,7 +837,7 @@ const NextInspectionScheduler = () => {
                       className="w-full rounded-2xl border border-slate-700 bg-[#0a1224] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus:border-orange-500"
                     >
                       <option value="">Select client</option>
-                      {clients.map((client) => (
+                      {availableClients.map((client) => (
                         <option key={client.id} value={client.id}>
                           {client.name || client.id}
                         </option>
@@ -829,7 +863,7 @@ const NextInspectionScheduler = () => {
                     </select>
                   </label>
 
-                  <label className="space-y-2">
+                  {/*<label className="space-y-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                       Inspection Type
                     </span>
@@ -841,7 +875,7 @@ const NextInspectionScheduler = () => {
                       <option value="">Select inspection type</option>
                       {inspectionTypes.map((inspectionType) => (
                         <option key={inspectionType.id} value={inspectionType.id}>
-                          {inspectionType.title || inspectionType.fullName || inspectionType.id}
+                          {inspectionType.fullName || inspectionType.id}
                         </option>
                       ))}
                     </select>
@@ -857,7 +891,7 @@ const NextInspectionScheduler = () => {
                       readOnly
                       className="w-full rounded-2xl border border-slate-700 bg-[#0a1224] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus:border-orange-500"
                     />
-                  </label>
+                  </label>*/}
 
                   <label className="space-y-2 md:col-span-2">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
