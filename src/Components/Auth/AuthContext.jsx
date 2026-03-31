@@ -28,14 +28,18 @@ export const AuthProvider = ({ children }) => {
 
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
+            const normalizedReviewerType = String(userData.reviewerType || "").trim();
+            const normalizedRole =
+              normalizedReviewerType ? "External_Reviewer" : (userData.role || "Inspector");
             
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
-              // Map exactly what is in your database (e.g., 'Inspector', 'Lead Inspector', 'Admin')
-              role: userData.role || 'Inspector', 
-              ...userData // Spreads other profile fields if needed
+              ...userData, // Spreads other profile fields if needed
+              // Treat reviewerType-backed users as external reviewers for shared access control.
+              role: normalizedRole,
+              reviewerType: normalizedReviewerType,
             });
           } else {
             // Fallback if auth exists but Firestore profile is missing

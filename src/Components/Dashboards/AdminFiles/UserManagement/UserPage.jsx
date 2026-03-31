@@ -18,6 +18,10 @@ import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
+import { useSearchParams } from "react-router-dom";
+import { useAuth } from "../../../Auth/AuthContext";
+import ExternalNavbar from "../../ExternalDashboard/ExternalNavbar";
+import ExternalSideBar from "../../ExternalDashboard/ExternalSideBar";
 
 const DEFAULT_ROLE = "Inspector";
 const ROLE_OPTIONS = [
@@ -27,15 +31,23 @@ const ROLE_OPTIONS = [
   "Manager",
   "External_Reviewer",
 ];
+const REVIEWER_TYPE_OPTIONS = [
+  "Level_1",
+  "Senior",
+  "Client_Reviewer",
+];
 
 const EMPTY_FORM = {
   name: "",
   email: "",
   password: "",
   role: DEFAULT_ROLE,
+  reviewerType: "",
 };
 
 const UserPage = () => {
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -75,6 +87,18 @@ const UserPage = () => {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const isExternalReviewer = user?.role === "External_Reviewer";
+  const availableRoleOptions = isExternalReviewer
+    ? ["External_Reviewer"]
+    : ROLE_OPTIONS;
+  const effectiveRoleFilter = isExternalReviewer ? "External_Reviewer" : roleFilter;
+
+  useEffect(() => {
+    const requestedRole = searchParams.get("role");
+    if (requestedRole) {
+      setRoleFilter(requestedRole);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "users"), (snapshot) => {
@@ -93,10 +117,17 @@ const UserPage = () => {
         email: user.email || "",
         password: "",
         role: user.role || DEFAULT_ROLE,
+        reviewerType: user.reviewerType || "",
       });
     } else {
       setEditingUser(null);
-      setFormData(EMPTY_FORM);
+      setFormData({
+        ...EMPTY_FORM,
+        role:
+          searchParams.get("role") === "External_Reviewer"
+            ? "External_Reviewer"
+            : EMPTY_FORM.role,
+      });
     }
 
     setIsModalOpen(true);
@@ -116,12 +147,16 @@ const UserPage = () => {
       if (editingUser) {
         const userRef = doc(db, "users", editingUser.id);
         const { password, ...profileData } = formData;
+        const normalizedProfileData =
+          profileData.role === "External_Reviewer"
+            ? profileData
+            : { ...profileData, reviewerType: "" };
 
         await updateDoc(userRef, {
-          ...profileData,
-          name: profileData.name,
-          fullName: profileData.name,
-          displayName: profileData.name,
+          ...normalizedProfileData,
+          name: normalizedProfileData.name,
+          fullName: normalizedProfileData.name,
+          displayName: normalizedProfileData.name,
           updatedAt: serverTimestamp(),
         });
 
@@ -135,12 +170,20 @@ const UserPage = () => {
 
         const newUserId = userCredential.user.uid;
         const { password, ...dataToSave } = formData;
+        const normalizedDataToSave =
+          dataToSave.role === "External_Reviewer"
+            ? dataToSave
+            : { ...dataToSave, reviewerType: "" };
 
         await setDoc(doc(db, "users", newUserId), {
-          ...dataToSave,
-          name: dataToSave.name,
-          fullName: dataToSave.name,
-          displayName: dataToSave.name,
+          ...normalizedDataToSave,
+          name: normalizedDataToSave.name,
+          fullName: normalizedDataToSave.name,
+          displayName: normalizedDataToSave.name,
+          createdByUserId: user?.uid || "",
+          createdByUserName:
+            user?.fullName || user?.name || user?.displayName || user?.email || "",
+          createdByReviewerType: user?.reviewerType || "",
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           authUid: newUserId,
@@ -191,17 +234,21 @@ const UserPage = () => {
   const filteredUsers = useMemo(
     () =>
       [...users]
-        .filter((user) => {
+        .filter((entry) => {
           const matchesRole =
-            roleFilter === "all" || String(user.role || DEFAULT_ROLE) === roleFilter;
-          return matchesRole;
+            effectiveRoleFilter === "all" ||
+            String(entry.role || DEFAULT_ROLE) === effectiveRoleFilter;
+          const matchesCreator = !isExternalReviewer
+            ? true
+            : String(entry.createdByUserId || "").trim() === String(user?.uid || "").trim();
+          return matchesRole && matchesCreator;
         })
         .sort(
           (a, b) =>
             toMillis(getRowTimestamp(b)) -
             toMillis(getRowTimestamp(a)),
         ),
-    [roleFilter, users],
+    [effectiveRoleFilter, isExternalReviewer, user?.uid, users],
   );
 
   const groupedUsers = useMemo(
@@ -219,15 +266,15 @@ const UserPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <AdminNavbar />
+      {isExternalReviewer ? <ExternalNavbar /> : <AdminNavbar />}
       {ConfirmDialog}
       <div className="flex flex-1 relative">
-        <AdminSidebar />
+        {isExternalReviewer ? <ExternalSideBar /> : <AdminSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-bold text-white tracking-tight uppercase">
-                User Management
+                {isExternalReviewer ? "Reviewer User Management" : "User Management"}
               </h1>
               <button
                 className="flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all shadow-lg shadow-orange-900/20 active:scale-95"
@@ -259,7 +306,7 @@ const UserPage = () => {
                         onChange: setRoleFilter,
                         options: [
                           { value: "all", label: "All Roles" },
-                          ...ROLE_OPTIONS.map((role) => ({
+                          ...availableRoleOptions.map((role) => ({
                             value: role,
                             label: role,
                           })),
@@ -483,16 +530,45 @@ const UserPage = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer"
                   value={formData.role}
                   onChange={(event) =>
-                    setFormData({ ...formData, role: event.target.value })
+                    setFormData({
+                      ...formData,
+                      role: event.target.value,
+                      reviewerType:
+                        event.target.value === "External_Reviewer"
+                          ? formData.reviewerType
+                          : "",
+                    })
                   }
                 >
-                  {ROLE_OPTIONS.map((role) => (
+                  {availableRoleOptions.map((role) => (
                     <option key={role} value={role}>
                       {role}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {formData.role === "External_Reviewer" ? (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                    Reviewer Type
+                  </label>
+                  <select
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer"
+                    value={formData.reviewerType}
+                    onChange={(event) =>
+                      setFormData({ ...formData, reviewerType: event.target.value })
+                    }
+                  >
+                    <option value="">Select reviewer type</option>
+                    {REVIEWER_TYPE_OPTIONS.map((reviewerType) => (
+                      <option key={reviewerType} value={reviewerType}>
+                        {reviewerType}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
 
               <div className="pt-4">
                 <button

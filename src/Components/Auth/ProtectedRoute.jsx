@@ -14,7 +14,11 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
       if (user) {
         setHasUser(true);
         const docSnap = await getDoc(doc(db, "users", user.uid));
-        setRole(docSnap.data()?.role);
+        const userData = docSnap.data() || {};
+        const normalizedReviewerType = String(userData.reviewerType || "").trim();
+        const normalizedRole =
+          normalizedReviewerType ? "External_Reviewer" : userData.role || null;
+        setRole(normalizedRole);
       }
       setLoading(false);
     };

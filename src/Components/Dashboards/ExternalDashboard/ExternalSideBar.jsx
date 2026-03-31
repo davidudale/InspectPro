@@ -10,6 +10,8 @@ import {
   X,
   Wrench,
   CalendarClock,
+  Users,
+  UserPlus,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -47,6 +49,22 @@ const sidebarLinks = [
         name: "Schedule Inspection",
         icon: <CalendarClock size={16} />,
         href: "/next-inspections",
+      },
+    ],
+  },
+  {
+    name: "Reviewer Users",
+    icon: <Users size={20} />,
+    subLinks: [
+      {
+        name: "Create Reviewer User",
+        icon: <UserPlus size={16} />,
+        href: "/admin/addusers?role=External_Reviewer",
+      },
+      {
+        name: "Reviewer Directory",
+        icon: <Users size={16} />,
+        href: "/admin/users?role=External_Reviewer",
       },
     ],
   },

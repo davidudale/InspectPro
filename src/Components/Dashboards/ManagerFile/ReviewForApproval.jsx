@@ -188,7 +188,7 @@ const ReviewForApproval = () => {
       await updateDoc(projectRef, {
         status: "Approved",
         confirmedBy: user?.name || user?.email || "Manager",
-        approvedAt,
+        approvedAt: serverTimestamp(),
         confirmedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

@@ -378,7 +378,7 @@ function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
+            <ProtectedRoute allowedRoles={["Admin", "External_Reviewer"]}>
               <UserPage />
             </ProtectedRoute>
           }
@@ -386,7 +386,7 @@ function App() {
         <Route
           path="/admin/addusers"
           element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
+            <ProtectedRoute allowedRoles={["Admin", "External_Reviewer"]}>
               <Adduser />
             </ProtectedRoute>
           }

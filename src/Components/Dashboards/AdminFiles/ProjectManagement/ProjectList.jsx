@@ -231,8 +231,13 @@ const ProjectList = () => {
         </div>
         <div className="table-scroll-region max-h-[68vh] overflow-auto">
           <table className="w-full min-w-[900px] text-left border-collapse">
+                    {(() => {
+                      let serialNumber = 0;
+                      return (
+                        <>
                     <thead>
                       <tr className="border-b border-slate-800/80 bg-[#0b1326]">
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">S/N</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Project Identity</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Client & Industry</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility Location</th>
@@ -249,7 +254,7 @@ const ProjectList = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="8"
+                                colSpan="9"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -261,7 +266,7 @@ const ProjectList = () => {
                             const projectStartDate = getProjectStartDate(project);
                             const projectEndDate = getProjectEndDate(project);
                             const reportViewCode =
-                              String(project?.status || "").trim().toLowerCase() === "External Reviewing"
+                              String(project?.status || "").trim().toLowerCase() === "client review in progress"
                                 ? "External"
                                 : "Internal";
                             const isInProgress = operationalStatus
@@ -269,6 +274,9 @@ const ProjectList = () => {
                               .startsWith("in progress");
                             return (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
+                          <td className="px-3 py-4 text-xs font-bold text-slate-400">
+                            {++serialNumber}
+                          </td>
                           <td className="px-3 py-4">
                             <div className="flex items-center gap-4">
                               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500 group-hover:border-orange-500/50 transition-all shadow-inner">
@@ -354,6 +362,9 @@ const ProjectList = () => {
                         </React.Fragment>
                       ))}
                     </tbody>
+                        </>
+                      );
+                    })()}
                   </table>
         </div>
         <div className="p-4 bg-slate-950/30 border-t border-slate-800 flex justify-between items-center">

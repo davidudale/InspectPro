@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
-import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
   MapPin, Users, ShieldAlert, MessageSquareText, X, CheckCircle2, XCircle
@@ -74,6 +83,11 @@ const ProjectReviewing = () => {
   const [feedbackDecision, setFeedbackDecision] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const reviewVisibleStatuses = [
+    "Approved",
+    "Client Review In Progress",
+    "Reported Accepted",
+  ];
 
   useEffect(() => {
     if (!user?.uid) {
@@ -84,7 +98,7 @@ const ProjectReviewing = () => {
     const q = query(
       collection(db, "projects"),
       where("externalReviewerId", "==", user.uid),
-      where("status", "==", "Approved"),
+      where("status", "in", reviewVisibleStatuses),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const projectsData = snapshot.docs.map(doc => ({
@@ -236,6 +250,25 @@ const ProjectReviewing = () => {
     }
   };
 
+  const handleViewReport = async (projectId) => {
+    if (!projectId) {
+      toast.error("Project reference is missing.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "projects", projectId), {
+        status: "Client Review In Progress",
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      toast.error(getToastErrorMessage(error, "Unable to update the project status."));
+      return;
+    }
+
+    navigate(`/admin/project/${projectId}`);
+  };
+
   return (
     <>
     <ControlCenterTableShell
@@ -371,7 +404,7 @@ const ProjectReviewing = () => {
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
                               <button 
-                                onClick={() => navigate(`/admin/project/${project.id}`)}
+                                onClick={() => handleViewReport(project.id)}
                                 className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
                                 title="View Report"
                               >
@@ -550,7 +583,7 @@ const ProjectReviewing = () => {
             </button>
             <button
               type="button"
-              onClick={() => navigate(`/admin/project/${feedbackProject.id}`)}
+              onClick={() => handleViewReport(feedbackProject.id)}
               className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-100 transition-colors hover:border-orange-500/40 hover:text-white"
             >
               View Report

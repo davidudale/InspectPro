@@ -27,6 +27,9 @@ const ExternalReviewer = () => {
 
   const reviewerName =
     user?.fullName || user?.name || user?.displayName || user?.email || "External Reviewer";
+  const reviewerTypeLabel = user?.reviewerType
+    ? String(user.reviewerType).replaceAll("_", " ")
+    : "";
 
   useEffect(() => {
     if (!user?.uid) {
@@ -217,6 +220,7 @@ const ExternalReviewer = () => {
                     <p className="text-sm text-slate-500">
                       Signed in as{" "}
                       <span className="font-semibold text-orange-400">{reviewerName}</span>
+                      {reviewerTypeLabel ? ` - ${reviewerTypeLabel}` : ""}
                     </p>
                   </div>
                 </div>

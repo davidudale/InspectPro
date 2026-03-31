@@ -25,10 +25,16 @@ const Login = () => {
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        const role = docSnap.data().role;
+        const userData = docSnap.data();
+        const role = userData.role;
+        const hasReviewerType = Boolean(String(userData.reviewerType || "").trim());
         if (role === "Admin") navigate("/admin-dashboard");
         else if (role === "Manager") navigate("/ManagerDashboard");
-        else if (role === "External_Reviewer") navigate("/external-reviewer-dashboard");
+        else if (
+          role === "External_Reviewer" ||
+          role === "External Reviewer" ||
+          hasReviewerType
+        ) navigate("/external-reviewer-dashboard");
         else if (role === "Lead Inspector") navigate("/SupervisorDashboard");
         else navigate("/inspectionDashboard");
       }

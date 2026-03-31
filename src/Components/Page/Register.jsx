@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowBigLeftIcon } from "lucide-react";
 import { auth, db } from "../Auth/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../utils/toast";
 import { useConfirmDialog } from "../Common/ConfirmDialog";
@@ -14,6 +14,7 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Inspector"); // Default role
+  const [reviewerType, setReviewerType] = useState("");
   const navigate = useNavigate();
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
@@ -32,7 +33,10 @@ const Register = () => {
           email: user.email,
           name: fname,
           role: role,
-          createdAt: new Date(),
+          reviewerType: role === "External_Reviewer" ? reviewerType : "",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          authUid: user.uid,
         });
       }
       // Create a user document in Firestore with the role
@@ -92,7 +96,12 @@ const Register = () => {
             </label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(e) => {
+                setRole(e.target.value);
+                if (e.target.value !== "External_Reviewer") {
+                  setReviewerType("");
+                }
+              }}
               className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
             >
               <option value="Admin">Admin</option>
@@ -102,6 +111,23 @@ const Register = () => {
               <option value="External_Reviewer">External_Reviewer</option>
             </select>
           </div>
+          {role === "External_Reviewer" ? (
+            <div>
+              <label className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                Reviewer Type
+              </label>
+              <select
+                value={reviewerType}
+                onChange={(e) => setReviewerType(e.target.value)}
+                className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
+              >
+                <option value="">Select reviewer type</option>
+                <option value="Level_1">Level_1</option>
+                <option value="Senior">Senior</option>
+                <option value="Client_Reviewer">Client_Reviewer</option>
+              </select>
+            </div>
+          ) : null}
           <div>
             <label
               htmlFor="email"

@@ -17,6 +17,8 @@ import {
   Trash2,
   CheckCheck,
   Clock3,
+  Eye,
+  X,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
@@ -84,18 +86,14 @@ const ExternalFeedbackManager = () => {
 
   const selectedItem = useMemo(
     () =>
-      filteredItems.find((item) => item.id === selectedId) ||
-      filteredItems[0] ||
-      null,
+      filteredItems.find((item) => item.id === selectedId) || null,
     [filteredItems, selectedId],
   );
 
   useEffect(() => {
     if (!selectedItem) {
       setSelectedId("");
-      return;
     }
-    setSelectedId(selectedItem.id);
   }, [selectedItem]);
 
   const updateStatus = async (item, nextStatus) => {
@@ -185,137 +183,82 @@ const ExternalFeedbackManager = () => {
                 Loading external feedback...
               </div>
             ) : filteredItems.length > 0 ? (
-              <div className="grid gap-6 xl:grid-cols-[0.95fr_1.25fr]">
-                <div className="rounded-[2rem] border border-slate-800 bg-slate-900/40 p-4 shadow-2xl backdrop-blur-md">
-                  <div className="mb-4 flex items-center gap-3 px-2">
+              <div className="space-y-6">
+                <div className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/40 shadow-2xl backdrop-blur-md">
+                  <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-4">
                     <Inbox size={18} className="text-orange-400" />
                     <h2 className="text-sm font-bold uppercase tracking-[0.22em] text-white">
                       Submission Queue
                     </h2>
                   </div>
-                  <div className="space-y-3">
-                    {filteredItems.map((item) => {
-                      const isActive = selectedItem?.id === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setSelectedId(item.id)}
-                          className={`w-full rounded-2xl border p-4 text-left transition ${
-                            isActive
-                              ? "border-orange-500/40 bg-orange-500/5"
-                              : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-bold text-white">
-                                {item.subject || "Untitled Feedback"}
-                              </p>
-                              <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                                {item.projectName || item.projectId || "Project"}
-                              </p>
-                            </div>
-                            <span
-                              className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
-                                item.status === "Resolved"
-                                  ? "bg-emerald-500/10 text-emerald-300"
-                                  : item.status === "In Review"
-                                    ? "bg-amber-500/10 text-amber-300"
-                                    : "bg-orange-500/10 text-orange-300"
-                              }`}
+                  <div className="max-h-[32rem] overflow-auto">
+                    <table className="min-w-full text-left text-sm">
+                      <thead className="sticky top-0 z-10 bg-slate-950/95 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 backdrop-blur">
+                        <tr>
+                          <th className="px-4 py-4">S/N</th>
+                          <th className="px-4 py-4">Subject</th>
+                          <th className="px-4 py-4">Project</th>
+                          <th className="px-4 py-4">Client</th>
+                          <th className="px-4 py-4">Reviewer</th>
+                          <th className="px-4 py-4">Status</th>
+                          <th className="px-4 py-4">Submitted</th>
+                          <th className="px-4 py-4">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredItems.map((item, index) => {
+                          const messagePreview = String(item.message || "");
+
+                          return (
+                            <tr
+                              key={item.id}
+                              className="border-t border-slate-800/80 transition hover:bg-slate-950/60"
                             >
-                              {item.status || "New"}
-                            </span>
-                          </div>
-                          <p className="mt-3 text-xs text-slate-400">
-                            {item.externalReviewerName || "External Reviewer"} •{" "}
-                            {formatDateTime(item.createdAt)}
-                          </p>
-                        </button>
-                      );
-                    })}
+                              <td className="px-4 py-4 text-slate-400">{index + 1}</td>
+                              <td className="px-4 py-4">
+                                <div className="font-semibold text-white">
+                                  {item.subject || "Untitled Feedback"}
+                                </div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {messagePreview
+                                    ? `${messagePreview.slice(0, 72)}${messagePreview.length > 72 ? "..." : ""}`
+                                    : "No message provided."}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 text-slate-300">
+                                {item.projectName || item.projectId || "N/A"}
+                              </td>
+                              <td className="px-4 py-4 text-slate-300">
+                                {item.clientName || "N/A"}
+                              </td>
+                              <td className="px-4 py-4 text-slate-300">
+                                <div>{item.externalReviewerName || "External Reviewer"}</div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {item.externalReviewerEmail || "No email"}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4">
+                                <StatusBadge status={item.status || "New"} />
+                              </td>
+                              <td className="px-4 py-4 text-slate-400">
+                                {formatDateTime(item.createdAt)}
+                              </td>
+                              <td className="px-4 py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedId(item.id)}
+                                  className="inline-flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-300 transition hover:bg-orange-500/20"
+                                >
+                                  <Eye size={14} />
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-
-                <div className="rounded-[2rem] border border-slate-800 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-md">
-                  {selectedItem ? (
-                    <>
-                      <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">
-                            Feedback Detail
-                          </p>
-                          <h2 className="mt-3 text-2xl font-bold text-white">
-                            {selectedItem.subject || "Untitled Feedback"}
-                          </h2>
-                          <p className="mt-2 text-sm text-slate-400">
-                            Submitted by {selectedItem.externalReviewerName || "External Reviewer"} ({selectedItem.externalReviewerEmail || "No email"})
-                          </p>
-                        </div>
-
-                        <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
-                          <div className="flex items-center gap-2">
-                            <Clock3 size={14} className="text-orange-400" />
-                            <span className="font-bold uppercase tracking-[0.18em]">
-                              Submitted
-                            </span>
-                          </div>
-                          <p className="mt-2 text-slate-300">
-                            {formatDateTime(selectedItem.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-6 grid gap-4 md:grid-cols-3">
-                        <InfoCard label="Project" value={selectedItem.projectName || selectedItem.projectId || "N/A"} />
-                        <InfoCard label="Client" value={selectedItem.clientName || "N/A"} />
-                        <InfoCard label="Status" value={selectedItem.status || "New"} />
-                      </div>
-
-                      <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">
-                          Message
-                        </p>
-                        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-300">
-                          {selectedItem.message || "No message provided."}
-                        </p>
-                      </div>
-
-                      <div className="mt-6 flex flex-wrap gap-3">
-                        <button
-                          type="button"
-                          onClick={() => updateStatus(selectedItem, "In Review")}
-                          disabled={updatingId === selectedItem.id}
-                          className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-50"
-                        >
-                          Mark In Review
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => updateStatus(selectedItem, "Resolved")}
-                          disabled={updatingId === selectedItem.id}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
-                        >
-                          <CheckCheck size={14} />
-                          Mark Resolved
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(selectedItem)}
-                          disabled={updatingId === selectedItem.id}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
-                        >
-                          <Trash2 size={14} />
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 text-sm text-slate-500">
-                      Select a feedback submission to review.
-                    </div>
-                  )}
                 </div>
               </div>
             ) : (
@@ -329,6 +272,93 @@ const ExternalFeedbackManager = () => {
           </div>
         </main>
       </div>
+
+      {selectedItem ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl rounded-[2rem] border border-slate-800 bg-slate-900 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">
+                  Feedback Detail
+                </p>
+                <h2 className="mt-3 text-2xl font-bold text-white">
+                  {selectedItem.subject || "Untitled Feedback"}
+                </h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  Submitted by {selectedItem.externalReviewerName || "External Reviewer"} ({selectedItem.externalReviewerEmail || "No email"})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedId("")}
+                className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-slate-400 transition hover:border-slate-600 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[80vh] overflow-y-auto p-6">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <Clock3 size={14} className="text-orange-400" />
+                    <span className="font-bold uppercase tracking-[0.18em]">
+                      Submitted
+                    </span>
+                  </div>
+                  <p className="mt-2 text-slate-300">
+                    {formatDateTime(selectedItem.createdAt)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-3">
+                <InfoCard label="Project" value={selectedItem.projectName || selectedItem.projectId || "N/A"} />
+                <InfoCard label="Client" value={selectedItem.clientName || "N/A"} />
+                <InfoCard label="Status" value={selectedItem.status || "New"} />
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">
+                  Message
+                </p>
+                <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-300">
+                  {selectedItem.message || "No message provided."}
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => updateStatus(selectedItem, "In Review")}
+                  disabled={updatingId === selectedItem.id}
+                  className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-50"
+                >
+                  Mark In Review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateStatus(selectedItem, "Resolved")}
+                  disabled={updatingId === selectedItem.id}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-50"
+                >
+                  <CheckCheck size={14} />
+                  Mark Resolved
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(selectedItem)}
+                  disabled={updatingId === selectedItem.id}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -340,6 +370,20 @@ const InfoCard = ({ label, value }) => (
     </p>
     <p className="mt-2 text-sm text-slate-200">{value}</p>
   </div>
+);
+
+const StatusBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+      status === "Resolved"
+        ? "bg-emerald-500/10 text-emerald-300"
+        : status === "In Review"
+          ? "bg-amber-500/10 text-amber-300"
+          : "bg-orange-500/10 text-orange-300"
+    }`}
+  >
+    {status}
+  </span>
 );
 
 export default ExternalFeedbackManager;

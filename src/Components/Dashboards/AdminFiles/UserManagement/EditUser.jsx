@@ -15,7 +15,8 @@ const EditUser = () => {
   const [formData, setFormData] = useState({
     name: "",
     role: "Inspector",
-    email: ""
+    email: "",
+    reviewerType: "",
   });
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +48,9 @@ const EditUser = () => {
       await updateDoc(userRef, {
         name: formData.name,
         role: formData.role,
-        email: formData.email
+        email: formData.email,
+        reviewerType:
+          formData.role === "External_Reviewer" ? formData.reviewerType || "" : "",
       });
       toast.success("Profile updated successfully.");
       navigate("/admin/users");
@@ -100,7 +103,16 @@ const EditUser = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Assign Access Role</label>
                   <select 
                     value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        role: e.target.value,
+                        reviewerType:
+                          e.target.value === "External_Reviewer"
+                            ? formData.reviewerType || ""
+                            : "",
+                      })
+                    }
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
                   >
                     <option value="Admin">Admin</option>
@@ -110,6 +122,22 @@ const EditUser = () => {
                     <option value="External_Reviewer">External_Reviewer</option>
                   </select>
                 </div>
+
+                {formData.role === "External_Reviewer" ? (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Reviewer Type</label>
+                    <select
+                      value={formData.reviewerType || ""}
+                      onChange={(e) => setFormData({ ...formData, reviewerType: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
+                    >
+                      <option value="">Select reviewer type</option>
+                      <option value="Level_1">Level_1</option>
+                      <option value="Senior">Senior</option>
+                      <option value="Client_Reviewer">Client_Reviewer</option>
+                    </select>
+                  </div>
+                ) : null}
 
                 <button 
                   type="submit"
