@@ -69,7 +69,7 @@ const Login = () => {
               <div className="w-4 h-4 bg-white rounded-full -rotate-45"></div>
             </div>
             <span className="text-2xl font-syncopate font-bold tracking-tighter text-white capitalize">
-              InspectPro <span className="text-orange-500">.</span>
+              InspectProEdge <span className="text-orange-500">.</span>
             </span>
           </div>
           <h2 className="text-l text-slate-300">Secure Corporate Portal</h2>
@@ -88,7 +88,7 @@ const Login = () => {
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
               className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-sm transition-colors disabled:opacity-50"
-              placeholder="user@InspectPro.energy"
+              placeholder="user@InspectProEdge.energy"
             />
           </div>
 

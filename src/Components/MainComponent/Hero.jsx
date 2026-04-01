@@ -29,7 +29,7 @@ const Hero = () => {
           </h1>
 
           <p className="max-w-2xl mx-auto text-base sm:text-lg lg:text-xl text-slate-300 mb-9 sm:mb-10 font-light leading-relaxed">
-            Streamline your inspections with InspectPro&apos;s all-in-one platform.
+            Streamline your inspections with InspectProEdge&apos;s all-in-one platform.
             Go digital, automate your workflows, and keep every team aligned from
             field checks to final reports.
           </p>

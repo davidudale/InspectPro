@@ -6,6 +6,7 @@ import Login from "./Components/Page/Login.jsx";
 import Register from "./Components/Page/Register.jsx";
 import { ToastContainer } from "react-toastify";
 import { ProtectedRoute } from "./Components/Auth/ProtectedRoute.jsx";
+import GlobalProjectChatbox from "./Components/Common/GlobalProjectChatbox.jsx";
 import AdminDashboard from "./Components/Page/AdminDashboard.jsx";
 import Unauthorized from "./Components/Page/UnauthorizedPage.jsx";
 import InspectionDashboard from "./Components/Page/InspectionDashboard.jsx";
@@ -649,6 +650,7 @@ function App() {
         bodyClassName="inspectpro-toast-body"
         progressClassName="inspectpro-toast-progress"
       />
+      <GlobalProjectChatbox />
     </>
   );
 }

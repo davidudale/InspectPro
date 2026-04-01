@@ -57,7 +57,7 @@ const Navbar = () => {
                 <div className="w-3 h-3 bg-white rounded-full -rotate-45"></div>
               </div>
               <span className="text-2xl font-syncopate font-bold tracking-tighter text-white">
-                InspectPro<span className="text-orange-500">.</span>
+                InspectProEdge<span className="text-orange-500">.</span>
               </span>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -10,6 +10,19 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
+import {
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Filler,
+  Legend,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Tooltip,
+} from "chart.js";
+import { Bar, Doughnut, Line } from "react-chartjs-2";
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
 import { db, auth } from "../Auth/firebase";
@@ -26,8 +39,19 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import ProjectChatbox from "../Common/ProjectChatbox";
 import { useAuth } from "../Auth/AuthContext";
+
+ChartJS.register(
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  Filler,
+  Legend,
+  LineElement,
+  LinearScale,
+  PointElement,
+  Tooltip,
+);
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -36,6 +60,8 @@ const AdminDashboard = () => {
   const [inspectionCount, setInspectionCount] = useState(0);
   const [equipmentCount, setEquipmentCount] = useState(0);
   const [reportCount, setReportCount] = useState(0);
+  const [usersData, setUsersData] = useState([]);
+  const [projectsData, setProjectsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState("");
@@ -43,6 +69,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const usersRef = collection(db, "users");
     const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      setUsersData(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       setUserCount(snapshot.size);
       setLoading(false);
     });
@@ -68,6 +95,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const inspectionRef = collection(db, "projects");
     const unsubscribe = onSnapshot(inspectionRef, (snapshot) => {
+      setProjectsData(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       setInspectionCount(snapshot.size);
       setLoading(false);
     });
@@ -121,26 +149,30 @@ const AdminDashboard = () => {
     {
       label: "Active Inspections",
       value: loading ? "..." : inspectionCount.toString(),
-      icon: <ClipboardList className="text-orange-500" size={16} />,
       trend: "Projects currently moving through the inspection workflow",
+      icon: <ClipboardList className="text-orange-500" size={16} />,
+      
     },
     {
       label: "Reports Under Management",
       value: loading ? "..." : reportCount.toString(),
-      icon: <ShieldCheck className="text-orange-500" size={16} />,
       trend: "Approved reports tracked across the platform",
+      icon: <ShieldCheck className="text-orange-500" size={16} />,
+      
     },
     {
       label: "System Users",
       value: loading ? "..." : userCount.toString(),
-      icon: <User className="text-orange-500" size={16} />,
       trend: "Live personnel and role assignments",
+      icon: <User className="text-orange-500" size={16} />,
+      
     },
     {
       label: "Equipment Registry",
       value: loading ? "..." : equipmentCount.toString(),
-      icon: <Boxes className="text-orange-500" size={16} />,
       trend: "Assets currently under lifecycle management",
+      icon: <Boxes className="text-orange-500" size={16} />,
+      
     },
   ];
 
@@ -161,6 +193,157 @@ const AdminDashboard = () => {
       onClick: () => navigate("/admin/projects"),
     },
   ];
+  const projectStatusSummary = useMemo(() => {
+    const counts = projectsData.reduce((acc, project) => {
+      const rawStatus = String(project?.status || "").trim().toLowerCase();
+      const bucket = rawStatus === "approved"
+        ? "Approved"
+        : rawStatus.includes("return") || rawStatus.includes("reject")
+          ? "Returned"
+          : rawStatus.startsWith("in progress")
+            ? "In Progress"
+            : rawStatus.startsWith("not started") || rawStatus === "planned"
+              ? "Planned"
+              : "Other";
+      acc[bucket] = (acc[bucket] || 0) + 1;
+      return acc;
+    }, {});
+
+    return [
+      { label: "Approved", value: counts.Approved || 0, color: "#10b981" },
+      { label: "In Progress", value: counts["In Progress"] || 0, color: "#f97316" },
+      { label: "Returned", value: counts.Returned || 0, color: "#f43f5e" },
+      { label: "Planned", value: counts.Planned || 0, color: "#38bdf8" },
+      { label: "Other", value: counts.Other || 0, color: "#64748b" },
+    ];
+  }, [projectsData]);
+  const deploymentTrend = useMemo(() => {
+    const months = Array.from({ length: 6 }, (_, index) => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - (5 - index));
+      return {
+        key: `${date.getFullYear()}-${date.getMonth()}`,
+        label: date.toLocaleDateString("en-US", { month: "short" }),
+        value: 0,
+      };
+    });
+
+    projectsData.forEach((project) => {
+      const source =
+        project?.deploymentDate?.toDate?.() ||
+        project?.createdAt?.toDate?.() ||
+        (project?.startDate ? new Date(project.startDate) : null);
+      if (!source || Number.isNaN(source.getTime())) return;
+      const key = `${source.getFullYear()}-${source.getMonth()}`;
+      const monthEntry = months.find((item) => item.key === key);
+      if (monthEntry) monthEntry.value += 1;
+    });
+
+    return months;
+  }, [projectsData]);
+  const userRoleSummary = useMemo(() => {
+    const counts = usersData.reduce((acc, entry) => {
+      const role = String(entry?.role || "Unknown").trim() || "Unknown";
+      acc[role] = (acc[role] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts)
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [usersData]);
+  const chartBaseOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#020617",
+          borderColor: "rgba(148,163,184,0.2)",
+          borderWidth: 1,
+          titleColor: "#f8fafc",
+          bodyColor: "#cbd5e1",
+        },
+      },
+    }),
+    [],
+  );
+  const compactChartOptions = useMemo(
+    () => ({
+      ...chartBaseOptions,
+      scales: {
+        x: { display: false, grid: { display: false }, ticks: { display: false } },
+        y: { display: false, grid: { display: false }, ticks: { display: false } },
+      },
+    }),
+    [chartBaseOptions],
+  );
+  const doughnutOptions = useMemo(
+    () => ({
+      ...chartBaseOptions,
+      cutout: "72%",
+    }),
+    [chartBaseOptions],
+  );
+  const statCardCharts = useMemo(
+    () => [
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Active Inspections", "Remaining"],
+          datasets: [
+            {
+              data: [inspectionCount, Math.max(reportCount + equipmentCount, 1)],
+              backgroundColor: ["#f97316", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Approved Reports", "Other Projects"],
+          datasets: [
+            {
+              data: [reportCount, Math.max(inspectionCount - reportCount, 1)],
+              backgroundColor: ["#10b981", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Users", "Capacity"],
+          datasets: [
+            {
+              data: [userCount, Math.max(inspectionCount, 20)],
+              backgroundColor: ["#38bdf8", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Equipment", "Remaining"],
+          datasets: [
+            {
+              data: [equipmentCount, Math.max(userCount + reportCount, )],
+              backgroundColor: ["#a855f7", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+    ],
+    [equipmentCount, inspectionCount, reportCount, userCount],
+  );
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-200">
@@ -203,25 +386,38 @@ const AdminDashboard = () => {
             </header>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {stats.map((stat) => (
+              {stats.map((stat, index) => (
                 <div
                   key={stat.label}
-                  className="rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700"
+                  className="flex h-full min-h-[220px] flex-col rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700"
                 >
                   <div className="mb-5 flex items-start justify-between">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950">
                       {stat.icon}
                     </div>
                   </div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
-                    {stat.label}
-                  </p>
-                  <p className="mt-2 text-5xl font-black leading-none text-white">
-                    {stat.value}
-                  </p>
-                  <p className="mt-4 max-w-[16rem] text-sm leading-7 text-slate-400">
-                    {stat.trend}
-                  </p>
+                  <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-5">
+                    <div className="flex min-w-0 h-full flex-col justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
+                        {stat.label}
+                      </p>
+                      <p className="mt-4 max-w-[15rem] text-sm leading-7 text-slate-400">
+                        {stat.trend}
+                      </p>
+                    </div>
+                    <div className="relative h-24 w-24 shrink-0 self-center rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-3">
+                      {statCardCharts[index]?.type === "doughnut" ? (
+                        <Doughnut data={statCardCharts[index].data} options={doughnutOptions} />
+                      ) : (
+                        <Line data={statCardCharts[index].data} options={compactChartOptions} />
+                      )}
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-black leading-none text-white">
+                          {stat.value}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -301,6 +497,154 @@ const AdminDashboard = () => {
                 <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
                   <div className="mb-6">
                     <p className="text-[10px] font-bold uppercase tracking-[0.36em] text-slate-500">
+                      Dashboard Charts
+                    </p>
+                    <h2 className="mt-3 text-2xl font-black text-white">
+                      Project And User Analytics
+                    </h2>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-5">
+                      <div className="mb-4 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-bold text-white">Project Workflow Mix</p>
+                          <p className="text-xs text-slate-500">
+                            Real-time distribution of project outcomes
+                          </p>
+                        </div>
+                        <Activity size={16} className="text-orange-500" />
+                      </div>
+                      <div className="h-56">
+                        <Doughnut
+                          data={{
+                            labels: projectStatusSummary.map((item) => item.label),
+                            datasets: [
+                              {
+                                data: projectStatusSummary.map((item) => item.value),
+                                backgroundColor: projectStatusSummary.map((item) => item.color),
+                                borderColor: "#020617",
+                                borderWidth: 4,
+                              },
+                            ],
+                          }}
+                          options={doughnutOptions}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-5">
+                      <div className="mb-4 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-bold text-white">Deployments Last 6 Months</p>
+                          <p className="text-xs text-slate-500">
+                            Monthly trend of newly deployed projects
+                          </p>
+                        </div>
+                        <RefreshCw size={16} className="text-orange-500" />
+                      </div>
+                      <div className="h-52">
+                        <Bar
+                          data={{
+                            labels: deploymentTrend.map((item) => item.label),
+                            datasets: [
+                              {
+                                label: "Deployments",
+                                data: deploymentTrend.map((item) => item.value),
+                                backgroundColor: [
+                                  "#fb923c",
+                                  "#f97316",
+                                  "#ea580c",
+                                  "#f59e0b",
+                                  "#f97316",
+                                  "#fb923c",
+                                ],
+                                borderRadius: 10,
+                                borderSkipped: false,
+                              },
+                            ],
+                          }}
+                          options={{
+                            ...chartBaseOptions,
+                            scales: {
+                              x: {
+                                ticks: {
+                                  color: "#94a3b8",
+                                  font: { size: 10, weight: "700" },
+                                },
+                                grid: { display: false },
+                                border: { display: false },
+                              },
+                              y: {
+                                ticks: {
+                                  color: "#64748b",
+                                  precision: 0,
+                                  font: { size: 10 },
+                                },
+                                grid: { color: "rgba(148,163,184,0.08)" },
+                                border: { display: false },
+                              },
+                            },
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/70 p-5">
+                      <div className="mb-4 flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-bold text-white">Top User Roles</p>
+                          <p className="text-xs text-slate-500">
+                            Snapshot of the largest role groups in the system
+                          </p>
+                        </div>
+                        <User size={16} className="text-orange-500" />
+                      </div>
+                      <div className="h-52">
+                        <Bar
+                          data={{
+                            labels: userRoleSummary.map((item) => item.label),
+                            datasets: [
+                              {
+                                label: "Users",
+                                data: userRoleSummary.map((item) => item.value),
+                                backgroundColor: "#38bdf8",
+                                borderRadius: 10,
+                                borderSkipped: false,
+                              },
+                            ],
+                          }}
+                          options={{
+                            indexAxis: "y",
+                            ...chartBaseOptions,
+                            scales: {
+                              x: {
+                                ticks: {
+                                  color: "#64748b",
+                                  precision: 0,
+                                  font: { size: 10 },
+                                },
+                                grid: { color: "rgba(148,163,184,0.08)" },
+                                border: { display: false },
+                              },
+                              y: {
+                                ticks: {
+                                  color: "#cbd5e1",
+                                  font: { size: 10, weight: "700" },
+                                },
+                                grid: { display: false },
+                                border: { display: false },
+                              },
+                            },
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
+                  <div className="mb-6">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.36em] text-slate-500">
                       Quick Actions
                     </p>
                   </div>
@@ -323,18 +667,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
-                  <div className="mb-5 flex items-center gap-3">
-                    <Activity size={18} className="text-orange-500" />
-                    <h2 className="text-lg font-bold text-white">Project Chatbox</h2>
-                  </div>
-                  <ProjectChatbox
-                    user={user}
-                    title=""
-                    description=""
-                    emptyStateLabel="No project threads are available yet."
-                  />
-                </div>
               </div>
             </div>
           </div>

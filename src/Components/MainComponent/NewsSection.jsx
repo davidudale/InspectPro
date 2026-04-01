@@ -3,19 +3,19 @@ import React from 'react';
 const news = [
   {
     category: 'Workflow',
-    title: 'Unlock Efficiency: Streamline your inspections with InspectPro\'s all-in-one platform',
+    title: 'Unlock Efficiency: Streamline your inspections with InspectProEdge\'s all-in-one platform',
     date: 'Feature Highlight',
     image: 'https://images.unsplash.com/photo-1622554129912-c541b2542385?q=80&w=580&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   {
     category: 'Flexibility',
-    title: 'Customizable: Tailor InspectPro to fit your specific business needs',
+    title: 'Customizable: Tailor InspectProEdge to fit your specific business needs',
     date: 'Platform Benefit',
     image: 'https://images.unsplash.com/photo-1678693361474-d9aa8a7a96cc?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
   },
   {
     category: 'Access',
-    title: 'Anywhere, Anytime: Access InspectPro on any device, online or offline',
+    title: 'Anywhere, Anytime: Access InspectProEdge on any device, online or offline',
     date: 'Team Ready',
     image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?q=80&w=2070&auto=format&fit=crop'
   }
@@ -29,7 +29,7 @@ const NewsSection = () => {
           <div>
             <p className="text-orange-500 text-xs font-bold uppercase tracking-[0.24em] mb-2">Product Impact</p>
             <h2 className="text-3xl sm:text-4xl font-syncopate font-bold text-white tracking-tight uppercase">
-              Why Teams Choose InspectPro
+              Why Teams Choose InspectProEdge
             </h2>
           </div>
           <div className="hidden md:flex space-x-2">
@@ -72,4 +72,3 @@ const NewsSection = () => {
 };
 
 export default NewsSection;
-

@@ -459,7 +459,7 @@ const UTReport = ({
                 "",
             },
           });
-          toast.info("Previous ultrasonic test report loaded for correction.");
+          toast.info("Previous ultrasonic Thickness report loaded for correction.");
         } else if (projectData?.status) {
           setReportData((prev) => ({
             ...prev,
@@ -1457,9 +1457,9 @@ const UTReport = ({
       );
 
       setReportData((prev) => ({ ...prev, status: saveStatus }));
-      toast.success("Ultrasonic Test report saved.");
+      toast.success("Ultrasonic Thickness report saved.");
     } catch (error) {
-      toast.error(getToastErrorMessage(error, "Unable to save the ultrasonic test report."));
+      toast.error(getToastErrorMessage(error, "Unable to save the ultrasonic thickness report."));
     } finally {
       setIsSaving(false);
     }
@@ -1569,7 +1569,7 @@ const UTReport = ({
                   <ChevronLeft size={20} />
                 </button>
                 <h1 className="text-2xl font-bold uppercase tracking-tighter flex items-center gap-2">
-                  <ShieldCheck className="text-orange-500" /> Ultrasonic Test
+                  <ShieldCheck className="text-orange-500" /> Ultrasonic Thickness Inspection
                 </h1>
               </div>
               <div className="flex items-center gap-3">
@@ -2979,7 +2979,7 @@ export const UTWebView = ({
     return lines.length ? lines : fallbackLines;
   };
   const defaultIntroductionParagraphs = [
-    "We conducted rigorous Ultrasonic Testing on the 2inch piping at the starboard process area at Module P4 of Usan FPSO.",
+    "We conducted rigorous Ultrasonic Thickness Testing on the 2inch piping at the starboard process area at Module P4 of Usan FPSO.",
   ];
   const defaultExecutiveSummaryLines = [
     "1.0 Heavy corrosion with scale build up was observed on 4th support weld attached to platform structure.",

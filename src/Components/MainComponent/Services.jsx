@@ -23,7 +23,7 @@ const services = [
   },
   {
     title: 'Seamless Integration',
-    description: 'Connect InspectPro with your existing systems for a smooth workflow across operations, compliance, and leadership teams.',
+    description: 'Connect InspectProEdge with your existing systems for a smooth workflow across operations, compliance, and leadership teams.',
     image: 'https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?q=80&w=1975&auto=format&fit=crop',
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

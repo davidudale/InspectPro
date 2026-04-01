@@ -63,6 +63,30 @@ const ProjectList = () => {
       null
     );
   };
+  const getAcceptedRejectedDate = (project) => {
+    const status = String(getOperationalStatus(project) || "").toLowerCase();
+    if (status === "approved") {
+      return (
+        project?.approvedAt ||
+        project?.confirmedAt ||
+        project?.confirmationDate ||
+        null
+      );
+    }
+    if (
+      status.includes("rejected") ||
+      status.includes("returned") ||
+      status.includes("declined")
+    ) {
+      return (
+        project?.returnedAt ||
+        project?.rejectedAt ||
+        project?.declinedAt ||
+        null
+      );
+    }
+    return null;
+  };
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -244,6 +268,7 @@ const ProjectList = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Start Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">End Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Operational Status</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Acc./Rej. Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report View</th>
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Administrative Actions</th>
                       </tr>
@@ -254,7 +279,7 @@ const ProjectList = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="9"
+                                colSpan="10"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -265,6 +290,7 @@ const ProjectList = () => {
                             const operationalStatus = getOperationalStatus(project);
                             const projectStartDate = getProjectStartDate(project);
                             const projectEndDate = getProjectEndDate(project);
+                            const acceptedRejectedDate = getAcceptedRejectedDate(project);
                             const reportViewCode =
                               String(project?.status || "").trim().toLowerCase() === "client review in progress"
                                 ? "External"
@@ -326,7 +352,12 @@ const ProjectList = () => {
                             </div>
                           </td>
                           <td className="px-3 py-4">
-                            <div className="inline-flex min-w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-white">
+                            <div className="text-xs font-medium text-slate-300">
+                              {acceptedRejectedDate ? formatDate(acceptedRejectedDate) : "N/A"}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="inline-flex min-w-10 text-xs items-center justify-center rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-white">
                               {reportViewCode}
                             </div>
                           </td>
@@ -338,14 +369,8 @@ const ProjectList = () => {
                                 title="Edit Project"
                               >
                                 <Edit3 size={14} />
-                              </button>
-                              <button 
-                                onClick={() => handleDelete(project.id, project.projectName)}
-                                className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-red-500 hover:border-red-500/50 transition-all rounded-xl shadow-inner"
-                                title="Delete Manifest"
-                              >
-                                <Trash2 size={14} />
-                              </button>
+                         </button>
+                                  
                               <button 
                                 onClick={() => navigate(`/admin/project/${project.id}`)}
                                 className="ml-2 p-2.5 bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
@@ -353,6 +378,13 @@ const ProjectList = () => {
                               >
                                 <ArrowUpRight size={14} />
                               </button>
+                              <button 
+                                onClick={() => handleDelete(project.id, project.projectName)}
+                                className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-red-500 hover:border-red-500/50 transition-all rounded-xl shadow-inner"
+                                title="Delete Manifest"
+                              >
+                                <Trash2 size={14} />
+                              </button> 
                             </div>
                             <MoreVertical size={16} className="text-slate-800 group-hover:hidden inline-block ml-auto" />
                           </td>

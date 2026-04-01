@@ -1746,7 +1746,7 @@ export const IntegrityWebView = ({
         <>
           <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg shadow-blue-500/30" />
           <div className="text-blue-900 font-black text-xl tracking-wide">
-            INSPECTPRO
+            INSPECTPROEDGE
           </div>
         </>
       )}

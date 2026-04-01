@@ -31,7 +31,7 @@ const DashboardSidebar = () => {
           </div>
           <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block overflow-hidden`}>
             <p className="text-sm font-bold text-white uppercase tracking-tight truncate">
-              Alex InspectPro
+              Alex InspectProEdge
             </p>
           </div>
           <button

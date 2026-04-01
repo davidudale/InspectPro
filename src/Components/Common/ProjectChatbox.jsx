@@ -37,7 +37,6 @@ const buildParticipants = (project) => {
       id: project.supervisorId,
       name: project.supervisorName,
     },
-    
     {
       key: "manager",
       label: "NDE Reviewer",
@@ -51,7 +50,6 @@ const buildParticipantIds = (project) =>
   [
     project?.inspectorId,
     project?.supervisorId,
-    project?.externalReviewerId,
     project?.managerId,
   ].filter(Boolean);
 
@@ -75,6 +73,7 @@ const formatMessageTime = (value) => {
 const ProjectChatbox = ({
   user,
   assignmentField = "",
+  restrictToParticipant = false,
   title = "Project Chat",
   description = "Chat with users assigned to the selected project.",
   emptyStateLabel = "No projects available for chat yet.",
@@ -115,6 +114,10 @@ const ProjectChatbox = ({
           .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
           .filter((project) => getThreadId(project))
           .filter(
+            (project) =>
+              !restrictToParticipant || buildParticipantIds(project).includes(user.uid),
+          )
+          .filter(
             (project) => String(project.status || "").trim().toLowerCase() !== "approved",
           )
           .sort((left, right) => {
@@ -151,7 +154,7 @@ const ProjectChatbox = ({
     );
 
     return () => unsubscribe();
-  }, [assignmentField, user?.uid]);
+  }, [assignmentField, restrictToParticipant, user?.uid]);
 
   const selectedProject = useMemo(
     () => projects.find((project) => getThreadId(project) === selectedProjectId) || null,
@@ -438,7 +441,7 @@ const ProjectChatbox = ({
                           className={`rounded-[1.05rem] px-3 py-2 shadow-lg ${
                             isCurrentUser
                               ? "bg-orange-600 text-white text-sm"
-                              : "border border-orange-500/20 bg-orange-600 text-white"
+                              : "border border-slate-700 bg-slate-800 text-slate-100"
                           }`}
                         >
                           <p className="whitespace-pre-wrap text-[13px] leading-relaxed">

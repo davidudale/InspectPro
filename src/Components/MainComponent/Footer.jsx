@@ -11,7 +11,7 @@ const Footer = () => {
                 <div className="w-3 h-3 bg-white rounded-full -rotate-45"></div>
               </div>
               <span className="text-2xl font-syncopate font-bold tracking-tighter text-white">
-                InspectPro<span className="text-orange-500">.</span>
+                InspectProEdge<span className="text-orange-500">.</span>
               </span>
             </div>
             <p className="text-slate-400 leading-relaxed mb-8 max-w-sm">
@@ -64,7 +64,7 @@ const Footer = () => {
 
         <div className="pt-8 sm:pt-10 border-t border-slate-800 flex flex-col lg:flex-row justify-between items-center gap-4 sm:gap-6">
           <p className="text-slate-500 text-xs font-medium">
-            (c) 2026 InspectPro. All Rights Reserved.
+            (c) 2026 InspectProEdge. All Rights Reserved.
           </p>
           <p className="text-slate-500 text-xs font-medium text-center">
             Powered by Starwort and Kane Technologies.

@@ -21,7 +21,7 @@ const Sustainability = () => {
               <span className="text-orange-500">ACCURATE EXECUTION</span>
             </h3>
             <p className="text-slate-300 text-base sm:text-lg leading-relaxed mb-8">
-              Tailor InspectPro to fit your specific business needs, standardize
+              Tailor InspectProEdge to fit your specific business needs, standardize
               field operations, and keep every audit trail complete from first
               check to final sign-off.
             </p>

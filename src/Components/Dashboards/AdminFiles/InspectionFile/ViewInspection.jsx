@@ -66,7 +66,7 @@ const ViewInspection = () => {
         <div className="max-w-[850px] mx-auto bg-white border border-slate-300 p-20 shadow-2xl mb-10 min-h-[1100px] flex flex-col print:m-0 break-after-page" style={{ breakAfter: 'page' }}>
            <div className="flex justify-between items-center mb-20 uppercase font-black text-xl italic border-b-4 border-slate-900 pb-4">
              Inspection Record [cite: 1]
-             <div className="text-blue-900">INSPECTPRO [cite: 2]</div>
+             <div className="text-blue-900">INSPECTPROEDGE [cite: 2]</div>
            </div>
            <div className="text-center flex-1">
               <h1 className="text-4xl font-serif font-bold underline mb-4 uppercase text-slate-800">Operational Log</h1>
@@ -104,7 +104,7 @@ const ViewInspection = () => {
             ))}
           </div>
           <div className="mt-auto pt-4 flex justify-between text-[9px] font-bold border-t border-slate-900 uppercase">
-             <div>InspectPro Archive: {id}</div>
+             <div>InspectProEdge Archive: {id}</div>
              <div>Page 2 of 2 </div>
           </div>
         </div>

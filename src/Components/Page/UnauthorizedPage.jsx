@@ -13,7 +13,7 @@ const Unauthorized = () => {
       
       <h1 className="text-4xl font-bold text-white mb-2">Access Denied</h1>
       <p className="text-slate-400 max-w-md mb-8">
-        Your current account credentials do not have the required clearance level to access this sector of the <strong>InspectPro</strong> portal.
+        Your current account credentials do not have the required clearance level to access this sector of the <strong>InspectProEdge</strong> portal.
       </p>
 
       <div className="flex gap-4">

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   ShieldCheck,
@@ -8,6 +8,8 @@ import {
   MapPinned,
   RefreshCw,
 } from "lucide-react";
+import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
 
 import { db } from "../Auth/firebase";
 import { collection, onSnapshot, query, where, limit } from "firebase/firestore";
@@ -15,7 +17,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Auth/AuthContext";
 import InspectorNavbar from "../Dashboards/InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../Dashboards/InspectorsFile/InspectorSidebar";
-import ProjectChatbox from "../Common/ProjectChatbox";
+
+ChartJS.register(ArcElement, Legend, Tooltip);
 
 const InspectionDashboard = () => {
   const { user } = useAuth();
@@ -307,6 +310,45 @@ const InspectionDashboard = () => {
       onClick: () => navigate("/Inspection_view"),
     },
   ];
+  const doughnutOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "72%",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#020617",
+          borderColor: "rgba(148,163,184,0.2)",
+          borderWidth: 1,
+          titleColor: "#f8fafc",
+          bodyColor: "#cbd5e1",
+        },
+      },
+    }),
+    [],
+  );
+  const statCardCharts = useMemo(
+    () => [
+      {
+        data: [metrics.active, Math.max(metrics.total - metrics.active, 1)],
+        colors: ["#f97316", "rgba(148,163,184,0.16)"],
+      },
+      {
+        data: [metrics.returned, Math.max(metrics.total - metrics.returned, 1)],
+        colors: ["#f43f5e", "rgba(148,163,184,0.16)"],
+      },
+      {
+        data: [metrics.completed, Math.max(metrics.total - metrics.completed, 1)],
+        colors: ["#10b981", "rgba(148,163,184,0.16)"],
+      },
+      {
+        data: [metrics.total, Math.max(metrics.active + metrics.returned, 1)],
+        colors: ["#38bdf8", "rgba(148,163,184,0.16)"],
+      },
+    ],
+    [metrics],
+  );
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -349,25 +391,46 @@ const InspectionDashboard = () => {
             </header>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {stats.map((stat) => (
+              {stats.map((stat, index) => (
                 <div
                   key={stat.label}
-                  className="rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700"
+                  className="flex h-full min-h-[220px] flex-col rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700"
                 >
                   <div className="mb-5 flex items-start justify-between">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950">
                       {stat.icon}
                     </div>
                   </div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
-                    {stat.label}
-                  </p>
-                  <p className="mt-2 text-5xl font-black leading-none text-white">
-                    {stat.value}
-                  </p>
-                  <p className="mt-4 max-w-[16rem] text-sm leading-7 text-slate-400">
-                    {stat.trend}
-                  </p>
+                  <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-5">
+                    <div className="flex min-w-0 h-full flex-col justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
+                        {stat.label}
+                      </p>
+                      <p className="mt-4 max-w-[15rem] text-sm leading-7 text-slate-400">
+                        {stat.trend}
+                      </p>
+                    </div>
+                    <div className="relative h-24 w-24 shrink-0 self-center rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-3">
+                      <Doughnut
+                        data={{
+                          labels: [stat.label, "Remaining"],
+                          datasets: [
+                            {
+                              data: statCardCharts[index].data,
+                              backgroundColor: statCardCharts[index].colors,
+                              borderWidth: 0,
+                            },
+                          ],
+                        }}
+                        options={doughnutOptions}
+                      />
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-black leading-none text-white">
+                          {stat.value}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -453,19 +516,6 @@ const InspectionDashboard = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 lg:p-7">
-                  <div className="mb-5 flex items-center gap-3">
-                    <MapPinned size={18} className="text-orange-500" />
-                    <h2 className="text-lg font-bold text-white">Project Chatbox</h2>
-                  </div>
-                  <ProjectChatbox
-                    user={user}
-                    assignmentField="inspectorId"
-                    title=""
-                    description=""
-                    emptyStateLabel="No assigned inspections are available for chat yet."
-                  />
-                </div>
               </div>
             </div>
           </div>
