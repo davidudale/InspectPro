@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   collection,
   onSnapshot,
-  query,
-  where,
 } from "firebase/firestore";
 import {
   Activity,
@@ -22,6 +20,7 @@ import ExternalNavbar from "./ExternalNavbar";
 import ExternalSideBar from "./ExternalSideBar";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
+import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
 
 function getInspectionEndDate(project) {
   const normalizedStatus = String(project?.status || "").trim().toLowerCase();
@@ -58,19 +57,15 @@ const InspectedEquipment = () => {
       return undefined;
     }
 
-    const projectsQuery = query(
-      collection(db, "projects"),
-      where("externalReviewerId", "==", user.uid),
-    );
-
     const unsubscribe = onSnapshot(
-      projectsQuery,
+      collection(db, "projects"),
       (snapshot) => {
         setProjects(
           snapshot.docs.map((projectDoc) => ({
             id: projectDoc.id,
             ...projectDoc.data(),
-          })),
+          }))
+          .filter((project) => matchesExternalReviewerProject(project, user)),
         );
         setLoadingProjects(false);
       },

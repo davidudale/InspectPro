@@ -31,6 +31,11 @@ const sidebarLinks = [
     href: "/external-reviewer-projects",
   },
   {
+    name: "Report Review Checklist",
+    icon: <FileText size={20} />,
+    href: "/external-reviewer-checklist",
+  },
+  {
     name: "Equipment Management",
     icon: <Wrench size={20} />,
     subLinks: [
@@ -52,22 +57,7 @@ const sidebarLinks = [
       },
     ],
   },
-  {
-    name: "Reviewer Users",
-    icon: <Users size={20} />,
-    subLinks: [
-      {
-        name: "Create Reviewer User",
-        icon: <UserPlus size={16} />,
-        href: "/admin/addusers?role=External_Reviewer",
-      },
-      {
-        name: "Reviewer Directory",
-        icon: <Users size={16} />,
-        href: "/admin/users?role=External_Reviewer",
-      },
-    ],
-  },
+ 
  //{
  //  name: "Feedback",
  //  icon: <MessageSquareMore size={20} />,

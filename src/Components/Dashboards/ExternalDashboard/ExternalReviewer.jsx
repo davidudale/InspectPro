@@ -17,6 +17,7 @@ import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import ExternalSideBar from "./ExternalSideBar";
 import ExternalNavbar from "./ExternalNavbar";
+import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
 
 const ExternalReviewer = () => {
   const { user } = useAuth();
@@ -39,16 +40,12 @@ const ExternalReviewer = () => {
     }
 
     setLoading(true);
-    const projectsQuery = query(
-      collection(db, "projects"),
-      where("externalReviewerId", "==", user.uid),
-    );
-
-    const unsubscribe = onSnapshot(projectsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
       const nextProjects = snapshot.docs.map((projectDoc) => ({
         id: projectDoc.id,
         ...projectDoc.data(),
-      }));
+      }))
+      .filter((project) => matchesExternalReviewerProject(project, user));
       setAssignedProjects(nextProjects);
       setLoading(false);
     });

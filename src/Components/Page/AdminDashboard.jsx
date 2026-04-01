@@ -145,37 +145,6 @@ const AdminDashboard = () => {
     return () => unsubscribe();
   }, []);
 
-  const stats = [
-    {
-      label: "Active Inspections",
-      value: loading ? "..." : inspectionCount.toString(),
-      trend: "Projects currently moving through the inspection workflow",
-      icon: <ClipboardList className="text-orange-500" size={16} />,
-      
-    },
-    {
-      label: "Reports Under Management",
-      value: loading ? "..." : reportCount.toString(),
-      trend: "Approved reports tracked across the platform",
-      icon: <ShieldCheck className="text-orange-500" size={16} />,
-      
-    },
-    {
-      label: "System Users",
-      value: loading ? "..." : userCount.toString(),
-      trend: "Live personnel and role assignments",
-      icon: <User className="text-orange-500" size={16} />,
-      
-    },
-    {
-      label: "Equipment Registry",
-      value: loading ? "..." : equipmentCount.toString(),
-      trend: "Assets currently under lifecycle management",
-      icon: <Boxes className="text-orange-500" size={16} />,
-      
-    },
-  ];
-
   const quickActions = [
     {
       title: "Create project",
@@ -253,6 +222,43 @@ const AdminDashboard = () => {
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
   }, [usersData]);
+  const onlineUserCount = useMemo(
+    () =>
+      usersData.filter(
+        (entry) =>
+          Boolean(entry?.isOnline) ||
+          String(entry?.presenceState || "").toLowerCase() === "online",
+      ).length,
+    [usersData],
+  );
+  const stats = [
+    {
+      label: "Active Inspections",
+      value: loading ? "..." : inspectionCount.toString(),
+      trend: "Projects currently moving through the inspection workflow",
+      icon: <ClipboardList className="text-orange-500" size={16} />,
+    },
+    {
+      label: "Reports Under Management",
+      value: loading ? "..." : reportCount.toString(),
+      trend: "Approved reports tracked across the platform",
+      icon: <ShieldCheck className="text-orange-500" size={16} />,
+    },
+    {
+      label: "System Users",
+      value: loading ? "..." : userCount.toString(),
+      trend: loading
+        ? "Live personnel and role assignments"
+        : `${onlineUserCount} user${onlineUserCount === 1 ? "" : "s"} online now`,
+      icon: <User className="text-orange-500" size={16} />,
+    },
+    {
+      label: "Equipment Registry",
+      value: loading ? "..." : equipmentCount.toString(),
+      trend: "Assets currently under lifecycle management",
+      icon: <Boxes className="text-orange-500" size={16} />,
+    },
+  ];
   const chartBaseOptions = useMemo(
     () => ({
       responsive: true,

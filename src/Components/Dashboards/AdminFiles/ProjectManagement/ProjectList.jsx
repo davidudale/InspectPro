@@ -26,6 +26,17 @@ const ProjectList = () => {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleDateString();
   };
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    if (typeof value?.toDate === "function") {
+      return value.toDate().toLocaleString();
+    }
+    if (value instanceof Date) {
+      return value.toLocaleString();
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleString();
+  };
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -63,30 +74,35 @@ const ProjectList = () => {
       null
     );
   };
-  const getAcceptedRejectedDate = (project) => {
-    const status = String(getOperationalStatus(project) || "").toLowerCase();
-    if (status === "approved") {
-      return (
-        project?.approvedAt ||
-        project?.confirmedAt ||
-        project?.confirmationDate ||
-        null
-      );
-    }
-    if (
-      status.includes("rejected") ||
-      status.includes("returned") ||
-      status.includes("declined")
-    ) {
-      return (
-        project?.returnedAt ||
-        project?.rejectedAt ||
-        project?.declinedAt ||
-        null
-      );
-    }
-    return null;
-  };
+  const getSubmittedAt = (project) =>
+    project?.submittedAt ||
+    project?.reportSubmittedAt ||
+    project?.inspectionStartedAt ||
+    project?.deploymentDate ||
+    project?.createdAt ||
+    null;
+  const getSubmittedBy = (project) =>
+    project?.submittedBy ||
+    project?.inspectorName ||
+    project?.assignedInspectorName ||
+    project?.createdBy ||
+    project?.createdByUserName ||
+    "N/A";
+  const getDecisionAt = (project) =>
+    project?.approvedAt ||
+    project?.confirmedAt ||
+    project?.confirmationDate ||
+    project?.returnedAt ||
+    project?.rejectedAt ||
+    project?.declinedAt ||
+    null;
+  const getDecisionBy = (project) =>
+    project?.approvedBy ||
+    project?.confirmedBy ||
+    project?.returnedBy ||
+    project?.rejectedBy ||
+    project?.declinedBy ||
+    "N/A";
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -254,7 +270,7 @@ const ProjectList = () => {
           </button>
         </div>
         <div className="table-scroll-region max-h-[68vh] overflow-auto">
-          <table className="w-full min-w-[900px] text-left border-collapse">
+          <table className="w-full min-w-[1400px] text-left border-collapse">
                     {(() => {
                       let serialNumber = 0;
                       return (
@@ -268,7 +284,10 @@ const ProjectList = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Start Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">End Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Operational Status</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Acc./Rej. Date</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Submitted At</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Submitted By</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Done/Decision At</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Done/Decision By</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report View</th>
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Administrative Actions</th>
                       </tr>
@@ -279,7 +298,7 @@ const ProjectList = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="10"
+                                colSpan="13"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -290,7 +309,10 @@ const ProjectList = () => {
                             const operationalStatus = getOperationalStatus(project);
                             const projectStartDate = getProjectStartDate(project);
                             const projectEndDate = getProjectEndDate(project);
-                            const acceptedRejectedDate = getAcceptedRejectedDate(project);
+                            const submittedAt = getSubmittedAt(project);
+                            const submittedBy = getSubmittedBy(project);
+                            const decisionAt = getDecisionAt(project);
+                            const decisionBy = getDecisionBy(project);
                             const reportViewCode =
                               String(project?.status || "").trim().toLowerCase() === "client review in progress"
                                 ? "External"
@@ -353,7 +375,22 @@ const ProjectList = () => {
                           </td>
                           <td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
-                              {acceptedRejectedDate ? formatDate(acceptedRejectedDate) : "N/A"}
+                              {formatDateTime(submittedAt)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="text-xs font-medium text-slate-300">
+                              {submittedBy}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="text-xs font-medium text-slate-300">
+                              {formatDateTime(decisionAt)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="text-xs font-medium text-slate-300">
+                              {decisionBy}
                             </div>
                           </td>
                           <td className="px-3 py-4">

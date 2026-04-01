@@ -69,6 +69,10 @@ const Adduser = () => {
           reviewerType: role === "External_Reviewer" ? reviewerType : "",
           clientId: role === "External_Reviewer" ? clientId : "",
           clientName: role === "External_Reviewer" ? clientName : "",
+          isOnline: false,
+          presenceState: "offline",
+          lastSeen: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
           createdByUserId: currentUser?.uid || "",
           createdByUserName:
             currentUser?.fullName ||

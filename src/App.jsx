@@ -51,6 +51,7 @@ import ProjectsReviewing from "./Components/Dashboards/ExternalDashboard/Project
 import Feedback from "./Components/Dashboards/ExternalDashboard/Feedback.jsx";
 import ExternalFeedbackManager from "./Components/Dashboards/AdminFiles/FeedbackManagement/ExternalFeedbackManager.jsx";
 import InspectedEquipment from "./Components/Dashboards/ExternalDashboard/InspectedEquipment.jsx";
+import ReportReviewChecklist from "./Components/Dashboards/ExternalDashboard/ReportReviewChecklist.jsx";
 import NextInspectionScheduler from "./Components/Dashboards/ProjectScheduler/NextInspectionScheduler.jsx";
 function App() {
   useEffect(() => {
@@ -177,6 +178,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={["External_Reviewer"]}>
               <InspectedEquipment />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/external-reviewer-checklist"
+          element={
+            <ProtectedRoute allowedRoles={["External_Reviewer"]}>
+              <ReportReviewChecklist />
             </ProtectedRoute>
           }
         />

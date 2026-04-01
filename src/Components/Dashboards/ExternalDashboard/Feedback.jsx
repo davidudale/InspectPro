@@ -20,6 +20,7 @@ import ExternalSideBar from "./ExternalSideBar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
+import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -62,17 +63,13 @@ const Feedback = () => {
     }
 
     setLoading(true);
-    const approvedProjectsRef = query(
-      collection(db, "projects"),
-      where("externalReviewerId", "==", user.uid),
-      where("status", "==", "Approved"),
-    );
-
-    const unsubscribe = onSnapshot(approvedProjectsRef, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
       const nextProjects = snapshot.docs.map((docItem) => ({
         id: docItem.id,
         ...docItem.data(),
-      }));
+      }))
+      .filter((project) => matchesExternalReviewerProject(project, user))
+      .filter((project) => String(project.status || "").trim() === "Approved");
       setProjects(nextProjects);
       setLoading(false);
     });

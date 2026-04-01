@@ -83,6 +83,47 @@ const UserPage = () => {
   const getUserName = (user) =>
     user?.fullName || user?.displayName || user?.name || "Unnamed User";
 
+  const formatLastSeen = (value, isOnline = false) => {
+    if (isOnline) return "Active now";
+    const millis = toMillis(value);
+    if (!millis) return "Never";
+
+    const diffMs = Date.now() - millis;
+    const minutes = Math.floor(diffMs / 60000);
+
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes} min${minutes === 1 ? "" : "s"} ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+
+    return formatTimestamp(value);
+  };
+
+  const getPresenceMeta = (entry) => {
+    const isOnline =
+      Boolean(entry?.isOnline) ||
+      String(entry?.presenceState || "").toLowerCase() === "online";
+
+    return isOnline
+      ? {
+          isOnline: true,
+          label: "Online",
+          className:
+            "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
+          dotClassName: "bg-emerald-400",
+        }
+      : {
+          isOnline: false,
+          label: "Offline",
+          className: "bg-slate-800 text-slate-300 border border-slate-700",
+          dotClassName: "bg-slate-500",
+        };
+  };
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState([]);
@@ -195,6 +236,10 @@ const UserPage = () => {
           name: normalizedDataToSave.name,
           fullName: normalizedDataToSave.name,
           displayName: normalizedDataToSave.name,
+          isOnline: false,
+          presenceState: "offline",
+          lastSeen: serverTimestamp(),
+          lastActiveAt: serverTimestamp(),
           createdByUserId: user?.uid || "",
           createdByUserName:
             user?.fullName || user?.name || user?.displayName || user?.email || "",
@@ -355,6 +400,12 @@ const UserPage = () => {
                           Client
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                          Status
+                        </th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                          Last Seen
+                        </th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
                           Date Created
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500 text-right">
@@ -368,7 +419,7 @@ const UserPage = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-slate-950/80">
                               <td
-                                colSpan="7"
+                                colSpan="9"
                                 className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -409,6 +460,22 @@ const UserPage = () => {
                             </td>
                             <td className="p-4 text-sm text-slate-400">
                               {user.clientName || "N/A"}
+                            </td>
+                            <td className="p-4">
+                              <span
+                                className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${getPresenceMeta(user).className}`}
+                              >
+                                <span
+                                  className={`h-2 w-2 rounded-full ${getPresenceMeta(user).dotClassName}`}
+                                ></span>
+                                {getPresenceMeta(user).label}
+                              </span>
+                            </td>
+                            <td className="p-4 text-sm text-slate-400">
+                              {formatLastSeen(
+                                user.lastSeen || user.lastActiveAt,
+                                getPresenceMeta(user).isOnline,
+                              )}
                             </td>
                             <td className="p-4 text-sm text-slate-400">
                               {formatTimestamp(getRowTimestamp(user))}

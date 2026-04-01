@@ -6,10 +6,8 @@ import {
   collection,
   doc,
   onSnapshot,
-  query,
   serverTimestamp,
   updateDoc,
-  where,
 } from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
@@ -23,6 +21,7 @@ import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 import { getToastErrorMessage } from "../../../utils/toast";
+import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
 
 const ProjectReviewing = () => {
   const { user } = useAuth();
@@ -95,16 +94,13 @@ const ProjectReviewing = () => {
       return undefined;
     }
 
-    const q = query(
-      collection(db, "projects"),
-      where("externalReviewerId", "==", user.uid),
-      where("status", "in", reviewVisibleStatuses),
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
       const projectsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      }))
+      .filter((project) => matchesExternalReviewerProject(project, user))
+      .filter((project) => reviewVisibleStatuses.includes(String(project.status || "").trim()));
       setProjects(projectsData);
     });
     return () => unsubscribe();

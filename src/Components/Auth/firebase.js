@@ -1,12 +1,14 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAFD-VFAivkpk2aTV84q2sSZm-SEz_PfRc",
   authDomain: "inspectpro-715dc.firebaseapp.com",
   projectId: "inspectpro-715dc",
+  databaseURL: "https://inspectpro-715dc-default-rtdb.firebaseio.com",
   storageBucket: "inspectpro-715dc.firebasestorage.app",
   messagingSenderId: "332746707581",
   appId: "1:332746707581:web:0f66c04ecf630bc99a1714",
@@ -16,6 +18,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const rtdb = getDatabase(app);
 export const storage = getStorage(app);
 
 // Secondary Instance (for User Management ONLY)
