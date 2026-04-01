@@ -32,9 +32,12 @@ const ROLE_OPTIONS = [
   "External_Reviewer",
 ];
 const REVIEWER_TYPE_OPTIONS = [
-  "Level_1",
-  "Senior",
-  "Client_Reviewer",
+  "Verification Lead Officer",
+  "Verification officer_1",
+  "Verification officer_2",
+  "Verification officer_3",
+  "Verification officer_4",
+  "Verification officer_5",
 ];
 
 const EMPTY_FORM = {
@@ -43,6 +46,8 @@ const EMPTY_FORM = {
   password: "",
   role: DEFAULT_ROLE,
   reviewerType: "",
+  clientId: "",
+  clientName: "",
 };
 
 const UserPage = () => {
@@ -80,6 +85,7 @@ const UserPage = () => {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState([]);
   const [roleFilter, setRoleFilter] = useState("all");
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,6 +114,13 @@ const UserPage = () => {
 
     return () => unsub();
   }, []);
+  useEffect(() => {
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+      setClients(snapshot.docs.map((clientDoc) => ({ id: clientDoc.id, ...clientDoc.data() })));
+    });
+
+    return () => unsubClients();
+  }, []);
 
   const handleOpenModal = (user = null) => {
     if (user) {
@@ -118,6 +131,8 @@ const UserPage = () => {
         password: "",
         role: user.role || DEFAULT_ROLE,
         reviewerType: user.reviewerType || "",
+        clientId: user.clientId || "",
+        clientName: user.clientName || "",
       });
     } else {
       setEditingUser(null);
@@ -150,7 +165,7 @@ const UserPage = () => {
         const normalizedProfileData =
           profileData.role === "External_Reviewer"
             ? profileData
-            : { ...profileData, reviewerType: "" };
+            : { ...profileData, reviewerType: "", clientId: "", clientName: "" };
 
         await updateDoc(userRef, {
           ...normalizedProfileData,
@@ -173,7 +188,7 @@ const UserPage = () => {
         const normalizedDataToSave =
           dataToSave.role === "External_Reviewer"
             ? dataToSave
-            : { ...dataToSave, reviewerType: "" };
+            : { ...dataToSave, reviewerType: "", clientId: "", clientName: "" };
 
         await setDoc(doc(db, "users", newUserId), {
           ...normalizedDataToSave,
@@ -320,7 +335,7 @@ const UserPage = () => {
                       { value: "role", label: "Role" },
                     ]}
                   />
-                <div className="table-scroll-region overflow-x-auto">
+                <div className="table-scroll-region max-h-[32rem] overflow-x-auto overflow-y-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-900/60 border-b border-slate-800">
@@ -337,6 +352,9 @@ const UserPage = () => {
                           Authorization
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                          Client
+                        </th>
+                        <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500">
                           Date Created
                         </th>
                         <th className="p-4 text-xs font-bold uppercase tracking-widest text-slate-500 text-right">
@@ -350,7 +368,7 @@ const UserPage = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-slate-950/80">
                               <td
-                                colSpan="6"
+                                colSpan="7"
                                 className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -388,6 +406,9 @@ const UserPage = () => {
                               >
                                 {user.role || DEFAULT_ROLE}
                               </span>
+                            </td>
+                            <td className="p-4 text-sm text-slate-400">
+                              {user.clientName || "N/A"}
                             </td>
                             <td className="p-4 text-sm text-slate-400">
                               {formatTimestamp(getRowTimestamp(user))}
@@ -537,6 +558,14 @@ const UserPage = () => {
                         event.target.value === "External_Reviewer"
                           ? formData.reviewerType
                           : "",
+                      clientId:
+                        event.target.value === "External_Reviewer"
+                          ? formData.clientId
+                          : "",
+                      clientName:
+                        event.target.value === "External_Reviewer"
+                          ? formData.clientName
+                          : "",
                     })
                   }
                 >
@@ -549,24 +578,52 @@ const UserPage = () => {
               </div>
 
               {formData.role === "External_Reviewer" ? (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
-                    Reviewer Type
-                  </label>
-                  <select
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer"
-                    value={formData.reviewerType}
-                    onChange={(event) =>
-                      setFormData({ ...formData, reviewerType: event.target.value })
-                    }
-                  >
-                    <option value="">Select reviewer type</option>
-                    {REVIEWER_TYPE_OPTIONS.map((reviewerType) => (
-                      <option key={reviewerType} value={reviewerType}>
-                        {reviewerType}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                      Reviewer Type
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer"
+                      value={formData.reviewerType}
+                      onChange={(event) =>
+                        setFormData({ ...formData, reviewerType: event.target.value })
+                      }
+                    >
+                      <option value="">Select reviewer type</option>
+                      {REVIEWER_TYPE_OPTIONS.map((reviewerType) => (
+                        <option key={reviewerType} value={reviewerType}>
+                          {reviewerType}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
+                      Assigned Client
+                    </label>
+                    <select
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-all appearance-none cursor-pointer"
+                      value={formData.clientId}
+                      onChange={(event) => {
+                        const selectedClient = clients.find(
+                          (client) => client.id === event.target.value,
+                        );
+                        setFormData({
+                          ...formData,
+                          clientId: event.target.value,
+                          clientName: selectedClient?.name || "",
+                        });
+                      }}
+                    >
+                      <option value="">Select client</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               ) : null}
 

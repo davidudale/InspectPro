@@ -122,9 +122,12 @@ const Register = () => {
                 className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
               >
                 <option value="">Select reviewer type</option>
-                <option value="Level_1">Level_1</option>
-                <option value="Senior">Senior</option>
-                <option value="Client_Reviewer">Client_Reviewer</option>
+                <option value="Verification Lead Officer">Verification Lead Officer</option>
+                <option value="Verification officer_1">Verification officer_1</option>
+                <option value="Verification officer_2">Verification officer_2</option>
+                <option value="Verification officer_3">Verification officer_3</option>
+                <option value="Verification officer_4">Verification officer_4</option>
+                <option value="Verification officer_5">Verification officer_5</option>
               </select>
             </div>
           ) : null}

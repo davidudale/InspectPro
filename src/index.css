@@ -9,6 +9,7 @@ body,
 
 body {
   background: #050816;
+  text-transform: capitalize;
 }
 
 .table-scroll-region {

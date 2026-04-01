@@ -386,6 +386,21 @@ const EquipmentManager = () => {
       ]),
     [assetTypes, filteredEquipment, groupBy],
   );
+  const serialNumbers = useMemo(
+    () => new Map(filteredEquipment.map((asset, index) => [asset.id, index + 1])),
+    [filteredEquipment],
+  );
+  const formatTimestamp = (value) => {
+    const millis = toMillis(value);
+    if (!millis) return "N/A";
+    return new Date(millis).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -457,23 +472,29 @@ const EquipmentManager = () => {
                   { value: "category", label: "Category" },
                 ]}
               />
-              <div className="table-scroll-region overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="table-scroll-region max-h-[32rem] overflow-x-auto overflow-y-auto">
+                <table className="w-full text-left text-[12px] border-collapse">
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-950/50">
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <th className="p-6 font-black text-slate-500 uppercase tracking-widest">
+                        S/N
+                      </th>
+                      <th className="p-6  font-black text-slate-500 uppercase tracking-widest">
                         Asset Identity
                       </th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <th className="p-6  font-black text-slate-500 uppercase tracking-widest">
                         Category
                       </th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <th className="p-6  font-black text-slate-500 uppercase tracking-widest">
                         Technical Specs
                       </th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <th className="p-6  font-black text-slate-500 uppercase tracking-widest">
                         Process / Status
                       </th>
-                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
+                      <th className="p-6  font-black text-slate-500 uppercase tracking-widest">
+                        Date Added
+                      </th>
+                      <th className="p-6  font-black text-slate-500 uppercase tracking-widest text-right">
                         Actions
                       </th>
                     </tr>
@@ -484,8 +505,8 @@ const EquipmentManager = () => {
                         {groupBy !== TABLE_GROUP_NONE ? (
                           <tr className="bg-slate-950/80">
                             <td
-                              colSpan="5"
-                              className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
+                              colSpan="7"
+                              className="px-6 py-3  font-black uppercase tracking-[0.22em] text-orange-400"
                             >
                               {group.label} ({group.items.length})
                             </td>
@@ -496,6 +517,9 @@ const EquipmentManager = () => {
                             key={asset.id}
                             className="group hover:bg-white/5 transition-colors"
                           >
+                          <td className="p-6 font-black text-slate-500">
+                            {serialNumbers.get(asset.id)}
+                          </td>
                           <td className="p-6">
                           <div className="flex items-center gap-4">
                             <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-orange-500">
@@ -514,7 +538,7 @@ const EquipmentManager = () => {
                         <td className="p-6">
                           <div className="flex items-center gap-2">
                             <Factory size={12} className="text-slate-600" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                            <span className=" font-bold text-slate-400 uppercase tracking-widest">
                               {assetTypes.find(
                                 (t) => t.label === asset.assetType,
                               )?.category || "N/A"}
@@ -523,18 +547,18 @@ const EquipmentManager = () => {
                         </td>
                         <td className="p-6">
                           <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-300">
+                            <div className="flex items-center gap-2  font-mono text-slate-300">
                               <Ruler size={10} className="text-orange-500" />{" "}
                               {asset.nominalThickness} mm
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500 uppercase">
+                            <div className="flex items-center gap-2  font-mono text-slate-500 uppercase">
                               <Layers size={10} className="text-slate-700" />{" "}
                               {asset.materialSpec}
                             </div>
                           </div>
-                        </td>
-                        <td className="p-6">
-                          <div className="flex flex-col gap-2">
+                         </td>
+                         <td className="p-6">
+                           <div className="flex flex-col gap-2">
                             <span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1">
                               <Droplets size={10} className="text-blue-500" />{" "}
                               {asset.service}
@@ -546,11 +570,16 @@ const EquipmentManager = () => {
                                   : "border-red-500/30 text-red-500 bg-red-500/5"
                               }`}
                             >
-                              {asset.status}
+                             {asset.status}
                             </span>
                           </div>
-                        </td>
-                          <td className="p-6 text-right">
+                         </td>
+                          <td className="p-6">
+                            <span className="font-mono text-[11px] text-slate-400">
+                              {formatTimestamp(getRowTimestamp(asset))}
+                            </span>
+                          </td>
+                           <td className="p-6 text-right">
                           <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => handleOpenEdit(asset)}

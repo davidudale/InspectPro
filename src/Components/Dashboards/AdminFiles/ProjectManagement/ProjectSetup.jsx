@@ -89,6 +89,16 @@ const ProjectSetup = () => {
     supervisorName: "",
     externalReviewerId: "",
     externalReviewerName: "",
+    externalReviewerId2: "",
+    externalReviewerName2: "",
+    externalReviewerId3: "",
+    externalReviewerName3: "",
+    externalReviewerId4: "",
+    externalReviewerName4: "",
+    externalReviewerId5: "",
+    externalReviewerName5: "",
+    externalReviewerId6: "",
+    externalReviewerName6: "",
     managerId: "",
     managerName: "",
     startDate: "",
@@ -192,13 +202,42 @@ const ProjectSetup = () => {
     normalizeTechniqueLabel,
   );
   const isTechniqueRequired = authorizedTechniques.length > 0;
+  const externalReviewerFields = [
+    { idKey: "externalReviewerId", nameKey: "externalReviewerName", label: "External Lead Reviewer", required: true },
+    { idKey: "externalReviewerId2", nameKey: "externalReviewerName2", label: "External Reviewer 1" },
+    { idKey: "externalReviewerId3", nameKey: "externalReviewerName3", label: "External Reviewer 2" },
+    { idKey: "externalReviewerId4", nameKey: "externalReviewerName4", label: "External Reviewer 3" },
+    { idKey: "externalReviewerId5", nameKey: "externalReviewerName5", label: "External Reviewer 4" },
+    { idKey: "externalReviewerId6", nameKey: "externalReviewerName6", label: "External Reviewer 5" },
+  ];
+  const selectedExternalReviewerNames = externalReviewerFields
+    .map((field) => setupData[field.nameKey])
+    .filter(Boolean);
+  const selectedExternalReviewerIds = externalReviewerFields
+    .map((field) => setupData[field.idKey])
+    .filter(Boolean);
+  const availableExternalReviewers = externalReviewers.filter(
+    (reviewer) =>
+      setupData.clientId &&
+      String(reviewer.clientId || "").trim() === String(setupData.clientId).trim(),
+  );
+  const clearedExternalReviewerAssignments = externalReviewerFields.reduce(
+    (acc, field) => ({
+      ...acc,
+      [field.idKey]: "",
+      [field.nameKey]: "",
+    }),
+    {},
+  );
 
   // --- 3. Submission & Forwarding Logic ---
   // 1. Validation Logic (Triggers the Modal)
   // --- 3. Submission & Forwarding Logic ---
   const triggerPreview = (e) => {
     e.preventDefault();
-    
+    const hasDuplicateExternalReviewers =
+      new Set(selectedExternalReviewerIds).size !== selectedExternalReviewerIds.length;
+     
     // Cleaned up validation: ensure all required keys have values
     if (
       !setupData.projectName ||
@@ -210,6 +249,10 @@ const ProjectSetup = () => {
       !setupData.managerId
     ) {
       toast.warn("Complete the manifest before continuing. Assign the client, asset, inspector, lead inspector, external reviewer, and manager.");
+      return;
+    }
+    if (hasDuplicateExternalReviewers) {
+      toast.warn("Duplicate external reviewers are not allowed. Please assign different reviewers.");
       return;
     }
 
@@ -287,8 +330,8 @@ const ProjectSetup = () => {
       <AdminNavbar />
       <div className="flex flex-1">
         <AdminSidebar />
-        <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
-          <div className="max-w-6xl mx-auto">
+        <main className="flex-1 ml-16 min-h-screen lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
+          <div className="max-w-6xl mx-auto ">
             <header className="mb-10 border-b border-slate-900 pb-8">
               <h1 className="text-3xl font-bold uppercase tracking-tighter flex items-center gap-3 text-white">
                 <Shield className="text-orange-500" /> Project Initialization
@@ -327,6 +370,8 @@ const ProjectSetup = () => {
                             // NEW: Capturing the logo from the selected client object
                             clientLogo: selected?.logo || "",
                             locationId: "",
+                            locationName: "",
+                            ...clearedExternalReviewerAssignments,
                           });
                         }}
                       >
@@ -554,40 +599,10 @@ const ProjectSetup = () => {
                 </div>
                  
                 </div>
+               
                 <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <UserCheck size={14} /> 4. Assign External Reviewer
-                  </h2>
-                  <select
-                    required
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
-                    value={setupData.externalReviewerId}
-                    onChange={(e) => {
-                      const selected = externalReviewers.find(
-                        (reviewer) => reviewer.id === e.target.value,
-                      );
-                      setSetupData({
-                        ...setupData,
-                        externalReviewerId: e.target.value,
-                        externalReviewerName:
-                          selected?.displayName ||
-                          selected?.name ||
-                          selected?.fullName ||
-                          "External Reviewer",
-                      });
-                    }}
-                  >
-                    <option value="">Choose External Reviewer...</option>
-                    {externalReviewers.map((reviewer) => (
-                      <option key={reviewer.id} value={reviewer.id}>
-                        {reviewer.name || reviewer.displayName || reviewer.fullName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
-                  <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                    <UserCheck size={14} /> 5. Assign NDE Reviewer
+                    <UserCheck size={14} /> 4. Assign NDE Reviewer
                   </h2>
                   <select
                     required
@@ -616,6 +631,64 @@ const ProjectSetup = () => {
                     ))}
                   </select>
                 </div>
+                
+                 <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[2.5rem] backdrop-blur-md">
+                   <h2 className="text-[10px] font-bold text-orange-500 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                    <UserCheck size={14} /> 5. Assign External Reviewers
+                   </h2>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     {externalReviewerFields.map((field) => (
+                       <div key={field.idKey} className="space-y-2">
+                         <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                           {field.label}
+                         </label>
+                         <select
+                           required={field.required}
+                           disabled={!setupData.clientId}
+                           className={`w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white ${!setupData.clientId ? "opacity-40 cursor-not-allowed" : ""}`}
+                            value={setupData[field.idKey]}
+                            onChange={(e) => {
+                              const selectedReviewerId = e.target.value;
+                              if (
+                                selectedReviewerId &&
+                                externalReviewerFields.some(
+                                  (otherField) =>
+                                    otherField.idKey !== field.idKey &&
+                                    setupData[otherField.idKey] === selectedReviewerId,
+                                )
+                              ) {
+                                toast.warn("This external reviewer has already been selected.");
+                                return;
+                              }
+                              const selected = availableExternalReviewers.find(
+                                (reviewer) => reviewer.id === selectedReviewerId,
+                              );
+                              setSetupData({
+                                ...setupData,
+                                [field.idKey]: selectedReviewerId,
+                                [field.nameKey]:
+                                  selected?.displayName ||
+                                  selected?.name ||
+                                  selected?.fullName ||
+                                  (selectedReviewerId ? "External Reviewer" : ""),
+                              });
+                            }}
+                         >
+                           <option value="">
+                             {setupData.clientId
+                               ? "Choose External Reviewer..."
+                               : "Select Client First..."}
+                           </option>
+                           {availableExternalReviewers.map((reviewer) => (
+                             <option key={reviewer.id} value={reviewer.id}>
+                               {reviewer.name || reviewer.displayName || reviewer.fullName}
+                             </option>
+                           ))}
+                         </select>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
               </div>
 
               {/* SIDEBAR: TECHNICAL STANDARDS & DEPLOYMENT */}
@@ -777,7 +850,7 @@ const ProjectSetup = () => {
               <PreviewItem label="Technique" value={setupData.selectedTechnique} icon={<Zap size={14}/>} />
               <PreviewItem label="Assigned Inspector" value={setupData.inspectorName} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Lead Inspector" value={setupData.supervisorName} icon={<UserCheck size={14}/>} />
-              <PreviewItem label="External Reviewer" value={setupData.externalReviewerName} icon={<UserCheck size={14}/>} />
+              <PreviewItem label="External Reviewers" value={selectedExternalReviewerNames.join(", ")} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Assigned Manager" value={setupData.managerName} icon={<UserCheck size={14}/>} />
               <PreviewItem label="Schedule Start" value={setupData.startDate} icon={<Calendar size={14}/>} />
               <PreviewItem label="Report Number" value={setupData.reportNum} icon={<FileText size={14}/>} />

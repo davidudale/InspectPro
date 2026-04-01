@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { ArrowLeft, Save, User } from "lucide-react";
@@ -17,10 +17,21 @@ const EditUser = () => {
     role: "Inspector",
     email: "",
     reviewerType: "",
+    clientId: "",
+    clientName: "",
   });
   const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState([]);
 
   // 1. Fetch the existing user data
+  useEffect(() => {
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+      setClients(snapshot.docs.map((clientDoc) => ({ id: clientDoc.id, ...clientDoc.data() })));
+    });
+
+    return () => unsubClients();
+  }, []);
+
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -51,6 +62,10 @@ const EditUser = () => {
         email: formData.email,
         reviewerType:
           formData.role === "External_Reviewer" ? formData.reviewerType || "" : "",
+        clientId:
+          formData.role === "External_Reviewer" ? formData.clientId || "" : "",
+        clientName:
+          formData.role === "External_Reviewer" ? formData.clientName || "" : "",
       });
       toast.success("Profile updated successfully.");
       navigate("/admin/users");
@@ -111,6 +126,14 @@ const EditUser = () => {
                           e.target.value === "External_Reviewer"
                             ? formData.reviewerType || ""
                             : "",
+                        clientId:
+                          e.target.value === "External_Reviewer"
+                            ? formData.clientId || ""
+                            : "",
+                        clientName:
+                          e.target.value === "External_Reviewer"
+                            ? formData.clientName || ""
+                            : "",
                       })
                     }
                     className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
@@ -124,18 +147,47 @@ const EditUser = () => {
                 </div>
 
                 {formData.role === "External_Reviewer" ? (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Reviewer Type</label>
-                    <select
-                      value={formData.reviewerType || ""}
-                      onChange={(e) => setFormData({ ...formData, reviewerType: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
-                    >
-                      <option value="">Select reviewer type</option>
-                      <option value="Level_1">Level_1</option>
-                      <option value="Senior">Senior</option>
-                      <option value="Client_Reviewer">Client_Reviewer</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Reviewer Type</label>
+                      <select
+                        value={formData.reviewerType || ""}
+                        onChange={(e) => setFormData({ ...formData, reviewerType: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
+                      >
+                        <option value="">Select reviewer type</option>
+                        <option value="Verification Lead Officer">Verification Lead Officer</option>
+                        <option value="Verification officer_1">Verification officer_1</option>
+                        <option value="Verification officer_2">Verification officer_2</option>
+                        <option value="Verification officer_3">Verification officer_3</option>
+                        <option value="Verification officer_4">Verification officer_4</option>
+                        <option value="Verification officer_5">Verification officer_5</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Assigned Client</label>
+                      <select
+                        value={formData.clientId || ""}
+                        onChange={(e) => {
+                          const selectedClient = clients.find(
+                            (client) => client.id === e.target.value,
+                          );
+                          setFormData({
+                            ...formData,
+                            clientId: e.target.value,
+                            clientName: selectedClient?.name || "",
+                          });
+                        }}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition-colors"
+                      >
+                        <option value="">Select client</option>
+                        {clients.map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 ) : null}
 

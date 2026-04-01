@@ -10,7 +10,7 @@ import {
 import AdminSidebar from "../../AdminSidebar";
 import { db, secondaryAuth } from "../../../Auth/firebase";
 import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
@@ -26,6 +26,9 @@ const Adduser = () => {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("Inspector"); // Default role
   const [reviewerType, setReviewerType] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clients, setClients] = useState([]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
@@ -40,6 +43,13 @@ const Adduser = () => {
       setRole(requestedRole);
     }
   }, [searchParams]);
+  useEffect(() => {
+    const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {
+      setClients(snapshot.docs.map((clientDoc) => ({ id: clientDoc.id, ...clientDoc.data() })));
+    });
+
+    return () => unsubClients();
+  }, []);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -57,6 +67,8 @@ const Adduser = () => {
           name: fname,
           role: role,
           reviewerType: role === "External_Reviewer" ? reviewerType : "",
+          clientId: role === "External_Reviewer" ? clientId : "",
+          clientName: role === "External_Reviewer" ? clientName : "",
           createdByUserId: currentUser?.uid || "",
           createdByUserName:
             currentUser?.fullName ||
@@ -131,6 +143,8 @@ const Adduser = () => {
                       setRole(e.target.value);
                       if (e.target.value !== "External_Reviewer") {
                         setReviewerType("");
+                        setClientId("");
+                        setClientName("");
                       }
                     }}
                     className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
@@ -143,20 +157,48 @@ const Adduser = () => {
                   </select>
                 </div>
                 {role === "External_Reviewer" ? (
-                  <div>
-                    <label className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2">
-                      Reviewer Type
-                    </label>
-                    <select
-                      value={reviewerType}
-                      onChange={(e) => setReviewerType(e.target.value)}
-                      className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
-                    >
-                      <option value="">Select reviewer type</option>
-                      <option value="Level_1">Level_1</option>
-                      <option value="Senior">Senior</option>
-                      <option value="Client_Reviewer">Client_Reviewer</option>
-                    </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                        Reviewer Type
+                      </label>
+                      <select
+                        value={reviewerType}
+                        onChange={(e) => setReviewerType(e.target.value)}
+                        className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
+                      >
+                        <option value="">Select reviewer type</option>
+                        <option value="Verification Lead Officer">Verification Lead Officer</option>
+                        <option value="Verification officer_1">Verification officer_1</option>
+                        <option value="Verification officer_2">Verification officer_2</option>
+                        <option value="Verification officer_3">Verification officer_3</option>
+                        <option value="Verification officer_4">Verification officer_4</option>
+                        <option value="Verification officer_5">Verification officer_5</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2">
+                        Assigned Client
+                      </label>
+                      <select
+                        value={clientId}
+                        onChange={(e) => {
+                          const selectedClient = clients.find(
+                            (client) => client.id === e.target.value,
+                          );
+                          setClientId(e.target.value);
+                          setClientName(selectedClient?.name || "");
+                        }}
+                        className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
+                      >
+                        <option value="">Select client</option>
+                        {clients.map((client) => (
+                          <option key={client.id} value={client.id}>
+                            {client.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 ) : null}
                 <div>

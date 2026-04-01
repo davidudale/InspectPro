@@ -24,6 +24,7 @@ import AdminSidebar from "../../AdminSidebar";
 import TableQueryControls from "../../../Common/TableQueryControls";
 import { toast } from "react-toastify";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
+import { useAuth } from "../../../Auth/AuthContext";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 import {
   DEFAULT_INSPECTION_INTERVAL_UNIT,
@@ -32,6 +33,7 @@ import {
 } from "../../../../utils/inspectionScheduling";
 
 const InspectionTypeManager = () => {
+  const { user } = useAuth();
   const toMillis = (value) => {
     if (!value) return 0;
     if (typeof value === "number") return value;
@@ -328,6 +330,7 @@ const InspectionTypeManager = () => {
       } else {
         await addDoc(collection(db, "inspection_types"), {
           ...resolvedType,
+          createdBy: user?.email || "system@local",
           createdAt: serverTimestamp(),
         });
         toast.success("New standard registered.");
@@ -472,6 +475,23 @@ const InspectionTypeManager = () => {
       ]),
     [filteredTypes, groupBy],
   );
+  const serialNumbers = useMemo(
+    () => new Map(filteredTypes.map((type, index) => [type.id, index + 1])),
+    [filteredTypes],
+  );
+  const formatTimestamp = (value) => {
+    const millis = toMillis(value);
+    if (!millis) return "N/A";
+    return new Date(millis).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+  const getCreatedByLabel = (type) =>
+    type?.createdBy || type?.userEmail || type?.createdByUserName || "System";
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
@@ -541,10 +561,13 @@ const InspectionTypeManager = () => {
                   { value: "standard", label: "Default Standard" },
                 ]}
               />
-              <div className="table-scroll-region overflow-x-auto">
+              <div className="table-scroll-region max-h-[32rem] overflow-x-auto overflow-y-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-800 bg-slate-950/50">
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        S/N
+                      </th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         Code
                       </th>
@@ -555,10 +578,16 @@ const InspectionTypeManager = () => {
                         Category
                       </th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        Inspections
+                        Inspection Type
                       </th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                         Interval
+                      </th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Added By
+                      </th>
+                      <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        Date Added
                       </th>
                       <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
                         Actions
@@ -571,7 +600,7 @@ const InspectionTypeManager = () => {
                         {groupBy !== TABLE_GROUP_NONE ? (
                           <tr className="bg-slate-950/80">
                             <td
-                              colSpan="6"
+                              colSpan="9"
                               className="px-6 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                             >
                               {group.label} ({group.items.length})
@@ -580,9 +609,12 @@ const InspectionTypeManager = () => {
                         ) : null}
                         {group.items.map((type) => (
                           <tr
-                            key={type.id}
-                            className="group hover:bg-white/5 transition-colors"
-                          >
+                             key={type.id}
+                             className="group hover:bg-white/5 transition-colors"
+                           >
+                        <td className="p-6 font-black text-slate-500">
+                          {serialNumbers.get(type.id)}
+                        </td>
                         <td className="p-6">
                           <span className="text-sm font-bold text-white uppercase group-hover:text-orange-500 transition-colors">
                             {type.title}
@@ -610,6 +642,16 @@ const InspectionTypeManager = () => {
                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-800 px-2 py-1 rounded">
                             {type.defaultIntervalValue || DEFAULT_INSPECTION_INTERVAL_VALUE}{" "}
                             {type.defaultIntervalUnit || DEFAULT_INSPECTION_INTERVAL_UNIT}
+                          </span>
+                        </td>
+                        <td className="p-6">
+                          <span className="text-[11px] font-medium text-slate-400">
+                            {getCreatedByLabel(type)}
+                          </span>
+                        </td>
+                        <td className="p-6">
+                          <span className="font-mono text-[11px] text-slate-400">
+                            {formatTimestamp(getRowTimestamp(type))}
                           </span>
                         </td>
                         <td className="p-6 text-right">
@@ -776,7 +818,7 @@ const InspectionTypeManager = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">
-                    Default Interval Value
+                    Default Inspection Frequency
                   </label>
                   <input
                     type="number"
@@ -868,4 +910,3 @@ const InspectionTypeManager = () => {
 };
 
 export default InspectionTypeManager;
-
