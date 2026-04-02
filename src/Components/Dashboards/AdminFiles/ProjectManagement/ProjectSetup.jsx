@@ -275,7 +275,7 @@ const ProjectSetup = () => {
         status: `Not started- Report With ${assignedInspectorName}`,
         reportNum,
         contractNumber,
-        adminId: user?.uid,
+        adminId: user?.uid || "",
         adminName: user?.displayName || user?.name || "System Admin",
         deploymentDate: serverTimestamp(),
       });

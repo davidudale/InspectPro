@@ -87,6 +87,14 @@ const ProjectReviewing = () => {
     "Client Review In Progress",
     "Reported Accepted",
   ];
+  const reviewerColumns = [
+    { key: "externalReviewerName", label: "Verification Lead Officer" },
+    { key: "externalReviewerName2", label: "Verification Officer 1" },
+    { key: "externalReviewerName3", label: "Verification Officer 2" },
+    { key: "externalReviewerName4", label: "Verification Officer 3" },
+    { key: "externalReviewerName5", label: "Verification Officer 4" },
+    { key: "externalReviewerName6", label: "Verification Officer 5" },
+  ];
 
   useEffect(() => {
     if (!user?.uid) {
@@ -167,9 +175,14 @@ const ProjectReviewing = () => {
   ]);
 
   const openFeedbackModal = (project) => {
-    setFeedbackProject(project);
-    setFeedbackDecision("");
-    setFeedbackMessage("");
+    if (!project?.id) {
+      toast.error("Project reference is missing.");
+      return;
+    }
+
+    navigate("/external-reviewer-checklist", {
+      state: { selectedProjectId: project.id },
+    });
   };
 
   const closeFeedbackModal = () => {
@@ -311,7 +324,7 @@ const ProjectReviewing = () => {
       }
     >
       <div className="table-scroll-region max-h-[68vh] overflow-auto">
-        <table className="w-full min-w-[900px] text-left border-collapse">
+        <table className="w-full min-w-[1600px] text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-800/80 bg-[#0b1326]">
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">S/N</th>
@@ -320,6 +333,14 @@ const ProjectReviewing = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility Location</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection Start Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection End Date</th>
+                        {reviewerColumns.map((column) => (
+                          <th
+                            key={column.key}
+                            className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]"
+                          >
+                            {column.label}
+                          </th>
+                        ))}
                         {/*<th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Status</th>*/}
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Actions</th>
                       </tr>
@@ -330,7 +351,7 @@ const ProjectReviewing = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="7"
+                                colSpan="13"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -387,6 +408,13 @@ const ProjectReviewing = () => {
                               {projectEndDate ? formatDate(projectEndDate) : "Pending"}
                             </div>
                           </td>
+                          {reviewerColumns.map((column) => (
+                            <td key={column.key} className="px-3 py-4">
+                              <div className="text-xs font-medium text-slate-300">
+                                {project[column.key] || "N/A"}
+                              </div>
+                            </td>
+                          ))}
                           {/*<td className="p-6">
                             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${
                               isInProgress
@@ -409,9 +437,9 @@ const ProjectReviewing = () => {
                                 <button 
                                 onClick={() => openFeedbackModal(project)}
                                 className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
-                                title="Send Feedback"
+                                title="Validate Report"
                               >
-                                Send Feedback
+                                Validate Report 
                               </button>
                             </div>
                           </td>

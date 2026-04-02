@@ -3,7 +3,7 @@ import AdminNavbar from "../../AdminNavbar";
 import { PlusCircle, Edit2, Trash2, User, X, Save, Lock } from "lucide-react";
 import AdminSidebar from "../../AdminSidebar";
 import TableQueryControls from "../../../Common/TableQueryControls";
-import { db, secondaryAuth } from "../../../Auth/firebase";
+import { db, secondaryAuth, rtdb } from "../../../Auth/firebase";
 import {
   collection,
   onSnapshot,
@@ -14,6 +14,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { onValue, ref as rtdbRef } from "firebase/database";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useConfirmDialog } from "../../../Common/ConfirmDialog";
@@ -104,7 +105,9 @@ const UserPage = () => {
   };
 
   const getPresenceMeta = (entry) => {
+    const livePresence = presenceByUserId[String(entry?.id || "").trim()] || null;
     const isOnline =
+      String(livePresence?.state || "").toLowerCase() === "online" ||
       Boolean(entry?.isOnline) ||
       String(entry?.presenceState || "").toLowerCase() === "online";
 
@@ -125,6 +128,7 @@ const UserPage = () => {
   };
 
   const [users, setUsers] = useState([]);
+  const [presenceByUserId, setPresenceByUserId] = useState({});
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState([]);
   const [roleFilter, setRoleFilter] = useState("all");
@@ -154,6 +158,13 @@ const UserPage = () => {
     });
 
     return () => unsub();
+  }, []);
+  useEffect(() => {
+    const unsubscribe = onValue(rtdbRef(rtdb, "status"), (snapshot) => {
+      setPresenceByUserId(snapshot.val() || {});
+    });
+
+    return () => unsubscribe();
   }, []);
   useEffect(() => {
     const unsubClients = onSnapshot(collection(db, "clients"), (snapshot) => {

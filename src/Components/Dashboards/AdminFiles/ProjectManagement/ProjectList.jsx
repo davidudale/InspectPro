@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { collection, onSnapshot, query, deleteDoc, doc } from "firebase/firestore";
+import { collection, onSnapshot, query } from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
-  MapPin, Users, Edit3, Trash2, ShieldAlert, MoreVertical
+  MapPin, Users, Edit3, ShieldAlert, MoreVertical
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
-import { toast } from "react-toastify";
-import { useConfirmDialog } from "../../../Common/ConfirmDialog";
 import ControlCenterTableShell from "../../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
@@ -88,27 +86,128 @@ const ProjectList = () => {
     project?.createdBy ||
     project?.createdByUserName ||
     "N/A";
-  const getDecisionAt = (project) =>
-    project?.approvedAt ||
-    project?.confirmedAt ||
-    project?.confirmationDate ||
-    project?.returnedAt ||
-    project?.rejectedAt ||
-    project?.declinedAt ||
+  const getLatestExternalDecision = (project) =>
+    latestExternalDecisionByProject.get(project?.id || "") ||
+    latestExternalDecisionByProject.get(project?.projectId || "") ||
     null;
+  const getDecisionAt = (project) =>
+    (() => {
+      const latestExternalDecision = getLatestExternalDecision(project);
+      const externalDecision = String(latestExternalDecision?.decision || "")
+        .trim()
+        .toLowerCase();
+
+      if (externalDecision === "approved" || externalDecision === "rejected") {
+        return (
+          latestExternalDecision?.createdAt ||
+          latestExternalDecision?.updatedAt ||
+          latestExternalDecision?.adminUpdatedAt ||
+          null
+        );
+      }
+
+      const normalizedStatus = String(getOperationalStatus(project) || "").trim().toLowerCase();
+
+      if (
+        normalizedStatus === "report accepted" ||
+        normalizedStatus === "reported accepted"
+      ) {
+        return (
+          project?.reportAcceptedAt ||
+          project?.acceptedAt ||
+          project?.approvedAt ||
+          project?.confirmedAt ||
+          project?.confirmationDate ||
+          project?.updatedAt ||
+          project?.lastUpdated ||
+          null
+        );
+      }
+
+      if (
+        normalizedStatus === "report rejected" ||
+        normalizedStatus === "reported rejected"
+      ) {
+        return (
+          project?.reportRejectedAt ||
+          project?.rejectedAt ||
+          project?.returnedAt ||
+          project?.declinedAt ||
+          project?.updatedAt ||
+          project?.lastUpdated ||
+          null
+        );
+      }
+
+      return (
+        project?.approvedAt ||
+        project?.confirmedAt ||
+        project?.confirmationDate ||
+        project?.returnedAt ||
+        project?.rejectedAt ||
+        project?.declinedAt ||
+        null
+      );
+    })();
   const getDecisionBy = (project) =>
-    project?.approvedBy ||
-    project?.confirmedBy ||
-    project?.returnedBy ||
-    project?.rejectedBy ||
-    project?.declinedBy ||
-    "N/A";
+    (() => {
+      const latestExternalDecision = getLatestExternalDecision(project);
+      const externalDecision = String(latestExternalDecision?.decision || "")
+        .trim()
+        .toLowerCase();
+
+      if (externalDecision === "approved" || externalDecision === "rejected") {
+        return (
+          latestExternalDecision?.externalReviewerName ||
+          latestExternalDecision?.externalReviewerEmail ||
+          latestExternalDecision?.createdBy ||
+          "N/A"
+        );
+      }
+
+      const normalizedStatus = String(getOperationalStatus(project) || "").trim().toLowerCase();
+
+      if (
+        normalizedStatus === "report accepted" ||
+        normalizedStatus === "reported accepted"
+      ) {
+        return (
+          project?.reportAcceptedBy ||
+          project?.acceptedBy ||
+          project?.approvedBy ||
+          project?.confirmedBy ||
+          "N/A"
+        );
+      }
+
+      if (
+        normalizedStatus === "report rejected" ||
+        normalizedStatus === "reported rejected"
+      ) {
+        return (
+          project?.reportRejectedBy ||
+          project?.rejectedBy ||
+          project?.returnedBy ||
+          project?.declinedBy ||
+          "N/A"
+        );
+      }
+
+      return (
+        project?.approvedBy ||
+        project?.confirmedBy ||
+        project?.returnedBy ||
+        project?.rejectedBy ||
+        project?.declinedBy ||
+        "N/A"
+      );
+    })();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
+  const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
-  const { openConfirm, ConfirmDialog } = useConfirmDialog();
 
   useEffect(() => {
     const q = query(collection(db, "projects"));
@@ -126,22 +225,19 @@ const ProjectList = () => {
     return () => unsubscribe();
   }, []);
 
-  const handleDelete = async (projectId, name) => {
-    const confirmed = await openConfirm({
-      title: "Delete Project",
-      message: `CRITICAL: Permanently delete project "${name}" and its embedded report data?`,
-      confirmLabel: "Delete",
-      cancelLabel: "Cancel",
-      tone: "danger",
+  useEffect(() => {
+    const feedbackQuery = query(collection(db, "external_feedback"));
+    const unsubscribe = onSnapshot(feedbackQuery, (snapshot) => {
+      setFeedbackEntries(
+        snapshot.docs.map((docItem) => ({
+          id: docItem.id,
+          ...docItem.data(),
+        })),
+      );
     });
-    if (!confirmed) return;
-    try {
-      await deleteDoc(doc(db, "projects", projectId));
-      toast.success(`${name} deleted.`);
-    } catch (error) {
-      toast.error("You need admin permission to delete this project.");
-    }
-  };
+
+    return () => unsubscribe();
+  }, []);
 
   const getOperationalStatus = (project) => {
     const topLevelStatus = String(project?.status || "").trim();
@@ -192,6 +288,56 @@ const ProjectList = () => {
       );
   }, [projects, searchTerm, statusFilter]);
 
+  const latestExternalDecisionByProject = useMemo(() => {
+    const nextMap = new Map();
+
+    feedbackEntries.forEach((entry) => {
+      const projectDocId = String(entry.projectDocId || "").trim();
+      const projectCode = String(entry.projectId || "").trim();
+      const decision = String(entry.decision || "").trim().toLowerCase();
+      const entryTimestamp = Math.max(
+        toMillis(entry.createdAt),
+        toMillis(entry.updatedAt),
+        toMillis(entry.adminUpdatedAt),
+      );
+
+      if (!["approved", "rejected"].includes(decision)) {
+        return;
+      }
+
+      const latestForDoc = projectDocId ? nextMap.get(projectDocId) : null;
+      const latestForCode = projectCode ? nextMap.get(projectCode) : null;
+
+      if (
+        projectDocId &&
+        (!latestForDoc ||
+          entryTimestamp >=
+            Math.max(
+              toMillis(latestForDoc.createdAt),
+              toMillis(latestForDoc.updatedAt),
+              toMillis(latestForDoc.adminUpdatedAt),
+            ))
+      ) {
+        nextMap.set(projectDocId, entry);
+      }
+
+      if (
+        projectCode &&
+        (!latestForCode ||
+          entryTimestamp >=
+            Math.max(
+              toMillis(latestForCode.createdAt),
+              toMillis(latestForCode.updatedAt),
+              toMillis(latestForCode.adminUpdatedAt),
+            ))
+      ) {
+        nextMap.set(projectCode, entry);
+      }
+    });
+
+    return nextMap;
+  }, [feedbackEntries]);
+
   const groupedProjects = useMemo(
     () =>
       groupRowsByOption(filteredProjects, groupBy, [
@@ -219,7 +365,6 @@ const ProjectList = () => {
 
   return (
     <>
-      {ConfirmDialog}
       <ControlCenterTableShell
         navbar={<AdminNavbar />}
         sidebar={<AdminSidebar />}
@@ -281,13 +426,13 @@ const ProjectList = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Project Identity</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Client & Industry</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility Location</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Start Date</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">End Date</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection Start Date</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection End Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Operational Status</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Submitted At</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Submitted By</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Done/Decision At</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Done/Decision By</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspected At</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspected By</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report Acceptance/Rejection Date</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report Acceptance/Rejection By</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report View</th>
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Administrative Actions</th>
                       </tr>
@@ -416,11 +561,12 @@ const ProjectList = () => {
                                 <ArrowUpRight size={14} />
                               </button>
                               <button 
-                                onClick={() => handleDelete(project.id, project.projectName)}
+                                onClick={() => navigate("/admin/external-feedback")}
                                 className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-red-500 hover:border-red-500/50 transition-all rounded-xl shadow-inner"
-                                title="Delete Manifest"
+                                title="Client Feedback"
+                                aria-label="Client Feedback"
                               >
-                                <Trash2 size={14} />
+                                <ShieldAlert size={14} />
                               </button> 
                             </div>
                             <MoreVertical size={16} className="text-slate-800 group-hover:hidden inline-block ml-auto" />

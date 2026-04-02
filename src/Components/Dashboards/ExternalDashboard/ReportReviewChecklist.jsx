@@ -58,25 +58,6 @@ const CHECKLIST_SECTIONS = [
   },
 ];
 
-const REVIEWER_SECTION_ACCESS = {
-  verification_officer_1: ["documentReview"],
-  verification_officer_2: ["documentReview", "findingsValidation"],
-  verification_officer_3: ["documentReview", "findingsValidation", "riskAssessment"],
-  verification_officer_4: [
-    "documentReview",
-    "findingsValidation",
-    "riskAssessment",
-    "complianceCheck",
-  ],
-  verification_lead_officer: [
-    "documentReview",
-    "findingsValidation",
-    "riskAssessment",
-    "complianceCheck",
-    "approvalDecision",
-  ],
-};
-
 const buildDefaultChecklist = () =>
   CHECKLIST_SECTIONS.reduce((accumulator, section) => {
     accumulator[section.key] = {
@@ -157,20 +138,7 @@ const ReportReviewChecklist = () => {
     () => projects.find((project) => project.id === selectedProjectId) || null,
     [projects, selectedProjectId],
   );
-  const visibleSections = useMemo(() => {
-    const normalizedReviewerType = String(user?.reviewerType || "")
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "_");
-
-    const allowedSectionKeys = REVIEWER_SECTION_ACCESS[normalizedReviewerType];
-
-    if (!allowedSectionKeys) {
-      return CHECKLIST_SECTIONS;
-    }
-
-    return CHECKLIST_SECTIONS.filter((section) => allowedSectionKeys.includes(section.key));
-  }, [user?.reviewerType]);
+  const visibleSections = CHECKLIST_SECTIONS;
 
   const handleSectionChange = (sectionKey, field, value) => {
     setChecklist((current) => ({
@@ -293,7 +261,7 @@ const ReportReviewChecklist = () => {
       loading={loadingProjects}
       hasData
     >
-      <div className="space-y-6 p-4 lg:p-6">
+      <div className="space-y-6 p-2 lg:p-3">
         <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end">
             <div className="space-y-3">
@@ -335,10 +303,10 @@ const ReportReviewChecklist = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
+        <div className="flex  justify-center  gap-2 ">
           
 
-          <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <div className="w-[40%] rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <div className="mb-6 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950 text-orange-500">
                 <ClipboardCheck size={18} />
@@ -439,7 +407,23 @@ const ReportReviewChecklist = () => {
                       </div>
 
                       {section.key !== "approvalDecision" ? (
-                        <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                        //<div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                          <div className="flex flex-col gap-4 lg:flex-cols-2">
+
+                          <label className="space-y-2">
+                            <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                              Observation
+                            </span>
+                            <textarea
+                              value={checklist[section.key]?.observation || ""}
+                              onChange={(event) =>
+                                handleSectionChange(section.key, "observation", event.target.value)
+                              }
+                              rows={4}
+                              placeholder={`Add observations for ${section.title.toLowerCase()}...`}
+                              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                            />
+                          </label>
                           <label className="space-y-2">
                             <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                               Status
@@ -458,21 +442,6 @@ const ReportReviewChecklist = () => {
                               ))}
                             </select>
                           </label>
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                              Observation
-                            </span>
-                            <textarea
-                              value={checklist[section.key]?.observation || ""}
-                              onChange={(event) =>
-                                handleSectionChange(section.key, "observation", event.target.value)
-                              }
-                              rows={4}
-                              placeholder={`Add observations for ${section.title.toLowerCase()}...`}
-                              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-                            />
-                          </label>
                         </div>
                       ) : null}
                     </div>
@@ -482,7 +451,7 @@ const ReportReviewChecklist = () => {
             </div>
           </div>
 
-          <div className="rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+          <div className="w-[60%] rounded-[1.8rem] border border-slate-800 bg-[#0a1122] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
             <div className="mb-4 flex items-center gap-3 px-2 pt-2">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950 text-orange-500">
                 <FileText size={18} />

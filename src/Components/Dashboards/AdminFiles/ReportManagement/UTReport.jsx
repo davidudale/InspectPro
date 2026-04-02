@@ -345,6 +345,7 @@ const UTReport = ({
           equipment: p.equipmentCategory || p.assetType || p.equipment || "",
           platform: p.locationName || p.location || "",
           client: p.clientName || p.client || "",
+          contract: p.contractNumber || p.contract || prev.general.contract || "",
           projectName: p.projectName || p.project || "",
           inspectionTypeName: p.inspectionTypeName || "",
           inspectionTypeCode: p.inspectionTypeCode || "",
@@ -3317,33 +3318,35 @@ export const UTWebView = ({
                     <td className="w-[30%] border border-slate-200 px-4 py-1  text-blue-700">
                       {reportData?.general?.client || "ESSO"}
                     </td>
-                    <td className="w-[21%] border border-slate-200 px-4 py-1  font-semibold">
-                      Report Number
+                    
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Revision:
                     </td>
-                    <td className="w-[19%] border border-slate-200 px-4 py-1  text-blue-700">
-                      {reportData?.general?.reportNum || "XXXXXX"}
+                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                      {pageTwoRevision || "XXXX"}
                     </td>
                   </tr>
                   <tr className="bg-slate-50">
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                      Contract Number:<br /> &nbsp;
+                    </td>
+                    <td className="border border-slate-200 px-2 py-1  text-blue-700">
+                      {reportData?.general?.contract || "XXXXXX"}
+                    </td>
                     <td className="border border-slate-200 px-4 py-1  font-semibold">
                       Location:
                     </td>
                     <td className="border border-slate-200 px-4 py-1  text-blue-700">
                       {reportData?.general?.platform || "USAN FPSO"}
                     </td>
-                    <td className="border border-slate-200 px-4 py-1  font-semibold">
-                      Contract Number:
-                    </td>
-                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
-                      {pageTwoContractNumber || "XXXXX"}
-                    </td>
+                    
                   </tr>
                   <tr className="bg-white">
                     <td className="border border-slate-200 px-4 py-1 align-top  font-semibold">
-                      P &amp; ID Number/DWG No.:
+                      P &amp; ID Number<br/>/DWG No.:
                     </td>
                     <td className="border border-slate-200 px-4 py-1  text-blue-700">
-                      {reportData?.general?.tag || "XXXXXXX"}
+                      {reportData?.general?.pidNumber || "XXXXXXX"}
                     </td>
                     <td className="border border-slate-200 px-4 py-1  font-semibold">
                       Date of Inspection:
@@ -3367,13 +3370,13 @@ export const UTWebView = ({
                     </td>
                   </tr>
                   <tr className="bg-white">
-                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                    <td className="border  border-slate-200 px-4 py-1  font-semibold">
                       Equipment Description:
                     </td>
                     <td className="border border-slate-200 px-4 py-1  text-blue-700">
                       {reportData?.general?.equipment || "Storage Tank (T)"}
                     </td>
-                    <td className="border  border-slate-200 px-4 py-1  font-semibold">
+                    <td className="border border-slate-200 px-4 py-1  font-semibold">
                       Operating Procedures:
                     </td>
                     <td className="border border-slate-200 px-4 py-1  text-blue-700">
@@ -3381,16 +3384,16 @@ export const UTWebView = ({
                     </td>
                   </tr>
                   <tr className="bg-slate-50">
-                    <td className="border border-slate-200 px-4 py-1  font-semibold">
-                      Revision:
+                    <td className="w-[21%] border border-slate-200 px-4 py-1  font-semibold">
+                      Report Number
                     </td>
-                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
-                      {pageTwoRevision || "XXXX"}
+                    <td className="w-[19%] border border-slate-200 px-4 py-1  text-blue-700">
+                      {reportData?.general?.reportNum || "XXXXXX"}
                     </td>
-                    <td className="border border-slate-200 px-4 py-1  font-semibold">
+                    <td className="border border-slate-200 px-4 py-1 font-semibold align-top whitespace-normal break-words">
                       Acceptance Criteria:
                     </td>
-                    <td className="border border-slate-200 px-4 py-1  text-blue-700">
+                    <td className="border border-slate-200 px-4 py-1 text-blue-700 whitespace-normal break-words">
                       {pageTwoAcceptanceCriteria || "XXXXXXX"}
                     </td>
                   </tr>

@@ -25,7 +25,7 @@ import {
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import AdminNavbar from "../Dashboards/AdminNavbar";
 import AdminSidebar from "../Dashboards/AdminSidebar";
-import { db, auth } from "../Auth/firebase";
+import { db, auth, rtdb } from "../Auth/firebase";
 import {
   collection,
   onSnapshot,
@@ -37,6 +37,7 @@ import {
   where,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { onValue, ref as rtdbRef } from "firebase/database";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Auth/AuthContext";
@@ -65,6 +66,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
   const [fullName, setFullName] = useState("");
+  const [onlineUserCount, setOnlineUserCount] = useState(0);
 
   useEffect(() => {
     const usersRef = collection(db, "users");
@@ -121,6 +123,18 @@ const AdminDashboard = () => {
     const unsubscribe = onSnapshot(reportRef, (snapshot) => {
       setReportCount(snapshot.size);
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onValue(rtdbRef(rtdb, "status"), (snapshot) => {
+      const statuses = snapshot.val() || {};
+      const nextCount = Object.values(statuses).filter(
+        (entry) => String(entry?.state || "").toLowerCase() === "online",
+      ).length;
+      setOnlineUserCount(nextCount);
     });
 
     return () => unsubscribe();
@@ -222,15 +236,6 @@ const AdminDashboard = () => {
       .sort((a, b) => b.value - a.value)
       .slice(0, 5);
   }, [usersData]);
-  const onlineUserCount = useMemo(
-    () =>
-      usersData.filter(
-        (entry) =>
-          Boolean(entry?.isOnline) ||
-          String(entry?.presenceState || "").toLowerCase() === "online",
-      ).length,
-    [usersData],
-  );
   const stats = [
     {
       label: "Active Inspections",
