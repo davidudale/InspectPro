@@ -104,15 +104,43 @@ service cloud.firestore {
         data.inspectorId == request.auth.uid ||
         data.supervisorId == request.auth.uid ||
         data.externalReviewerId == request.auth.uid ||
+        data.externalReviewerId2 == request.auth.uid ||
+        data.externalReviewerId3 == request.auth.uid ||
+        data.externalReviewerId4 == request.auth.uid ||
+        data.externalReviewerId5 == request.auth.uid ||
+        data.externalReviewerId6 == request.auth.uid ||
         data.managerId == request.auth.uid
       );
+    }
+
+    function projectMatchesMyClient(data) {
+      return signedIn() &&
+             isExternalReviewer() &&
+             (
+               (
+                 myUser().clientId is string &&
+                 data.clientId is string &&
+                 myUser().clientId == data.clientId
+               ) ||
+               (
+                 myUser().clientName is string &&
+                 (
+                   data.clientName is string ||
+                   data.client is string
+                 ) &&
+                 myUser().clientName == (
+                   data.clientName is string ? data.clientName : data.client
+                 )
+               )
+             );
     }
 
     function canReadProject(data) {
       return isAdmin() ||
              isManager() ||
              isReviewerTier() ||
-             projectAssignedToMe(data);
+             projectAssignedToMe(data) ||
+             projectMatchesMyClient(data);
     }
 
     function canUpdateProject(data) {

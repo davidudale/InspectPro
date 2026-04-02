@@ -22,7 +22,6 @@ import { matchesExternalReviewerProject } from "../../../utils/externalReviewerA
 
 const REVIEW_COLLECTION = "project_verification_reviews";
 const STATUS_OPTIONS = ["Yet to start", "Ongoing", "Onhold", "Rejected", "Accepted"];
-
 const CHECKLIST_SECTIONS = [
   {
     key: "documentReview",
@@ -186,16 +185,6 @@ const ReportReviewChecklist = () => {
     }));
   };
 
-  const handleSectionChange = (sectionKey, field, value) => {
-    setChecklist((current) => ({
-      ...current,
-      [sectionKey]: {
-        ...current[sectionKey],
-        [field]: value,
-      },
-    }));
-  };
-
   const handleItemCheckChange = (sectionKey, itemLabel, checked) => {
     setChecklist((current) => ({
       ...current,
@@ -224,10 +213,6 @@ const ReportReviewChecklist = () => {
         itemChecks: nextItemChecks,
       },
     };
-  };
-
-  const handleDecisionChange = (sectionKey, decisionLabel) => {
-    setChecklist((current) => buildDecisionChecklistState(sectionKey, decisionLabel, current));
   };
 
   const saveChecklistEntries = async (sectionKey = "", checklistState = checklist, summaryState = reviewSummary) => {
@@ -304,6 +289,51 @@ const ReportReviewChecklist = () => {
 
     navigate(`/admin/project/${selectedProject.id}`);
   };
+
+  const renderDecisionSummaryCard = () => (
+    <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-xs font-black text-orange-400">
+          S
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-lg font-bold text-white">Consolidated Review Summary</h3>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <label className="space-y-2">
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+            Status
+          </span>
+          <select
+            value={reviewSummary.status || "Yet to start"}
+            onChange={(event) => handleReviewSummaryChange("status", event.target.value)}
+            className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+          >
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="space-y-2">
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+            Observation
+          </span>
+          <textarea
+            value={reviewSummary.observation || ""}
+            onChange={(event) => handleReviewSummaryChange("observation", event.target.value)}
+            rows={4}
+            placeholder="Add a consolidated observation for the entire checklist review..."
+            className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+          />
+        </label>
+      </div>
+    </div>
+  );
 
   return (
     <ControlCenterTableShell
@@ -387,120 +417,69 @@ const ReportReviewChecklist = () => {
                 <>
                   {visibleSections.map((section, index) => (
                     <React.Fragment key={section.key}>
-                      {section.key === "approvalDecision" ? (
-                        <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5">
-                          <div className="mb-4 flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-xs font-black text-orange-400">
-                              S
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h3 className="text-lg font-bold text-white">Consolidated Review Summary</h3>
-                            </div>
+                      {section.key === "approvalDecision" ? renderDecisionSummaryCard() : null}
+                      <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5">
+                        <div className="mb-4 flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-xs font-black text-orange-400">
+                            {index + 1}
                           </div>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-lg font-bold text-white">{section.title}</h3>
+                          </div>
+                        </div>
 
-                          <div className="flex flex-col justify-center">
-                            <label className="space-y-2">
-                              <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                                Status
-                              </span>
-                              <select
-                                value={reviewSummary.status || "Yet to start"}
-                                onChange={(event) =>
-                                  handleReviewSummaryChange("status", event.target.value)
-                                }
-                                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                        <div className="mb-5 space-y-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+                          {section.key === "approvalDecision" ? (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {section.items.map((item) => {
+                                const isActive =
+                                  checklist[section.key]?.decision === item ||
+                                  Boolean(checklist[section.key]?.itemChecks?.[item]);
+
+                                return (
+                                  <button
+                                    key={item}
+                                    type="button"
+                                    onClick={() => handleDecisionSelect(section.key, item)}
+                                    className={`rounded-2xl border px-4 py-4 text-left text-sm font-bold transition ${
+                                      isActive
+                                        ? item.toLowerCase().includes("reject")
+                                          ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
+                                          : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+                                        : item.toLowerCase().includes("reject")
+                                          ? "border-rose-900/50 bg-rose-950/30 text-rose-200 hover:border-rose-500/50 hover:bg-rose-500/10"
+                                          : "border-emerald-900/50 bg-emerald-950/30 text-emerald-200 hover:border-emerald-500/50 hover:bg-emerald-500/10"
+                                    }`}
+                                  >
+                                    {item}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            section.items.map((item) => (
+                              <label
+                                key={item}
+                                className="flex cursor-pointer items-start gap-3 rounded-xl border border-transparent px-2 py-2 text-sm text-slate-300 transition hover:border-slate-800 hover:bg-slate-950/40"
                               >
-                                {STATUS_OPTIONS.map((status) => (
-                                  <option key={status} value={status}>
-                                    {status}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-
-                            <label className="space-y-2">
-                              <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                                Observation
-                              </span>
-                              <textarea
-                                value={reviewSummary.observation || ""}
-                                onChange={(event) =>
-                                  handleReviewSummaryChange("observation", event.target.value)
-                                }
-                                rows={4}
-                                placeholder="Add a consolidated observation for the entire checklist review..."
-                                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-                              />
-                            </label>
-                          </div>
-                        </div>
-                      ) : null}
-
-                    <div
-                      className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5"
-                    >
-                      <div className="mb-4 flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-xs font-black text-orange-400">
-                          {index + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg font-bold text-white">{section.title}</h3>
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(checklist[section.key]?.itemChecks?.[item])}
+                                  onChange={(event) =>
+                                    handleItemCheckChange(
+                                      section.key,
+                                      item,
+                                      event.target.checked,
+                                    )
+                                  }
+                                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-orange-500 focus:ring-orange-500"
+                                />
+                                <span>{item}</span>
+                              </label>
+                            ))
+                          )}
                         </div>
                       </div>
-
-                      <div className="mb-5 space-y-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
-                        {section.key === "approvalDecision" ? (
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {section.items.map((item) => {
-                              const isActive =
-                                checklist[section.key]?.decision === item ||
-                                Boolean(checklist[section.key]?.itemChecks?.[item]);
-
-                              return (
-                                <button
-                                  key={item}
-                                  type="button"
-                                  onClick={() => handleDecisionSelect(section.key, item)}
-                                  className={`rounded-2xl border px-4 py-4 text-left text-sm font-bold transition ${
-                                    isActive
-                                      ? item.toLowerCase().includes("reject")
-                                        ? "border-rose-500/40 bg-rose-500/10 text-rose-200"
-                                        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
-                                      : item.toLowerCase().includes("reject")
-                                        ? "border-rose-900/50 bg-rose-950/30 text-rose-200 hover:border-rose-500/50 hover:bg-rose-500/10"
-                                        : "border-emerald-900/50 bg-emerald-950/30 text-emerald-200 hover:border-emerald-500/50 hover:bg-emerald-500/10"
-                                  }`}
-                                >
-                                  {item}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          section.items.map((item) => (
-                            <label
-                              key={item}
-                              className="flex cursor-pointer items-start gap-3 rounded-xl border border-transparent px-2 py-2 text-sm text-slate-300 transition hover:border-slate-800 hover:bg-slate-950/40"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={Boolean(checklist[section.key]?.itemChecks?.[item])}
-                                onChange={(event) =>
-                                  handleItemCheckChange(
-                                    section.key,
-                                    item,
-                                    event.target.checked,
-                                  )
-                                }
-                                className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-orange-500 focus:ring-orange-500"
-                              />
-                              <span>{item}</span>
-                            </label>
-                          ))
-                        )}
-                      </div>
-
-                    </div>
                     </React.Fragment>
                   ))}
                 </>

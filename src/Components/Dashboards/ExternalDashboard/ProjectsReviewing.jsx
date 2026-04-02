@@ -109,6 +109,7 @@ const ProjectReviewing = () => {
   const [feedbackDecision, setFeedbackDecision] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+  const [isSubmittingRemarkDecision, setIsSubmittingRemarkDecision] = useState(false);
   const reviewVisibleStatuses = [
     "Approved",
     "Client Review In Progress",
@@ -572,7 +573,49 @@ const ProjectReviewing = () => {
   };
 
   const closeRemarkModal = () => {
+    if (isSubmittingRemarkDecision) return;
     setRemarkProject(null);
+  };
+
+  const handleRemarkDecision = async (decisionStatus) => {
+    if (!remarkProject?.id) {
+      toast.error("Project reference is missing.");
+      return;
+    }
+
+    if (!user?.uid) {
+      toast.error("You must be signed in to take this action.");
+      return;
+    }
+
+    setIsSubmittingRemarkDecision(true);
+    try {
+      const isAccepted = decisionStatus === "Report Accepted";
+      await updateDoc(doc(db, "projects", remarkProject.id), {
+        status: decisionStatus,
+        updatedAt: serverTimestamp(),
+        clientReviewDecisionAt: serverTimestamp(),
+        clientReviewDecisionBy: user.fullName || user.name || user.displayName || user.email || "External Reviewer",
+        clientReviewDecisionById: user.uid,
+        reportAcceptedAt: isAccepted ? serverTimestamp() : null,
+        reportAcceptedBy: isAccepted
+          ? user.fullName || user.name || user.displayName || user.email || "External Reviewer"
+          : null,
+        reportRejectedAt: isAccepted ? null : serverTimestamp(),
+        reportRejectedBy: isAccepted
+          ? null
+          : user.fullName || user.name || user.displayName || user.email || "External Reviewer",
+      });
+
+      toast.success(
+        isAccepted ? "Project marked as Report Accepted." : "Project marked as Report Rejected.",
+      );
+      closeRemarkModal();
+    } catch (error) {
+      toast.error(getToastErrorMessage(error, "Unable to update the project decision."));
+    } finally {
+      setIsSubmittingRemarkDecision(false);
+    }
   };
 
   const handleSubmitFeedback = async () => {
@@ -987,10 +1030,27 @@ const ProjectReviewing = () => {
               </div>
             </div>
           </div>
-          <div className="flex justify-end border-t border-slate-800 px-6 py-5">
+          <div className="flex flex-col gap-3 border-t border-slate-800 px-6 py-5 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => handleRemarkDecision("Report Rejected")}
+              disabled={isSubmittingRemarkDecision}
+              className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-3 text-sm font-bold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmittingRemarkDecision ? "Processing..." : "Reject"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleRemarkDecision("Report Accepted")}
+              disabled={isSubmittingRemarkDecision}
+              className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-5 py-3 text-sm font-bold text-emerald-200 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmittingRemarkDecision ? "Processing..." : "Accept"}
+            </button>
             <button
               type="button"
               onClick={closeRemarkModal}
+              disabled={isSubmittingRemarkDecision}
               className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-300 transition-colors hover:text-white"
             >
               Close
