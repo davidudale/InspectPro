@@ -114,6 +114,11 @@ const ProjectReviewing = () => {
     "Client Review In Progress",
     "Reported Accepted",
   ];
+  const normalizedReviewerType = String(user?.reviewerType || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  const isVerificationLeadOfficer = normalizedReviewerType === "verification_lead_officer";
   const reviewerColumns = [
     {
       idKey: "externalReviewerId",
@@ -146,6 +151,9 @@ const ProjectReviewing = () => {
       label: "Verification Officer 5",
     },
   ];
+  const visibleReviewerColumns = isVerificationLeadOfficer
+    ? reviewerColumns
+    : [{ idKey: "__self__", nameKey: "", label: "My Verification Status" }];
 
   useEffect(() => {
     if (!user?.uid) {
@@ -168,29 +176,43 @@ const ProjectReviewing = () => {
   useEffect(() => {
     let consolidatedEntries = [];
     let legacyEntries = [];
+    let reviewerUnsubscribes = [];
 
     const syncEntries = () => {
       setChecklistEntries([...consolidatedEntries, ...legacyEntries]);
     };
 
-    const unsubscribeConsolidated = onSnapshot(collection(db, REVIEW_COLLECTION), (snapshot) => {
-      consolidatedEntries = snapshot.docs.flatMap((docItem) => {
-        const data = docItem.data() || {};
-        const reviewers = data.reviewers || {};
+    const refreshReviewerSubscriptions = () => {
+      reviewerUnsubscribes.forEach((unsubscribe) => unsubscribe());
+      reviewerUnsubscribes = projects.map((project) =>
+        onSnapshot(
+          collection(db, REVIEW_COLLECTION, project.id, "reviewers"),
+          (snapshot) => {
+            const nextEntries = snapshot.docs.map((docItem) => ({
+              id: `${project.id}_${docItem.id}`,
+              projectDocId: project.id,
+              projectId: project.projectId || "",
+              projectName: project.projectName || "",
+              clientName: project.clientName || project.client || "",
+              ...docItem.data(),
+            }));
 
-        return Object.entries(reviewers).map(([reviewerId, reviewerEntry]) => ({
-          id: `${docItem.id}_${reviewerId}`,
-          projectDocId: data.projectDocId || docItem.id,
-          projectId: data.projectId || "",
-          projectName: data.projectName || "",
-          clientName: data.clientName || "",
-          externalReviewerId: reviewerId,
-          ...reviewerEntry,
-        }));
-      });
+            consolidatedEntries = [
+              ...consolidatedEntries.filter((entry) => entry.projectDocId !== project.id),
+              ...nextEntries,
+            ];
 
-      syncEntries();
-    });
+            syncEntries();
+          },
+          () => {
+            consolidatedEntries = consolidatedEntries.filter((entry) => entry.projectDocId !== project.id);
+            syncEntries();
+          },
+        ),
+      );
+    };
+
+    refreshReviewerSubscriptions();
 
     const unsubscribeLegacy = onSnapshot(collection(db, LEGACY_REVIEW_COLLECTION), (snapshot) => {
       legacyEntries = snapshot.docs.map((docItem) => ({
@@ -202,10 +224,10 @@ const ProjectReviewing = () => {
     });
 
     return () => {
-      unsubscribeConsolidated();
+      reviewerUnsubscribes.forEach((unsubscribe) => unsubscribe());
       unsubscribeLegacy();
     };
-  }, []);
+  }, [projects]);
 
   const filteredProjects = projects
     .filter(
@@ -376,6 +398,18 @@ const ProjectReviewing = () => {
     }
 
     return { label, tone: "idle" };
+  };
+
+  const getSelfReviewerStatus = (project) => {
+    const matchedColumn = reviewerColumns.find(
+      (column) => String(project?.[column.idKey] || "").trim() === String(user?.uid || "").trim(),
+    );
+
+    if (!matchedColumn) {
+      return { label: "Unassigned", tone: "idle" };
+    }
+
+    return getReviewerStatus(project, matchedColumn);
   };
 
   const getReviewerChecklistDetails = (project, column) => {
@@ -685,7 +719,7 @@ const ProjectReviewing = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Review Started At</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Last Reviewer Update</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Decision Time</th>
-                        {reviewerColumns.map((column) => (
+                        {visibleReviewerColumns.map((column) => (
                           <th
                             key={column.idKey}
                             className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]"
@@ -703,7 +737,7 @@ const ProjectReviewing = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="17"
+                                colSpan={11 + visibleReviewerColumns.length}
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -778,8 +812,11 @@ const ProjectReviewing = () => {
                               {formatDateTime(decisionTime)}
                             </div>
                           </td>
-                          {reviewerColumns.map((column) => {
-                            const reviewerStatus = getReviewerStatus(project, column);
+                          {visibleReviewerColumns.map((column) => {
+                            const reviewerStatus =
+                              column.idKey === "__self__"
+                                ? getSelfReviewerStatus(project)
+                                : getReviewerStatus(project, column);
                             return (
                               <td key={column.idKey} className="px-3 py-4">
                                 <div
@@ -812,13 +849,15 @@ const ProjectReviewing = () => {
                           </td>
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
-                              <button 
-                                onClick={() => setRemarkProject(project)}
-                                className="ml-2 p-2 text-[10px] bg-slate-900 border border-slate-700 text-slate-200 hover:border-orange-500/40 hover:text-white transition-all rounded-xl"
-                                title="View Remark"
-                              >
-                                View Remark
-                              </button>
+                              {isVerificationLeadOfficer ? (
+                                <button 
+                                  onClick={() => setRemarkProject(project)}
+                                  className="ml-2 p-2 text-[10px] bg-slate-900 border border-slate-700 text-slate-200 hover:border-orange-500/40 hover:text-white transition-all rounded-xl"
+                                  title="View Remark"
+                                >
+                                  View Remark
+                                </button>
+                              ) : null}
                               <button 
                                 onClick={() => handleViewReport(project.id)}
                                 className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"

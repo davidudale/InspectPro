@@ -119,9 +119,15 @@ const ReportReviewChecklist = () => {
     const loadChecklist = async () => {
       setLoadingChecklist(true);
       try {
-        const consolidatedRef = doc(db, REVIEW_COLLECTION, selectedProjectId);
-        const consolidatedSnap = await getDoc(consolidatedRef);
-        const reviewerEntry = consolidatedSnap.data()?.reviewers?.[user?.uid] || null;
+        const reviewerRef = doc(
+          db,
+          REVIEW_COLLECTION,
+          selectedProjectId,
+          "reviewers",
+          user.uid,
+        );
+        const reviewerSnap = await getDoc(reviewerRef);
+        const reviewerEntry = reviewerSnap.exists() ? reviewerSnap.data() : null;
 
         if (reviewerEntry) {
           const savedChecklist = reviewerEntry.sections || {};
@@ -203,24 +209,28 @@ const ReportReviewChecklist = () => {
     }));
   };
 
-  const handleDecisionChange = (sectionKey, decisionLabel) => {
+  const buildDecisionChecklistState = (sectionKey, decisionLabel, sourceChecklist) => {
     const sectionConfig = CHECKLIST_SECTIONS.find((section) => section.key === sectionKey);
     const nextItemChecks = (sectionConfig?.items || []).reduce((accumulator, item) => {
       accumulator[item] = item === decisionLabel;
       return accumulator;
     }, {});
 
-    setChecklist((current) => ({
-      ...current,
+    return {
+      ...sourceChecklist,
       [sectionKey]: {
-        ...current[sectionKey],
+        ...sourceChecklist[sectionKey],
         decision: decisionLabel,
         itemChecks: nextItemChecks,
       },
-    }));
+    };
   };
 
-  const saveChecklistEntries = async (sectionKey = "") => {
+  const handleDecisionChange = (sectionKey, decisionLabel) => {
+    setChecklist((current) => buildDecisionChecklistState(sectionKey, decisionLabel, current));
+  };
+
+  const saveChecklistEntries = async (sectionKey = "", checklistState = checklist, summaryState = reviewSummary) => {
     if (!selectedProject || !user?.uid) {
       toast.error("Select a report before saving the checklist.");
       return;
@@ -229,28 +239,23 @@ const ReportReviewChecklist = () => {
     setSaving(true);
     try {
       await setDoc(
-        doc(db, REVIEW_COLLECTION, selectedProject.id),
+        doc(db, REVIEW_COLLECTION, selectedProject.id, "reviewers", user.uid),
         {
           projectDocId: selectedProject.id,
           projectId: selectedProject.projectId || "",
           projectName: selectedProject.projectName || "",
           clientName: selectedProject.clientName || selectedProject.client || "",
+          externalReviewerId: user.uid,
+          externalReviewerName:
+            user.fullName || user.name || user.displayName || user.email || "External Reviewer",
+          externalReviewerEmail: user.email || "",
+          reviewerType: user.reviewerType || "",
+          summary: summaryState,
+          sections: sectionKey
+            ? { [sectionKey]: checklistState[sectionKey] }
+            : checklistState,
           updatedAt: serverTimestamp(),
-          reviewers: {
-            [user.uid]: {
-              externalReviewerId: user.uid,
-              externalReviewerName:
-                user.fullName || user.name || user.displayName || user.email || "External Reviewer",
-              externalReviewerEmail: user.email || "",
-              reviewerType: user.reviewerType || "",
-              summary: reviewSummary,
-              sections: sectionKey
-                ? { [sectionKey]: checklist[sectionKey] }
-                : checklist,
-              updatedAt: serverTimestamp(),
-              createdAt: reviewerCreatedAt || serverTimestamp(),
-            },
-          },
+          createdAt: reviewerCreatedAt || serverTimestamp(),
         },
         { merge: true },
       );
@@ -273,6 +278,12 @@ const ReportReviewChecklist = () => {
 
   const handleSaveChecklist = async () => {
     await saveChecklistEntries();
+  };
+
+  const handleDecisionSelect = async (sectionKey, decisionLabel) => {
+    const nextChecklist = buildDecisionChecklistState(sectionKey, decisionLabel, checklist);
+    setChecklist(nextChecklist);
+    await saveChecklistEntries("", nextChecklist, reviewSummary);
   };
 
   const handleViewReport = async () => {
@@ -449,7 +460,7 @@ const ReportReviewChecklist = () => {
                                 <button
                                   key={item}
                                   type="button"
-                                  onClick={() => handleDecisionChange(section.key, item)}
+                                  onClick={() => handleDecisionSelect(section.key, item)}
                                   className={`rounded-2xl border px-4 py-4 text-left text-sm font-bold transition ${
                                     isActive
                                       ? item.toLowerCase().includes("reject")
