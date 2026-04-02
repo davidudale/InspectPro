@@ -23,6 +23,16 @@ import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGroupin
 import { getToastErrorMessage } from "../../../utils/toast";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
 
+const CHECKLIST_SECTION_TITLES = {
+  documentReview: "Document Review",
+  findingsValidation: "Findings Validation",
+  riskAssessment: "Risk Assessment",
+  complianceCheck: "Compliance Check",
+  approvalDecision: "Approval Decision",
+};
+const REVIEW_COLLECTION = "project_verification_reviews";
+const LEGACY_REVIEW_COLLECTION = "report_review_checklists";
+
 const ProjectReviewing = () => {
   const { user } = useAuth();
   const formatDate = (value) => {
@@ -35,6 +45,17 @@ const ProjectReviewing = () => {
     }
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleDateString();
+  };
+  const formatDateTime = (value) => {
+    if (!value) return "N/A";
+    if (typeof value?.toDate === "function") {
+      return value.toDate().toLocaleString();
+    }
+    if (value instanceof Date) {
+      return value.toLocaleString();
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? "N/A" : parsed.toLocaleString();
   };
   const toMillis = (value) => {
     if (!value) return 0;
@@ -62,6 +83,10 @@ const ProjectReviewing = () => {
     project?.timestamp ||
     null;
   const getProjectEndDate = (project) => {
+    if (project?.inspectionEndDate) {
+      return project.inspectionEndDate;
+    }
+
     const status = String(project?.status || "").toLowerCase();
     if (status !== "approved") return null;
     return (
@@ -75,9 +100,11 @@ const ProjectReviewing = () => {
   };
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
+  const [checklistEntries, setChecklistEntries] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [clientFilter, setClientFilter] = useState("all");
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
+  const [remarkProject, setRemarkProject] = useState(null);
   const [feedbackProject, setFeedbackProject] = useState(null);
   const [feedbackDecision, setFeedbackDecision] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
@@ -88,12 +115,36 @@ const ProjectReviewing = () => {
     "Reported Accepted",
   ];
   const reviewerColumns = [
-    { key: "externalReviewerName", label: "Verification Lead Officer" },
-    { key: "externalReviewerName2", label: "Verification Officer 1" },
-    { key: "externalReviewerName3", label: "Verification Officer 2" },
-    { key: "externalReviewerName4", label: "Verification Officer 3" },
-    { key: "externalReviewerName5", label: "Verification Officer 4" },
-    { key: "externalReviewerName6", label: "Verification Officer 5" },
+    {
+      idKey: "externalReviewerId",
+      nameKey: "externalReviewerName",
+      label: "Verification Lead Officer",
+    },
+    {
+      idKey: "externalReviewerId2",
+      nameKey: "externalReviewerName2",
+      label: "Verification Officer 1",
+    },
+    {
+      idKey: "externalReviewerId3",
+      nameKey: "externalReviewerName3",
+      label: "Verification Officer 2",
+    },
+    {
+      idKey: "externalReviewerId4",
+      nameKey: "externalReviewerName4",
+      label: "Verification Officer 3",
+    },
+    {
+      idKey: "externalReviewerId5",
+      nameKey: "externalReviewerName5",
+      label: "Verification Officer 4",
+    },
+    {
+      idKey: "externalReviewerId6",
+      nameKey: "externalReviewerName6",
+      label: "Verification Officer 5",
+    },
   ];
 
   useEffect(() => {
@@ -113,6 +164,48 @@ const ProjectReviewing = () => {
     });
     return () => unsubscribe();
   }, [user?.uid]);
+
+  useEffect(() => {
+    let consolidatedEntries = [];
+    let legacyEntries = [];
+
+    const syncEntries = () => {
+      setChecklistEntries([...consolidatedEntries, ...legacyEntries]);
+    };
+
+    const unsubscribeConsolidated = onSnapshot(collection(db, REVIEW_COLLECTION), (snapshot) => {
+      consolidatedEntries = snapshot.docs.flatMap((docItem) => {
+        const data = docItem.data() || {};
+        const reviewers = data.reviewers || {};
+
+        return Object.entries(reviewers).map(([reviewerId, reviewerEntry]) => ({
+          id: `${docItem.id}_${reviewerId}`,
+          projectDocId: data.projectDocId || docItem.id,
+          projectId: data.projectId || "",
+          projectName: data.projectName || "",
+          clientName: data.clientName || "",
+          externalReviewerId: reviewerId,
+          ...reviewerEntry,
+        }));
+      });
+
+      syncEntries();
+    });
+
+    const unsubscribeLegacy = onSnapshot(collection(db, LEGACY_REVIEW_COLLECTION), (snapshot) => {
+      legacyEntries = snapshot.docs.map((docItem) => ({
+        id: docItem.id,
+        ...docItem.data(),
+      }));
+
+      syncEntries();
+    });
+
+    return () => {
+      unsubscribeConsolidated();
+      unsubscribeLegacy();
+    };
+  }, []);
 
   const filteredProjects = projects
     .filter(
@@ -174,6 +267,258 @@ const ProjectReviewing = () => {
     },
   ]);
 
+  const getProjectRemark = (project) =>
+    String(
+      project?.returnNote ||
+      project?.remark ||
+      project?.remarks ||
+      project?.adminRemark ||
+      project?.adminRemarks ||
+      project?.feedback ||
+      "",
+    ).trim();
+
+  const getChecklistEntryTimestamp = (entry) =>
+    Math.max(toMillis(entry?.updatedAt), toMillis(entry?.createdAt));
+
+  const latestChecklistByProjectReviewer = checklistEntries.reduce((map, entry) => {
+    const reviewerId = String(entry?.externalReviewerId || "").trim();
+    const projectKeys = [
+      String(entry?.projectDocId || "").trim(),
+      String(entry?.projectId || "").trim(),
+    ].filter(Boolean);
+
+    if (!reviewerId || !projectKeys.length) {
+      return map;
+    }
+
+    projectKeys.forEach((projectKey) => {
+      const compositeKey = `${projectKey}|${reviewerId}`;
+      const existingEntry = map.get(compositeKey);
+
+      if (
+        !existingEntry ||
+        getChecklistEntryTimestamp(entry) >= getChecklistEntryTimestamp(existingEntry)
+      ) {
+        map.set(compositeKey, entry);
+      }
+    });
+
+    return map;
+  }, new Map());
+
+  const getChecklistProgressStatus = (entry) => {
+    if (!entry) return "Yet to start";
+
+    const summaryStatus = String(entry?.summary?.status || "").trim();
+    if (summaryStatus) {
+      const normalizedSummaryStatus = summaryStatus.toLowerCase();
+      if (normalizedSummaryStatus === "yet to start") return "Yet to start";
+      if (normalizedSummaryStatus === "approved") return "Accepted";
+      if (normalizedSummaryStatus === "completed") return "Accepted";
+      if (normalizedSummaryStatus === "pending") return "Onhold";
+      return summaryStatus;
+    }
+
+    const sections = entry.sections || {};
+    const approvalDecision = String(sections?.approvalDecision?.decision || "")
+      .trim()
+      .toLowerCase();
+
+    if (approvalDecision === "approve report") return "Accepted";
+    if (approvalDecision === "reject report with feedback") return "Rejected";
+
+    const sectionStatuses = Object.values(sections)
+      .map((section) => String(section?.status || "").trim())
+      .filter(Boolean);
+
+    if (!sectionStatuses.length) return "Yet to start";
+    if (sectionStatuses.every((status) => String(status).toLowerCase() === "accepted")) {
+      return "Accepted";
+    }
+    if (sectionStatuses.every((status) => String(status).toLowerCase() === "completed")) {
+      return "Accepted";
+    }
+    if (sectionStatuses.includes("Ongoing")) return "Ongoing";
+    if (sectionStatuses.includes("Onhold") || sectionStatuses.includes("OnHold")) return "Onhold";
+    if (sectionStatuses.includes("Pending")) return "Onhold";
+    if (sectionStatuses.includes("Accepted")) return "Accepted";
+    if (sectionStatuses.includes("Completed")) return "Accepted";
+
+    return sectionStatuses[0] || "Yet to start";
+  };
+
+  const getReviewerStatus = (project, column) => {
+    const reviewerId = String(project?.[column.idKey] || "").trim();
+    if (!reviewerId) {
+      return { label: "Unassigned", tone: "idle" };
+    }
+
+    const checklistEntry =
+      latestChecklistByProjectReviewer.get(`${project.id}|${reviewerId}`) ||
+      latestChecklistByProjectReviewer.get(`${project.projectId || ""}|${reviewerId}`) ||
+      null;
+
+    const label = getChecklistProgressStatus(checklistEntry);
+    const normalized = label.toLowerCase();
+
+    if (normalized === "accepted" || normalized === "approved" || normalized === "completed") {
+      return { label, tone: "success" };
+    }
+    if (normalized === "rejected") {
+      return { label, tone: "danger" };
+    }
+    if (normalized === "ongoing" || normalized === "in progress") {
+      return { label, tone: "active" };
+    }
+    if (normalized === "onhold" || normalized === "pending") {
+      return { label, tone: "warning" };
+    }
+
+    return { label, tone: "idle" };
+  };
+
+  const getReviewerChecklistDetails = (project, column) => {
+    const reviewerId = String(project?.[column.idKey] || "").trim();
+    const reviewerName = String(project?.[column.nameKey] || "").trim();
+    if (!reviewerId) {
+      return {
+        reviewerName: reviewerName || "Unassigned",
+        status: "Unassigned",
+        timestamp: null,
+        observations: [],
+      };
+    }
+
+    const checklistEntry =
+      latestChecklistByProjectReviewer.get(`${project.id}|${reviewerId}`) ||
+      latestChecklistByProjectReviewer.get(`${project.projectId || ""}|${reviewerId}`) ||
+      null;
+
+    const sections = checklistEntry?.sections || {};
+    const summaryObservation = String(checklistEntry?.summary?.observation || "").trim();
+    const observations = Object.entries(sections)
+      .map(([sectionKey, sectionValue]) => ({
+        sectionTitle:
+          CHECKLIST_SECTION_TITLES[sectionKey] ||
+          sectionKey.replace(/([A-Z])/g, " $1").trim(),
+        observation: String(sectionValue?.observation || "").trim(),
+      }))
+      .filter((item) => item.observation);
+
+    if (summaryObservation) {
+      observations.unshift({
+        sectionTitle: "Consolidated Review Summary",
+        observation: summaryObservation,
+      });
+    }
+
+    return {
+      reviewerName: reviewerName || checklistEntry?.externalReviewerName || "Assigned Reviewer",
+      status: getChecklistProgressStatus(checklistEntry),
+      timestamp: checklistEntry?.updatedAt || checklistEntry?.createdAt || null,
+      observations,
+    };
+  };
+
+  const getReviewStartTimestamp = (project, detail) =>
+    detail?.timestamp ||
+    project?.clientReviewStartedAt ||
+    project?.updatedAt ||
+    project?.approvedAt ||
+    project?.confirmedAt ||
+    project?.deploymentDate ||
+    project?.createdAt ||
+    null;
+
+  const getReviewCountdown = (project, detail) => {
+    if (detail?.status === "Unassigned") {
+      return { label: "No deadline", tone: "idle" };
+    }
+
+    const startTimestamp = toMillis(getReviewStartTimestamp(project, detail));
+    if (!startTimestamp) {
+      return { label: "Deadline unavailable", tone: "idle" };
+    }
+
+    const deadlineTimestamp = startTimestamp + 14 * 24 * 60 * 60 * 1000;
+    const timeLeft = deadlineTimestamp - Date.now();
+
+    if (timeLeft <= 0) {
+      return { label: "Deadline elapsed", tone: "danger" };
+    }
+
+    const daysLeft = Math.floor(timeLeft / (24 * 60 * 60 * 1000));
+    const hoursLeft = Math.floor((timeLeft % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
+    if (daysLeft <= 2) {
+      return {
+        label: `${daysLeft}d ${hoursLeft}h left`,
+        tone: "danger",
+      };
+    }
+
+    if (daysLeft <= 5) {
+      return {
+        label: `${daysLeft}d ${hoursLeft}h left`,
+        tone: "warning",
+      };
+    }
+
+    return {
+      label: `${daysLeft}d ${hoursLeft}h left`,
+      tone: "active",
+    };
+  };
+
+  const getReviewStartedAt = (project) =>
+    project?.clientReviewStartedAt ||
+    project?.reviewStartedAt ||
+    project?.updatedAt ||
+    project?.approvedAt ||
+    project?.confirmedAt ||
+    project?.deploymentDate ||
+    project?.createdAt ||
+    null;
+
+  const getLastReviewerUpdateAt = (project) => {
+    let latestTimestamp = 0;
+
+    reviewerColumns.forEach((column) => {
+      const reviewerId = String(project?.[column.idKey] || "").trim();
+      if (!reviewerId) return;
+
+      const checklistEntry =
+        latestChecklistByProjectReviewer.get(`${project.id}|${reviewerId}`) ||
+        latestChecklistByProjectReviewer.get(`${project.projectId || ""}|${reviewerId}`) ||
+        null;
+
+      latestTimestamp = Math.max(latestTimestamp, getChecklistEntryTimestamp(checklistEntry));
+    });
+
+    return latestTimestamp || null;
+  };
+
+  const getDecisionTime = (project) => {
+    const leadReviewerId = String(project?.externalReviewerId || "").trim();
+    if (!leadReviewerId) return null;
+
+    const leadChecklistEntry =
+      latestChecklistByProjectReviewer.get(`${project.id}|${leadReviewerId}`) ||
+      latestChecklistByProjectReviewer.get(`${project.projectId || ""}|${leadReviewerId}`) ||
+      null;
+
+    const decision = String(leadChecklistEntry?.sections?.approvalDecision?.decision || "")
+      .trim()
+      .toLowerCase();
+
+    if (decision === "approve report" || decision === "reject report with feedback") {
+      return leadChecklistEntry?.updatedAt || leadChecklistEntry?.createdAt || null;
+    }
+
+    return null;
+  };
+
   const openFeedbackModal = (project) => {
     if (!project?.id) {
       toast.error("Project reference is missing.");
@@ -190,6 +535,10 @@ const ProjectReviewing = () => {
     setFeedbackProject(null);
     setFeedbackDecision("");
     setFeedbackMessage("");
+  };
+
+  const closeRemarkModal = () => {
+    setRemarkProject(null);
   };
 
   const handleSubmitFeedback = async () => {
@@ -333,15 +682,18 @@ const ProjectReviewing = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility Location</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection Start Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection End Date</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Review Started At</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Last Reviewer Update</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Decision Time</th>
                         {reviewerColumns.map((column) => (
                           <th
-                            key={column.key}
+                            key={column.idKey}
                             className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]"
                           >
                             {column.label}
                           </th>
                         ))}
-                        {/*<th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Operational Status</th>*/}
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Actions</th>
                       </tr>
                     </thead>
@@ -351,7 +703,7 @@ const ProjectReviewing = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="13"
+                                colSpan="17"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -362,6 +714,9 @@ const ProjectReviewing = () => {
                         const operationalStatus = getOperationalStatus(project);
                         const projectStartDate = getProjectStartDate(project);
                         const projectEndDate = getProjectEndDate(project);
+                        const reviewStartedAt = getReviewStartedAt(project);
+                        const lastReviewerUpdateAt = getLastReviewerUpdateAt(project);
+                        const decisionTime = getDecisionTime(project);
                         const isInProgress = operationalStatus
                           .toLowerCase()
                           .startsWith("in progress");
@@ -400,22 +755,52 @@ const ProjectReviewing = () => {
                           </td>
                           <td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
-                              {formatDate(projectStartDate)}
+                              {formatDateTime(projectStartDate)}
                             </div>
                           </td>
                           <td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
-                              {projectEndDate ? formatDate(projectEndDate) : "Pending"}
+                              {projectEndDate ? formatDateTime(projectEndDate) : "Pending"}
                             </div>
                           </td>
-                          {reviewerColumns.map((column) => (
-                            <td key={column.key} className="px-3 py-4">
-                              <div className="text-xs font-medium text-slate-300">
-                                {project[column.key] || "N/A"}
-                              </div>
-                            </td>
-                          ))}
-                          {/*<td className="p-6">
+                          <td className="px-3 py-4">
+                            <div className="text-xs font-medium text-slate-300">
+                              {formatDateTime(reviewStartedAt)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="text-xs font-medium text-slate-300">
+                              {formatDateTime(lastReviewerUpdateAt)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="text-xs font-medium text-slate-300">
+                              {formatDateTime(decisionTime)}
+                            </div>
+                          </td>
+                          {reviewerColumns.map((column) => {
+                            const reviewerStatus = getReviewerStatus(project, column);
+                            return (
+                              <td key={column.idKey} className="px-3 py-4">
+                                <div
+                                  className={`inline-flex items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                                    reviewerStatus.tone === "success"
+                                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                                      : reviewerStatus.tone === "danger"
+                                        ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                                        : reviewerStatus.tone === "active"
+                                          ? "border-orange-500/40 bg-orange-500/10 text-orange-300"
+                                          : reviewerStatus.tone === "warning"
+                                            ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                            : "border-slate-700 bg-slate-900/60 text-slate-400"
+                                  }`}
+                                >
+                                  {reviewerStatus.label}
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td className="px-3 py-4">
                             <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${
                               isInProgress
                                 ? 'border-orange-500/50 text-orange-500 bg-orange-500/5' 
@@ -424,9 +809,16 @@ const ProjectReviewing = () => {
                               <span className={`w-1.5 h-1.5 rounded-full ${isInProgress ? 'bg-orange-500 animate-pulse' : 'bg-slate-600'}`}></span>
                               {operationalStatus}
                             </div>
-                          </td>*/}
+                          </td>
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
+                              <button 
+                                onClick={() => setRemarkProject(project)}
+                                className="ml-2 p-2 text-[10px] bg-slate-900 border border-slate-700 text-slate-200 hover:border-orange-500/40 hover:text-white transition-all rounded-xl"
+                                title="View Remark"
+                              >
+                                View Remark
+                              </button>
                               <button 
                                 onClick={() => handleViewReport(project.id)}
                                 className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
@@ -460,6 +852,114 @@ const ProjectReviewing = () => {
                   </div>
       </div>
     </ControlCenterTableShell>
+
+    {remarkProject ? (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 px-4 py-8 backdrop-blur-sm">
+        <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-[1.75rem] border border-slate-800 bg-[#08101f] shadow-[0_28px_80px_rgba(2,6,23,0.7)]">
+          <div className="flex items-start justify-between border-b border-slate-800 px-6 py-5">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-orange-400">
+                Project Remark
+              </p>
+              <h2 className="mt-2 text-xl font-black text-white">
+                {remarkProject.projectName || remarkProject.projectId || "Unnamed Project"}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={closeRemarkModal}
+              className="rounded-xl border border-slate-700 bg-slate-900 p-2 text-slate-400 transition-colors hover:text-white"
+              aria-label="Close remark modal"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="overflow-y-auto px-6 py-6">
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-slate-800 bg-[#060b17] p-4 text-sm leading-7 text-slate-300 whitespace-pre-wrap">
+                {getProjectRemark(remarkProject) || "No remark available for this project yet."}
+              </div>
+
+              <div className="grid gap-4">
+                {reviewerColumns.map((column) => {
+                  const detail = getReviewerChecklistDetails(remarkProject, column);
+                  const countdown = getReviewCountdown(remarkProject, detail);
+                  return (
+                    <div
+                      key={column.idKey}
+                      className="rounded-2xl border border-slate-800 bg-[#060b17] p-4"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-orange-400">
+                            {column.label}
+                          </p>
+                          <h3 className="mt-2 text-sm font-bold text-white">
+                            {detail.reviewerName}
+                          </h3>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em]">
+                          <span className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-slate-300">
+                            {detail.status}
+                          </span>
+                          <span className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-slate-400">
+                            {formatDateTime(detail.timestamp)}
+                          </span>
+                          <span
+                            className={`rounded-full border px-3 py-1 ${
+                              countdown.tone === "danger"
+                                ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                                : countdown.tone === "warning"
+                                  ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
+                                  : countdown.tone === "active"
+                                    ? "border-orange-500/40 bg-orange-500/10 text-orange-300"
+                                    : "border-slate-700 bg-slate-900/60 text-slate-400"
+                            }`}
+                          >
+                            {countdown.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 space-y-3">
+                        {detail.observations.length ? (
+                          detail.observations.map((item) => (
+                            <div
+                              key={`${column.idKey}-${item.sectionTitle}`}
+                              className="rounded-xl border border-slate-800 bg-slate-950/60 p-3"
+                            >
+                              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                {item.sectionTitle}
+                              </p>
+                              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">
+                                {item.observation}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/40 p-3 text-sm text-slate-500">
+                            No observations saved yet.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end border-t border-slate-800 px-6 py-5">
+            <button
+              type="button"
+              onClick={closeRemarkModal}
+              className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-300 transition-colors hover:text-white"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    ) : null}
 
     {feedbackProject ? (
       <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/80 px-4 py-8 backdrop-blur-sm">

@@ -243,6 +243,10 @@ const ProjectEdit = () => {
           setupData.status === "Approved"
             ? setupData.approvedAt || serverTimestamp()
             : setupData.approvedAt || null,
+        inspectionEndDate:
+          setupData.status === "Approved"
+            ? setupData.inspectionEndDate || serverTimestamp()
+            : setupData.inspectionEndDate || null,
         lastUpdated: serverTimestamp(),
         adminId: user?.uid || "",
         adminName: user?.displayName || user?.name || "System Admin",

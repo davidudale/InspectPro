@@ -20,7 +20,8 @@ import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
 import { getToastErrorMessage } from "../../../utils/toast";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
 
-const STATUS_OPTIONS = ["Yet to Start", "Ongoing", "OnHold", "Pending", "Completed"];
+const REVIEW_COLLECTION = "project_verification_reviews";
+const STATUS_OPTIONS = ["Yet to start", "Ongoing", "Onhold", "Rejected", "Accepted"];
 
 const CHECKLIST_SECTIONS = [
   {
@@ -61,8 +62,6 @@ const CHECKLIST_SECTIONS = [
 const buildDefaultChecklist = () =>
   CHECKLIST_SECTIONS.reduce((accumulator, section) => {
     accumulator[section.key] = {
-      status: "Yet to Start",
-      observation: "",
       decision: "",
       itemChecks: section.items.reduce((itemAccumulator, item) => {
         itemAccumulator[item] = false;
@@ -72,16 +71,22 @@ const buildDefaultChecklist = () =>
     return accumulator;
   }, {});
 
+const buildDefaultReviewSummary = () => ({
+  status: "Yet to start",
+  observation: "",
+});
+
 const ReportReviewChecklist = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [checklist, setChecklist] = useState(buildDefaultChecklist);
+  const [reviewSummary, setReviewSummary] = useState(buildDefaultReviewSummary);
+  const [reviewerCreatedAt, setReviewerCreatedAt] = useState(null);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingSectionKey, setSavingSectionKey] = useState("");
 
   useEffect(() => {
     if (!user?.uid) {
@@ -106,23 +111,51 @@ const ReportReviewChecklist = () => {
   useEffect(() => {
     if (!selectedProjectId) {
       setChecklist(buildDefaultChecklist());
+      setReviewSummary(buildDefaultReviewSummary());
+      setReviewerCreatedAt(null);
       return;
     }
 
     const loadChecklist = async () => {
       setLoadingChecklist(true);
       try {
-        const checklistRef = doc(db, "report_review_checklists", `${selectedProjectId}_${user?.uid}`);
-        const checklistSnap = await getDoc(checklistRef);
+        const consolidatedRef = doc(db, REVIEW_COLLECTION, selectedProjectId);
+        const consolidatedSnap = await getDoc(consolidatedRef);
+        const reviewerEntry = consolidatedSnap.data()?.reviewers?.[user?.uid] || null;
 
-        if (checklistSnap.exists()) {
-          const savedChecklist = checklistSnap.data()?.sections || {};
+        if (reviewerEntry) {
+          const savedChecklist = reviewerEntry.sections || {};
+          const savedSummary = reviewerEntry.summary || {};
           setChecklist({
             ...buildDefaultChecklist(),
             ...savedChecklist,
           });
+          setReviewSummary({
+            ...buildDefaultReviewSummary(),
+            ...savedSummary,
+          });
+          setReviewerCreatedAt(reviewerEntry.createdAt || null);
         } else {
-          setChecklist(buildDefaultChecklist());
+          const legacyChecklistRef = doc(db, "report_review_checklists", `${selectedProjectId}_${user?.uid}`);
+          const legacyChecklistSnap = await getDoc(legacyChecklistRef);
+
+          if (legacyChecklistSnap.exists()) {
+            const savedChecklist = legacyChecklistSnap.data()?.sections || {};
+            const savedSummary = legacyChecklistSnap.data()?.summary || {};
+            setChecklist({
+              ...buildDefaultChecklist(),
+              ...savedChecklist,
+            });
+            setReviewSummary({
+              ...buildDefaultReviewSummary(),
+              ...savedSummary,
+            });
+            setReviewerCreatedAt(legacyChecklistSnap.data()?.createdAt || null);
+          } else {
+            setChecklist(buildDefaultChecklist());
+            setReviewSummary(buildDefaultReviewSummary());
+            setReviewerCreatedAt(null);
+          }
         }
       } catch (error) {
         toast.error(getToastErrorMessage(error, "Unable to load the checklist."));
@@ -139,6 +172,13 @@ const ReportReviewChecklist = () => {
     [projects, selectedProjectId],
   );
   const visibleSections = CHECKLIST_SECTIONS;
+
+  const handleReviewSummaryChange = (field, value) => {
+    setReviewSummary((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
 
   const handleSectionChange = (sectionKey, field, value) => {
     setChecklist((current) => ({
@@ -187,26 +227,37 @@ const ReportReviewChecklist = () => {
     }
 
     setSaving(true);
-    setSavingSectionKey(sectionKey || "__all__");
     try {
       await setDoc(
-        doc(db, "report_review_checklists", `${selectedProject.id}_${user.uid}`),
+        doc(db, REVIEW_COLLECTION, selectedProject.id),
         {
           projectDocId: selectedProject.id,
           projectId: selectedProject.projectId || "",
           projectName: selectedProject.projectName || "",
           clientName: selectedProject.clientName || selectedProject.client || "",
-          externalReviewerId: user.uid,
-          externalReviewerName:
-            user.fullName || user.name || user.displayName || user.email || "External Reviewer",
-          sections: sectionKey
-            ? { [sectionKey]: checklist[sectionKey] }
-            : checklist,
           updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
+          reviewers: {
+            [user.uid]: {
+              externalReviewerId: user.uid,
+              externalReviewerName:
+                user.fullName || user.name || user.displayName || user.email || "External Reviewer",
+              externalReviewerEmail: user.email || "",
+              reviewerType: user.reviewerType || "",
+              summary: reviewSummary,
+              sections: sectionKey
+                ? { [sectionKey]: checklist[sectionKey] }
+                : checklist,
+              updatedAt: serverTimestamp(),
+              createdAt: reviewerCreatedAt || serverTimestamp(),
+            },
+          },
         },
         { merge: true },
       );
+
+      if (!reviewerCreatedAt) {
+        setReviewerCreatedAt(new Date());
+      }
 
       toast.success(
         sectionKey
@@ -217,19 +268,11 @@ const ReportReviewChecklist = () => {
       toast.error(getToastErrorMessage(error, "Unable to save the checklist."));
     } finally {
       setSaving(false);
-      setSavingSectionKey("");
     }
   };
 
   const handleSaveChecklist = async () => {
     await saveChecklistEntries();
-  };
-
-  const handleSaveSection = async (sectionKey) => {
-    if (!sectionKey) {
-      return;
-    }
-    await saveChecklistEntries(sectionKey);
   };
 
   const handleViewReport = async () => {
@@ -332,8 +375,57 @@ const ReportReviewChecklist = () => {
               ) : (
                 <>
                   {visibleSections.map((section, index) => (
+                    <React.Fragment key={section.key}>
+                      {section.key === "approvalDecision" ? (
+                        <div className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5">
+                          <div className="mb-4 flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-xs font-black text-orange-400">
+                              S
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-lg font-bold text-white">Consolidated Review Summary</h3>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col justify-center">
+                            <label className="space-y-2">
+                              <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                                Status
+                              </span>
+                              <select
+                                value={reviewSummary.status || "Yet to start"}
+                                onChange={(event) =>
+                                  handleReviewSummaryChange("status", event.target.value)
+                                }
+                                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                              >
+                                {STATUS_OPTIONS.map((status) => (
+                                  <option key={status} value={status}>
+                                    {status}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+
+                            <label className="space-y-2">
+                              <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                                Observation
+                              </span>
+                              <textarea
+                                value={reviewSummary.observation || ""}
+                                onChange={(event) =>
+                                  handleReviewSummaryChange("observation", event.target.value)
+                                }
+                                rows={4}
+                                placeholder="Add a consolidated observation for the entire checklist review..."
+                                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      ) : null}
+
                     <div
-                      key={section.key}
                       className="rounded-[1.5rem] border border-slate-800 bg-slate-950/50 p-5"
                     >
                       <div className="mb-4 flex items-center gap-3">
@@ -343,15 +435,6 @@ const ReportReviewChecklist = () => {
                         <div className="min-w-0 flex-1">
                           <h3 className="text-lg font-bold text-white">{section.title}</h3>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveSection(section.key)}
-                          disabled={!selectedProjectId || saving || loadingChecklist}
-                          className="inline-flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-600/10 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-300 transition hover:bg-orange-600/20 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Save size={14} />
-                          {savingSectionKey === section.key ? "Saving..." : "Save Section"}
-                        </button>
                       </div>
 
                       <div className="mb-5 space-y-2 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
@@ -406,45 +489,8 @@ const ReportReviewChecklist = () => {
                         )}
                       </div>
 
-                      {section.key !== "approvalDecision" ? (
-                        //<div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-                          <div className="flex flex-col gap-4 lg:flex-cols-2">
-
-                          <label className="space-y-2">
-                            <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                              Observation
-                            </span>
-                            <textarea
-                              value={checklist[section.key]?.observation || ""}
-                              onChange={(event) =>
-                                handleSectionChange(section.key, "observation", event.target.value)
-                              }
-                              rows={4}
-                              placeholder={`Add observations for ${section.title.toLowerCase()}...`}
-                              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-                            />
-                          </label>
-                          <label className="space-y-2">
-                            <span className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                              Status
-                            </span>
-                            <select
-                              value={checklist[section.key]?.status || "Yet to Start"}
-                              onChange={(event) =>
-                                handleSectionChange(section.key, "status", event.target.value)
-                              }
-                              className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-500"
-                            >
-                              {STATUS_OPTIONS.map((status) => (
-                                <option key={status} value={status}>
-                                  {status}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      ) : null}
                     </div>
+                    </React.Fragment>
                   ))}
                 </>
               )}

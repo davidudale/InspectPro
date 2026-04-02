@@ -64,6 +64,7 @@ const ProjectList = () => {
     const status = String(project?.status || "").toLowerCase();
     if (status !== "approved") return null;
     return (
+      project?.inspectionEndDate ||
       project?.approvedAt ||
       project?.confirmedAt ||
       project?.confirmationDate ||
