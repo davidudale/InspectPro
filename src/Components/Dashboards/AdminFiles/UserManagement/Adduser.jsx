@@ -9,7 +9,7 @@ import {
 } from "lucide-react"; // Added User icon for empty state
 import AdminSidebar from "../../AdminSidebar";
 import { db, secondaryAuth } from "../../../Auth/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
@@ -18,6 +18,11 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../Auth/AuthContext";
 import ExternalSideBar from "../../ExternalDashboard/ExternalSideBar";
 import ExternalNavbar from "../../ExternalDashboard/ExternalNavbar";
+
+const verificationActionCodeSettings = {
+  url: `${window.location.origin}/login`,
+  handleCodeInApp: false,
+};
 
 const Adduser = () => {
   const { user: currentUser } = useAuth();
@@ -73,6 +78,10 @@ const Adduser = () => {
           presenceState: "offline",
           lastSeen: serverTimestamp(),
           lastActiveAt: serverTimestamp(),
+          emailNotificationsEnabled: true,
+          notificationChannels: {
+            email: true,
+          },
           createdByUserId: currentUser?.uid || "",
           createdByUserName:
             currentUser?.fullName ||
@@ -85,6 +94,9 @@ const Adduser = () => {
           updatedAt: serverTimestamp(),
           authUid: createdUser.uid,
         });
+        if (role !== "Admin") {
+          await sendEmailVerification(createdUser, verificationActionCodeSettings);
+        }
         await secondaryAuth.signOut();
       }
       // Create a user document in Firestore with the role

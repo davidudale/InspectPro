@@ -13,7 +13,7 @@ import {
   updateDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { onValue, ref as rtdbRef } from "firebase/database";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
@@ -40,6 +40,10 @@ const REVIEWER_TYPE_OPTIONS = [
   "Verification officer_4",
   "Verification officer_5",
 ];
+const verificationActionCodeSettings = {
+  url: `${window.location.origin}/login`,
+  handleCodeInApp: false,
+};
 
 const EMPTY_FORM = {
   name: "",
@@ -251,6 +255,10 @@ const UserPage = () => {
           presenceState: "offline",
           lastSeen: serverTimestamp(),
           lastActiveAt: serverTimestamp(),
+          emailNotificationsEnabled: true,
+          notificationChannels: {
+            email: true,
+          },
           createdByUserId: user?.uid || "",
           createdByUserName:
             user?.fullName || user?.name || user?.displayName || user?.email || "",
@@ -259,6 +267,10 @@ const UserPage = () => {
           updatedAt: serverTimestamp(),
           authUid: newUserId,
         });
+
+        if (normalizedDataToSave.role !== "Admin") {
+          await sendEmailVerification(userCredential.user, verificationActionCodeSettings);
+        }
 
         await secondaryAuth.signOut();
         toast.success("User profile created.");

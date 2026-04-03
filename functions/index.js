@@ -34,6 +34,14 @@ const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 const getUserDisplayName = (user) =>
   user?.fullName || user?.displayName || user?.name || user?.email || "InspectPro User";
 
+const userAllowsEmail = (user) => {
+  if (!user) return false;
+  if (!normalizeEmail(user.email)) return false;
+  if (user.emailNotificationsEnabled === false) return false;
+  if (user?.notificationChannels?.email === false) return false;
+  return true;
+};
+
 const formatTechnique = (data = {}) =>
   data.selectedTechnique ||
   data.reportTemplate ||
@@ -44,6 +52,21 @@ const formatTechnique = (data = {}) =>
 
 const formatProjectLabel = (data = {}) =>
   data.projectName || data.projectId || data.id || "Project";
+
+const startsWithForwardedToInspector = (status) =>
+  String(status || "").trim().toLowerCase().startsWith("not started- report with ");
+
+const startsWithReturnedForCorrection = (status) =>
+  String(status || "").trim().toLowerCase().startsWith("returned for correction");
+
+const isClientReviewInProgress = (status) =>
+  String(status || "").trim().toLowerCase() === "client review in progress";
+
+const isReportAccepted = (status) =>
+  String(status || "").trim().toLowerCase() === "report accepted";
+
+const isReportRejected = (status) =>
+  String(status || "").trim().toLowerCase() === "report rejected";
 
 const formatDate = (value) => {
   if (!value) return "N/A";
@@ -149,18 +172,38 @@ const sendEmail = async ({ to, subject, text, html, eventType, recipientUserId, 
   }
 };
 
+const sendEmailToUser = async ({ user, subject, text, html, eventType, payload }) => {
+  if (!userAllowsEmail(user)) {
+    logger.info("Skipping email because user preferences disable email notifications.", {
+      eventType,
+      userId: user?.id || "",
+      email: normalizeEmail(user?.email),
+    });
+    return null;
+  }
+
+  return sendEmail({
+    to: user.email,
+    subject,
+    text,
+    html,
+    eventType,
+    recipientUserId: user.id,
+    recipientName: getUserDisplayName(user),
+    payload,
+  });
+};
+
 const queueEmailToUsers = async ({ users, subject, text, html, eventType, payload }) => {
-  const uniqueUsers = dedupeUsersByEmail(users);
+  const uniqueUsers = dedupeUsersByEmail(users).filter((user) => userAllowsEmail(user));
   await Promise.all(
     uniqueUsers.map((user) =>
-      sendEmail({
-        to: user.email,
+      sendEmailToUser({
+        user,
         subject,
         text,
         html,
         eventType,
-        recipientUserId: user.id,
-        recipientName: getUserDisplayName(user),
         payload,
       }),
     ),
@@ -283,6 +326,344 @@ export const notifyOnProjectApprovalEmail = onDocumentUpdated("projects/{project
     },
   });
 });
+
+export const notifyOnProjectForwardedToInspectorEmail = onDocumentCreated(
+  "projects/{projectId}",
+  async (event) => {
+    const project = event.data?.data();
+    if (!project || !startsWithForwardedToInspector(project.status)) return;
+
+    const inspectorUser = await getUserById(project.inspectorId);
+    if (!inspectorUser?.email) {
+      logger.warn("Skipping inspector notification because no inspector email was found.", {
+        projectId: event.params.projectId,
+        inspectorId: project.inspectorId || "",
+      });
+      return;
+    }
+
+    const subject = `InspectPro: ${formatProjectLabel(project)} forwarded to you`;
+    const text =
+      `A new project has been forwarded to you for inspection.\n` +
+      `Project: ${formatProjectLabel(project)}\n` +
+      `Technique: ${formatTechnique(project)}\n` +
+      `Client: ${project.clientName || project.client || "N/A"}\n` +
+      `Location: ${project.locationName || project.location || "N/A"}\n` +
+      `Project ID: ${project.projectId || event.params.projectId}\n` +
+      `Open app: ${APP_URL}/my_inspection`;
+    const html = renderEmailShell({
+      heading: "New Project Forwarded",
+      intro:
+        `${formatProjectLabel(project)} has been forwarded to you and is ready for inspection work in InspectPro.`,
+      details: [
+        { label: "Project", value: formatProjectLabel(project) },
+        { label: "Project ID", value: project.projectId || event.params.projectId },
+        { label: "Technique", value: formatTechnique(project) },
+        { label: "Client", value: project.clientName || project.client || "N/A" },
+        { label: "Location", value: project.locationName || project.location || "N/A" },
+        { label: "Assigned Inspector", value: getUserDisplayName(inspectorUser) },
+      ],
+      ctaLabel: "Open My Inspections",
+      ctaUrl: `${APP_URL}/my_inspection`,
+    });
+
+    await sendEmailToUser({
+      user: inspectorUser,
+      subject,
+      text,
+      html,
+      eventType: "project_forwarded_to_inspector_email",
+      payload: {
+        projectDocId: event.params.projectId,
+        projectId: project.projectId || "",
+        status: project.status || "",
+        inspectorId: project.inspectorId || "",
+      },
+    });
+  },
+);
+
+export const notifyOnProjectReassignedToInspectorEmail = onDocumentUpdated(
+  "projects/{projectId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const previousInspectorId = String(before.inspectorId || "").trim();
+    const nextInspectorId = String(after.inspectorId || "").trim();
+    const previousStatus = String(before.status || "").trim();
+    const nextStatus = String(after.status || "").trim();
+
+    const inspectorChanged = previousInspectorId !== nextInspectorId;
+    const newlyForwarded =
+      !startsWithForwardedToInspector(previousStatus) && startsWithForwardedToInspector(nextStatus);
+
+    if (!nextInspectorId || (!inspectorChanged && !newlyForwarded)) {
+      return;
+    }
+
+    const inspectorUser = await getUserById(nextInspectorId);
+    if (!inspectorUser?.email) {
+      logger.warn("Skipping reassignment notification because no inspector email was found.", {
+        projectId: event.params.projectId,
+        inspectorId: nextInspectorId,
+      });
+      return;
+    }
+
+    const subject = `InspectPro: ${formatProjectLabel(after)} assigned to you`;
+    const text =
+      `A project has been assigned or forwarded to you for inspection.\n` +
+      `Project: ${formatProjectLabel(after)}\n` +
+      `Technique: ${formatTechnique(after)}\n` +
+      `Client: ${after.clientName || after.client || "N/A"}\n` +
+      `Location: ${after.locationName || after.location || "N/A"}\n` +
+      `Project ID: ${after.projectId || event.params.projectId}\n` +
+      `Open app: ${APP_URL}/my_inspection`;
+    const html = renderEmailShell({
+      heading: "Inspection Assignment Updated",
+      intro:
+        `${formatProjectLabel(after)} has just been assigned to you for inspection in InspectPro.`,
+      details: [
+        { label: "Project", value: formatProjectLabel(after) },
+        { label: "Project ID", value: after.projectId || event.params.projectId },
+        { label: "Technique", value: formatTechnique(after) },
+        { label: "Client", value: after.clientName || after.client || "N/A" },
+        { label: "Location", value: after.locationName || after.location || "N/A" },
+        { label: "Status", value: after.status || "Assigned" },
+      ],
+      ctaLabel: "Open My Inspections",
+      ctaUrl: `${APP_URL}/my_inspection`,
+    });
+
+    await sendEmailToUser({
+      user: inspectorUser,
+      subject,
+      text,
+      html,
+      eventType: "project_reassigned_to_inspector_email",
+      payload: {
+        projectDocId: event.params.projectId,
+        projectId: after.projectId || "",
+        status: after.status || "",
+        previousInspectorId,
+        inspectorId: nextInspectorId,
+      },
+    });
+  },
+);
+
+export const notifyOnProjectReturnedForCorrectionEmail = onDocumentUpdated(
+  "projects/{projectId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const previousStatus = String(before.status || "").trim();
+    const nextStatus = String(after.status || "").trim();
+
+    if (
+      !startsWithReturnedForCorrection(nextStatus) ||
+      startsWithReturnedForCorrection(previousStatus)
+    ) {
+      return;
+    }
+
+    const inspectorUser = await getUserById(after.inspectorId);
+    if (!inspectorUser?.email) {
+      logger.warn("Skipping return-for-correction email because no inspector email was found.", {
+        projectId: event.params.projectId,
+        inspectorId: after.inspectorId || "",
+      });
+      return;
+    }
+
+    const feedbackMessage =
+      after.returnNote ||
+      after.remark ||
+      after.remarks ||
+      after.adminRemark ||
+      after.adminRemarks ||
+      "A reviewer requested corrections on your report submission.";
+
+    const subject = `InspectPro: ${formatProjectLabel(after)} returned for correction`;
+    const text =
+      `A project assigned to you has been returned for correction.\n` +
+      `Project: ${formatProjectLabel(after)}\n` +
+      `Technique: ${formatTechnique(after)}\n` +
+      `Client: ${after.clientName || after.client || "N/A"}\n` +
+      `Feedback: ${feedbackMessage}\n` +
+      `Open app: ${APP_URL}/my_inspection`;
+    const html = renderEmailShell({
+      heading: "Project Returned For Correction",
+      intro:
+        `${formatProjectLabel(after)} has been returned for correction. Review the feedback and update the report package.`,
+      details: [
+        { label: "Project", value: formatProjectLabel(after) },
+        { label: "Technique", value: formatTechnique(after) },
+        { label: "Client", value: after.clientName || after.client || "N/A" },
+        { label: "Feedback", value: feedbackMessage },
+      ],
+      ctaLabel: "Open My Inspections",
+      ctaUrl: `${APP_URL}/my_inspection`,
+    });
+
+    await sendEmailToUser({
+      user: inspectorUser,
+      subject,
+      text,
+      html,
+      eventType: "project_returned_for_correction_email",
+      payload: {
+        projectDocId: event.params.projectId,
+        projectId: after.projectId || "",
+        status: after.status || "",
+        inspectorId: after.inspectorId || "",
+      },
+    });
+  },
+);
+
+export const notifyOnClientReviewStartedEmail = onDocumentUpdated(
+  "projects/{projectId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const previousStatus = String(before.status || "").trim();
+    const nextStatus = String(after.status || "").trim();
+
+    if (!isClientReviewInProgress(nextStatus) || isClientReviewInProgress(previousStatus)) {
+      return;
+    }
+
+    const recipients = await Promise.all([
+      getUserById(after.inspectorId),
+      getUserById(after.supervisorId),
+      getUserById(after.managerId),
+      getUserById(after.externalReviewerId),
+      getUserById(after.externalReviewerId2),
+      getUserById(after.externalReviewerId3),
+      getUserById(after.externalReviewerId4),
+      getUserById(after.externalReviewerId5),
+      getUserById(after.externalReviewerId6),
+    ]);
+
+    const subject = `InspectPro: Client review started for ${formatProjectLabel(after)}`;
+    const text =
+      `Client review has started for a project in your workflow.\n` +
+      `Project: ${formatProjectLabel(after)}\n` +
+      `Technique: ${formatTechnique(after)}\n` +
+      `Client: ${after.clientName || after.client || "N/A"}\n` +
+      `Location: ${after.locationName || after.location || "N/A"}\n` +
+      `Open app: ${APP_URL}`;
+    const html = renderEmailShell({
+      heading: "Client Review Started",
+      intro:
+        `${formatProjectLabel(after)} is now in client review. Stakeholders can track reviewer feedback and final decision progress.`,
+      details: [
+        { label: "Project", value: formatProjectLabel(after) },
+        { label: "Technique", value: formatTechnique(after) },
+        { label: "Client", value: after.clientName || after.client || "N/A" },
+        { label: "Location", value: after.locationName || after.location || "N/A" },
+        { label: "Status", value: after.status || "Client Review In Progress" },
+      ],
+    });
+
+    await queueEmailToUsers({
+      users: recipients.filter(Boolean),
+      subject,
+      text,
+      html,
+      eventType: "client_review_started_email",
+      payload: {
+        projectDocId: event.params.projectId,
+        projectId: after.projectId || "",
+        status: after.status || "",
+      },
+    });
+  },
+);
+
+export const notifyOnFinalClientDecisionEmail = onDocumentUpdated(
+  "projects/{projectId}",
+  async (event) => {
+    const before = event.data?.before?.data();
+    const after = event.data?.after?.data();
+    if (!before || !after) return;
+
+    const previousStatus = String(before.status || "").trim();
+    const nextStatus = String(after.status || "").trim();
+    const becameAccepted = isReportAccepted(nextStatus) && !isReportAccepted(previousStatus);
+    const becameRejected = isReportRejected(nextStatus) && !isReportRejected(previousStatus);
+
+    if (!becameAccepted && !becameRejected) {
+      return;
+    }
+
+    const recipients = await Promise.all([
+      getUserById(after.inspectorId),
+      getUserById(after.supervisorId),
+      getUserById(after.managerId),
+      getUserById(after.externalReviewerId),
+      getUserById(after.externalReviewerId2),
+      getUserById(after.externalReviewerId3),
+      getUserById(after.externalReviewerId4),
+      getUserById(after.externalReviewerId5),
+      getUserById(after.externalReviewerId6),
+    ]);
+
+    const decisionLabel = becameAccepted ? "Report Accepted" : "Report Rejected";
+    const decisionBy =
+      after.clientReviewDecisionBy ||
+      after.reportAcceptedBy ||
+      after.reportRejectedBy ||
+      "External Reviewer";
+    const decisionAt =
+      after.clientReviewDecisionAt ||
+      after.reportAcceptedAt ||
+      after.reportRejectedAt ||
+      null;
+
+    const subject = `InspectPro: ${formatProjectLabel(after)} ${decisionLabel.toLowerCase()}`;
+    const text =
+      `${formatProjectLabel(after)} has reached a final client decision.\n` +
+      `Decision: ${decisionLabel}\n` +
+      `Decision By: ${decisionBy}\n` +
+      `Decision At: ${formatDate(decisionAt)}\n` +
+      `Technique: ${formatTechnique(after)}\n` +
+      `Open app: ${APP_URL}`;
+    const html = renderEmailShell({
+      heading: decisionLabel,
+      intro:
+        `${formatProjectLabel(after)} has been marked as ${decisionLabel.toLowerCase()} in the client review workflow.`,
+      details: [
+        { label: "Project", value: formatProjectLabel(after) },
+        { label: "Decision", value: decisionLabel },
+        { label: "Decision By", value: decisionBy },
+        { label: "Decision At", value: formatDate(decisionAt) },
+        { label: "Technique", value: formatTechnique(after) },
+      ],
+    });
+
+    await queueEmailToUsers({
+      users: recipients.filter(Boolean),
+      subject,
+      text,
+      html,
+      eventType: becameAccepted ? "report_accepted_email" : "report_rejected_email",
+      payload: {
+        projectDocId: event.params.projectId,
+        projectId: after.projectId || "",
+        status: after.status || "",
+        decisionBy,
+      },
+    });
+  },
+);
 
 export const notifyOnExternalFeedbackEmail = onDocumentCreated(
   "external_feedback/{feedbackId}",

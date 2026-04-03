@@ -21,6 +21,12 @@ const Login = () => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+      if (!user.emailVerified) {
+        toast.info("Verify your email before accessing the dashboard.");
+        navigate("/verify-email");
+        return;
+      }
+
       const docRef = doc(db, "users", user.uid);
       const docSnap = await getDoc(docRef);
 
@@ -28,6 +34,14 @@ const Login = () => {
         const userData = docSnap.data();
         const role = userData.role;
         const hasReviewerType = Boolean(String(userData.reviewerType || "").trim());
+        const isAdmin = role === "Admin";
+
+        if (!user.emailVerified && !isAdmin) {
+          toast.info("Verify your email before accessing the dashboard.");
+          navigate("/verify-email");
+          return;
+        }
+
         if (role === "Admin") navigate("/admin-dashboard");
         else if (role === "Manager") navigate("/ManagerDashboard");
         else if (
@@ -37,6 +51,9 @@ const Login = () => {
         ) navigate("/external-reviewer-dashboard");
         else if (role === "Lead Inspector") navigate("/SupervisorDashboard");
         else navigate("/inspectionDashboard");
+      } else if (!user.emailVerified) {
+        toast.info("Verify your email before accessing the dashboard.");
+        navigate("/verify-email");
       }
     } catch (error) {
       toast.error(getToastErrorMessage(error, "Unable to sign in."));

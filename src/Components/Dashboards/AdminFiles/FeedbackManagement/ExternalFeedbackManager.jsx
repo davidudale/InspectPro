@@ -38,9 +38,11 @@ const formatDateTime = (value) => {
 
 const ExternalFeedbackManager = () => {
   const [items, setItems] = useState([]);
+  const [notificationLogs, setNotificationLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedId, setSelectedId] = useState("");
+  const [selectedNotificationId, setSelectedNotificationId] = useState("");
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
@@ -59,6 +61,24 @@ const ExternalFeedbackManager = () => {
         })),
       );
       setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const logsRef = query(
+      collection(db, "notification_logs"),
+      orderBy("createdAt", "desc"),
+    );
+
+    const unsubscribe = onSnapshot(logsRef, (snapshot) => {
+      setNotificationLogs(
+        snapshot.docs.map((docItem) => ({
+          id: docItem.id,
+          ...docItem.data(),
+        })),
+      );
     });
 
     return () => unsubscribe();
@@ -90,11 +110,39 @@ const ExternalFeedbackManager = () => {
     [filteredItems, selectedId],
   );
 
+  const filteredNotificationLogs = useMemo(
+    () =>
+      notificationLogs.filter((item) => {
+        const term = searchTerm.trim().toLowerCase();
+        return (
+          !term ||
+          String(item.eventType || "").toLowerCase().includes(term) ||
+          String(item.recipientEmail || "").toLowerCase().includes(term) ||
+          String(item.recipientName || "").toLowerCase().includes(term) ||
+          String(item.subject || "").toLowerCase().includes(term) ||
+          String(item.payload?.projectId || "").toLowerCase().includes(term)
+        );
+      }),
+    [notificationLogs, searchTerm],
+  );
+
+  const selectedNotification = useMemo(
+    () =>
+      filteredNotificationLogs.find((item) => item.id === selectedNotificationId) || null,
+    [filteredNotificationLogs, selectedNotificationId],
+  );
+
   useEffect(() => {
     if (!selectedItem) {
       setSelectedId("");
     }
   }, [selectedItem]);
+
+  useEffect(() => {
+    if (!selectedNotification) {
+      setSelectedNotificationId("");
+    }
+  }, [selectedNotification]);
 
   const updateStatus = async (item, nextStatus) => {
     setUpdatingId(item.id);
@@ -260,6 +308,79 @@ const ExternalFeedbackManager = () => {
                     </table>
                   </div>
                 </div>
+
+                <div className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-900/40 shadow-2xl backdrop-blur-md">
+                  <div className="flex items-center gap-3 border-b border-slate-800 px-5 py-4">
+                    <Inbox size={18} className="text-orange-400" />
+                    <h2 className="text-sm font-bold uppercase tracking-[0.22em] text-white">
+                      Email Notification Log
+                    </h2>
+                  </div>
+                  <div className="max-h-[26rem] overflow-auto">
+                    {filteredNotificationLogs.length > 0 ? (
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="sticky top-0 z-10 bg-slate-950/95 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 backdrop-blur">
+                          <tr>
+                            <th className="px-4 py-4">S/N</th>
+                            <th className="px-4 py-4">Event</th>
+                            <th className="px-4 py-4">Recipient</th>
+                            <th className="px-4 py-4">Project</th>
+                            <th className="px-4 py-4">Delivery</th>
+                            <th className="px-4 py-4">Created</th>
+                            <th className="px-4 py-4">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredNotificationLogs.slice(0, 100).map((item, index) => (
+                            <tr
+                              key={item.id}
+                              className="border-t border-slate-800/80 transition hover:bg-slate-950/60"
+                            >
+                              <td className="px-4 py-4 text-slate-400">{index + 1}</td>
+                              <td className="px-4 py-4">
+                                <div className="font-semibold text-white">
+                                  {item.eventType || "notification_event"}
+                                </div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {item.subject || "No subject recorded"}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 text-slate-300">
+                                <div>{item.recipientName || "Unknown recipient"}</div>
+                                <div className="mt-1 text-xs text-slate-500">
+                                  {item.recipientEmail || "No email"}
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 text-slate-300">
+                                {item.payload?.projectId || item.payload?.projectDocId || "N/A"}
+                              </td>
+                              <td className="px-4 py-4">
+                                <NotificationStatusBadge status={item.status || "pending"} />
+                              </td>
+                              <td className="px-4 py-4 text-slate-400">
+                                {formatDateTime(item.createdAt)}
+                              </td>
+                              <td className="px-4 py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedNotificationId(item.id)}
+                                  className="inline-flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-[11px] font-bold uppercase tracking-[0.16em] text-orange-300 transition hover:bg-orange-500/20"
+                                >
+                                  <Eye size={14} />
+                                  View
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="px-6 py-12 text-center text-sm text-slate-500">
+                        No notification log records found yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center rounded-[3rem] border-2 border-dashed border-slate-800 bg-slate-900/10 py-32">
@@ -359,6 +480,62 @@ const ExternalFeedbackManager = () => {
           </div>
         </div>
       ) : null}
+
+      {selectedNotification ? (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl rounded-[2rem] border border-slate-800 bg-slate-900 shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-800 px-6 py-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">
+                  Notification Detail
+                </p>
+                <h2 className="mt-3 text-2xl font-bold text-white">
+                  {selectedNotification.subject || selectedNotification.eventType || "Notification"}
+                </h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  Sent to {selectedNotification.recipientName || "Unknown recipient"} ({selectedNotification.recipientEmail || "No email"})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedNotificationId("")}
+                className="rounded-xl border border-slate-700 bg-slate-950/70 p-2 text-slate-400 transition hover:border-slate-600 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[80vh] overflow-y-auto p-6">
+              <div className="grid gap-4 md:grid-cols-4">
+                <InfoCard label="Event" value={selectedNotification.eventType || "N/A"} />
+                <InfoCard label="Status" value={selectedNotification.status || "pending"} />
+                <InfoCard label="Project" value={selectedNotification.payload?.projectId || selectedNotification.payload?.projectDocId || "N/A"} />
+                <InfoCard label="Created" value={formatDateTime(selectedNotification.createdAt)} />
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/70 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-400">
+                  Payload
+                </p>
+                <pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-sm leading-7 text-slate-300">
+                  {JSON.stringify(selectedNotification.payload || {}, null, 2)}
+                </pre>
+              </div>
+
+              {selectedNotification.error ? (
+                <div className="mt-6 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-300">
+                    Error
+                  </p>
+                  <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-rose-100">
+                    {selectedNotification.error}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -380,6 +557,22 @@ const StatusBadge = ({ status }) => (
         : status === "In Review"
           ? "bg-amber-500/10 text-amber-300"
           : "bg-orange-500/10 text-orange-300"
+    }`}
+  >
+    {status}
+  </span>
+);
+
+const NotificationStatusBadge = ({ status }) => (
+  <span
+    className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${
+      status === "sent"
+        ? "bg-emerald-500/10 text-emerald-300"
+        : status === "queued"
+          ? "bg-amber-500/10 text-amber-300"
+          : status === "failed"
+            ? "bg-rose-500/10 text-rose-300"
+            : "bg-orange-500/10 text-orange-300"
     }`}
   >
     {status}

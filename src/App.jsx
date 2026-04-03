@@ -9,6 +9,7 @@ import { ProtectedRoute } from "./Components/Auth/ProtectedRoute.jsx";
 import GlobalProjectChatbox from "./Components/Common/GlobalProjectChatbox.jsx";
 import AdminDashboard from "./Components/Page/AdminDashboard.jsx";
 import Unauthorized from "./Components/Page/UnauthorizedPage.jsx";
+import VerifyEmail from "./Components/Page/VerifyEmail.jsx";
 import InspectionDashboard from "./Components/Page/InspectionDashboard.jsx";
 import UserPage from "./Components/Dashboards/AdminFiles/UserManagement/UserPage.jsx";
 import Adduser from "./Components/Dashboards/AdminFiles/UserManagement/Adduser.jsx";
@@ -79,6 +80,7 @@ function App() {
         <Route path="/" element={<Homepage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/unauthorized" element={<Unauthorized />} />
 
         {/* Inspector & Above */}

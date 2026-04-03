@@ -3,11 +3,16 @@ import Rig from "../../assets/Rig.jpg";
 import { useNavigate } from "react-router-dom";
 import { ArrowBigLeftIcon } from "lucide-react";
 import { auth, db } from "../Auth/firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../utils/toast";
 import { useConfirmDialog } from "../Common/ConfirmDialog";
+
+const verificationActionCodeSettings = {
+  url: `${window.location.origin}/login`,
+  handleCodeInApp: false,
+};
 
 const Register = () => {
   const [fname, setFname] = useState("");
@@ -38,22 +43,35 @@ const Register = () => {
           presenceState: "offline",
           lastSeen: serverTimestamp(),
           lastActiveAt: serverTimestamp(),
+          emailNotificationsEnabled: true,
+          notificationChannels: {
+            email: true,
+          },
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           authUid: user.uid,
         });
-      }
-      // Create a user document in Firestore with the role
 
-      toast.success("Registration successful. Please sign in.");
-      await openConfirm({
-        title: "Registration Successful",
-        message: "Registration Successful! Please log in.",
-        confirmLabel: "OK",
-        showCancel: false,
-        tone: "success",
-      });
-      navigate("/admin-dashboard");
+        if (role !== "Admin") {
+          await sendEmailVerification(user, verificationActionCodeSettings);
+          await auth.signOut();
+        }
+      }
+
+      if (role === "Admin") {
+        toast.success("Registration successful.");
+        navigate("/admin-dashboard");
+      } else {
+        toast.success("Registration successful. Verification email sent.");
+        await openConfirm({
+          title: "Verify Your Email",
+          message: "Registration successful. Please verify your email before signing in.",
+          confirmLabel: "OK",
+          showCancel: false,
+          tone: "success",
+        });
+        navigate("/login");
+      }
     } catch (error) {
       console.error(error.message);
       toast.error(getToastErrorMessage(error, "Unable to complete registration."));

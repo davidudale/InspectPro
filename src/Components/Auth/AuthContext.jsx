@@ -1,6 +1,6 @@
 import { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { auth, db, rtdb } from '../Auth/firebase'; // Import your Firebase instances
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, reload } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'; // Import Firestore methods
 import {
   onDisconnect,
@@ -71,6 +71,7 @@ export const AuthProvider = ({ children }) => {
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
+              emailVerified: firebaseUser.emailVerified,
               displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
               ...userData, // Spreads other profile fields if needed
               // Treat reviewerType-backed users as external reviewers for shared access control.
@@ -82,6 +83,7 @@ export const AuthProvider = ({ children }) => {
             setUser({
               uid: firebaseUser.uid,
               email: firebaseUser.email,
+              emailVerified: firebaseUser.emailVerified,
               role: null
             });
           }
@@ -198,6 +200,32 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshEmailVerification = async () => {
+    if (!auth.currentUser) return false;
+
+    await reload(auth.currentUser);
+    const refreshedUser = auth.currentUser;
+    const isVerified = Boolean(refreshedUser?.emailVerified);
+
+    setUser((currentUser) =>
+      currentUser
+        ? {
+            ...currentUser,
+            emailVerified: isVerified,
+          }
+        : currentUser,
+    );
+
+    if (refreshedUser?.uid) {
+      await updatePresenceDocument(refreshedUser.uid, {
+        emailVerified: isVerified,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    return isVerified;
+  };
+
   useEffect(() => {
     if (!user) {
       return;
@@ -245,7 +273,7 @@ export const AuthProvider = ({ children }) => {
   }, [user, inactivityLimitMs, warningOffsetMs, showTimeoutWarning]);
 
   return (
-    <AuthContext.Provider value={{ user, logout, loading }}>
+    <AuthContext.Provider value={{ user, logout, loading, refreshEmailVerification }}>
       {showTimeoutWarning && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
           <div className="w-full max-w-md mx-4 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">

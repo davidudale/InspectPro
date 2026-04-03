@@ -7,12 +7,14 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasUser, setHasUser] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   useEffect(() => {
     const checkRole = async () => {
       const user = auth.currentUser;
       if (user) {
         setHasUser(true);
+        setEmailVerified(Boolean(user.emailVerified));
         const docSnap = await getDoc(doc(db, "users", user.uid));
         const userData = docSnap.data() || {};
         const normalizedReviewerType = String(userData.reviewerType || "").trim();
@@ -34,6 +36,10 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (!hasUser) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (role !== "Admin" && !emailVerified) {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (allowedRoles.length === 0 || allowedRoles.includes(role)) {
