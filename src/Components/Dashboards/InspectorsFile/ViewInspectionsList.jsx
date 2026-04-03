@@ -185,7 +185,10 @@ const ViewInspectionsList = () => {
       status.startsWith("in lead review") ||
       status === "completed" ||
       status.startsWith("passed and forwarded to ") ||
-      status === "approved"
+      status === "approved" ||
+      status === "client review in progress" ||
+      status === "report accepted" ||
+      status === "report rejected"
     ) {
       return "completed";
     }

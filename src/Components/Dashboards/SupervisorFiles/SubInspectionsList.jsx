@@ -241,8 +241,18 @@ const SubInspectionsList = () => {
     [filteredProjects, groupBy],
   );
 
-  const getProjectFeedback = (project) =>
-    String(
+  const getProjectFeedback = (project) => {
+    const normalizedStatus = String(project?.status || "").trim().toLowerCase();
+    if (
+      normalizedStatus === "approved" ||
+      normalizedStatus === "client review in progress" ||
+      normalizedStatus === "report accepted" ||
+      normalizedStatus === "report rejected"
+    ) {
+      return "";
+    }
+
+    return String(
       project?.returnNote ||
       project?.remark ||
       project?.remarks ||
@@ -251,6 +261,7 @@ const SubInspectionsList = () => {
       project?.feedback ||
       "",
     ).trim();
+  };
 
   return (
     <>
@@ -405,6 +416,5 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
-
 
 

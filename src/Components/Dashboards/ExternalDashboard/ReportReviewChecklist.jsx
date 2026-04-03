@@ -54,7 +54,7 @@ const CHECKLIST_SECTIONS = [
   {
     key: "approvalDecision",
     title: "Approval Decision",
-    items: ["Approve report", "Reject report with feedback"],
+    items: ["Accept report", "Reject report with feedback"],
   },
 ];
 
@@ -86,6 +86,7 @@ const ReportReviewChecklist = () => {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeDecision, setActiveDecision] = useState("");
 
   useEffect(() => {
     if (!user?.uid) {
@@ -99,7 +100,11 @@ const ReportReviewChecklist = () => {
         id: projectDoc.id,
         ...projectDoc.data(),
       }))
-      .filter((project) => matchesExternalReviewerProject(project, user));
+      .filter((project) => matchesExternalReviewerProject(project, user))
+      .filter(
+        (project) =>
+          String(project.status || "").trim().toLowerCase() === "client review in progress",
+      );
       setProjects(nextProjects);
       setLoadingProjects(false);
     });
@@ -141,26 +146,9 @@ const ReportReviewChecklist = () => {
           });
           setReviewerCreatedAt(reviewerEntry.createdAt || null);
         } else {
-          const legacyChecklistRef = doc(db, "report_review_checklists", `${selectedProjectId}_${user?.uid}`);
-          const legacyChecklistSnap = await getDoc(legacyChecklistRef);
-
-          if (legacyChecklistSnap.exists()) {
-            const savedChecklist = legacyChecklistSnap.data()?.sections || {};
-            const savedSummary = legacyChecklistSnap.data()?.summary || {};
-            setChecklist({
-              ...buildDefaultChecklist(),
-              ...savedChecklist,
-            });
-            setReviewSummary({
-              ...buildDefaultReviewSummary(),
-              ...savedSummary,
-            });
-            setReviewerCreatedAt(legacyChecklistSnap.data()?.createdAt || null);
-          } else {
-            setChecklist(buildDefaultChecklist());
-            setReviewSummary(buildDefaultReviewSummary());
-            setReviewerCreatedAt(null);
-          }
+          setChecklist(buildDefaultChecklist());
+          setReviewSummary(buildDefaultReviewSummary());
+          setReviewerCreatedAt(null);
         }
       } catch (error) {
         toast.error(getToastErrorMessage(error, "Unable to load the checklist."));
@@ -268,7 +256,19 @@ const ReportReviewChecklist = () => {
   const handleDecisionSelect = async (sectionKey, decisionLabel) => {
     const nextChecklist = buildDecisionChecklistState(sectionKey, decisionLabel, checklist);
     setChecklist(nextChecklist);
-    await saveChecklistEntries("", nextChecklist, reviewSummary);
+    const nextSummary =
+      decisionLabel === "Reject report with feedback"
+        ? { ...reviewSummary, status: "Rejected" }
+        : reviewSummary;
+    if (nextSummary !== reviewSummary) {
+      setReviewSummary(nextSummary);
+    }
+    setActiveDecision(decisionLabel);
+    try {
+      await saveChecklistEntries("", nextChecklist, nextSummary);
+    } finally {
+      setActiveDecision("");
+    }
   };
 
   const handleViewReport = async () => {
@@ -441,6 +441,7 @@ const ReportReviewChecklist = () => {
                                     key={item}
                                     type="button"
                                     onClick={() => handleDecisionSelect(section.key, item)}
+                                    disabled={saving}
                                     className={`rounded-2xl border px-4 py-4 text-left text-sm font-bold transition ${
                                       isActive
                                         ? item.toLowerCase().includes("reject")
@@ -451,7 +452,11 @@ const ReportReviewChecklist = () => {
                                           : "border-emerald-900/50 bg-emerald-950/30 text-emerald-200 hover:border-emerald-500/50 hover:bg-emerald-500/10"
                                     }`}
                                   >
-                                    {item}
+                                    {saving && activeDecision === item
+                                      ? item.toLowerCase().includes("reject")
+                                        ? "Rejecting..."
+                                        : "Approving..."
+                                      : item}
                                   </button>
                                 );
                               })}

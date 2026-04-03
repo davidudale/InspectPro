@@ -102,7 +102,7 @@ const ProjectReviewing = () => {
   const [projects, setProjects] = useState([]);
   const [checklistEntries, setChecklistEntries] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [clientFilter, setClientFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState("all");
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [remarkProject, setRemarkProject] = useState(null);
   const [feedbackProject, setFeedbackProject] = useState(null);
@@ -241,8 +241,8 @@ const ProjectReviewing = () => {
     )
     .filter(
       (project) =>
-        clientFilter === "all" ||
-        String(project.clientName || project.client || "").toLowerCase() === clientFilter,
+        projectFilter === "all" ||
+        String(project.projectName || project.projectId || project.id || "").toLowerCase() === projectFilter,
     )
     .sort(
       (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
@@ -413,6 +413,9 @@ const ProjectReviewing = () => {
     return getReviewerStatus(project, matchedColumn);
   };
 
+  const shouldShowValidateReport = (project) =>
+    getSelfReviewerStatus(project).label !== "Accepted";
+
   const getReviewerChecklistDetails = (project, column) => {
     const reviewerId = String(project?.[column.idKey] || "").trim();
     const reviewerName = String(project?.[column.nameKey] || "").trim();
@@ -554,9 +557,20 @@ const ProjectReviewing = () => {
     return null;
   };
 
-  const openFeedbackModal = (project) => {
+  const openFeedbackModal = async (project) => {
     if (!project?.id) {
       toast.error("Project reference is missing.");
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, "projects", project.id), {
+        status: "Client Review In Progress",
+        clientReviewStartedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (error) {
+      toast.error(getToastErrorMessage(error, "Unable to start client review."));
       return;
     }
 
@@ -574,6 +588,18 @@ const ProjectReviewing = () => {
 
   const closeRemarkModal = () => {
     if (isSubmittingRemarkDecision) return;
+    setRemarkProject(null);
+  };
+
+  const openRejectFeedbackFromRemark = () => {
+    if (!remarkProject) {
+      toast.error("Project reference is missing.");
+      return;
+    }
+
+    setFeedbackProject(remarkProject);
+    setFeedbackDecision("Rejected");
+    setFeedbackMessage("");
     setRemarkProject(null);
   };
 
@@ -672,6 +698,25 @@ const ProjectReviewing = () => {
         createdAt: serverTimestamp(),
       });
 
+      await updateDoc(doc(db, "projects", feedbackProject.id), {
+        status: feedbackDecision === "Approved" ? "Report Accepted" : "Report Rejected",
+        updatedAt: serverTimestamp(),
+        clientReviewDecisionAt: serverTimestamp(),
+        clientReviewDecisionBy:
+          user.fullName || user.name || user.displayName || user.email || "External Reviewer",
+        clientReviewDecisionById: user.uid,
+        reportAcceptedAt: feedbackDecision === "Approved" ? serverTimestamp() : null,
+        reportAcceptedBy:
+          feedbackDecision === "Approved"
+            ? user.fullName || user.name || user.displayName || user.email || "External Reviewer"
+            : null,
+        reportRejectedAt: feedbackDecision === "Rejected" ? serverTimestamp() : null,
+        reportRejectedBy:
+          feedbackDecision === "Rejected"
+            ? user.fullName || user.name || user.displayName || user.email || "External Reviewer"
+            : null,
+      });
+
       toast.success(
         feedbackDecision === "Approved"
           ? "Approval and commendation sent to admin."
@@ -688,16 +733,6 @@ const ProjectReviewing = () => {
   const handleViewReport = async (projectId) => {
     if (!projectId) {
       toast.error("Project reference is missing.");
-      return;
-    }
-
-    try {
-      await updateDoc(doc(db, "projects", projectId), {
-        status: "Client Review In Progress",
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      toast.error(getToastErrorMessage(error, "Unable to update the project status."));
       return;
     }
 
@@ -724,20 +759,24 @@ const ProjectReviewing = () => {
         <TableQueryControls
         filters={[
            {
-             key: "client",
-             label: "Client Filter",
-             value: clientFilter,
-             onChange: setClientFilter,
-             options: [
-               { value: "all", label: "All Clients" },
-               ...Array.from(
-                 new Set(projects.map((project) => project.clientName || project.client).filter(Boolean)),
-               ).map((client) => ({
-                 value: String(client).toLowerCase(),
-                 label: client,
-               })),
-             ],
-           },
+              key: "project",
+              label: "Project Filter",
+              value: projectFilter,
+              onChange: setProjectFilter,
+              options: [
+                { value: "all", label: "All Projects" },
+                ...Array.from(
+                  new Set(
+                    projects
+                      .map((project) => project.projectName || project.projectId || project.id)
+                      .filter(Boolean),
+                  ),
+                ).map((projectLabel) => ({
+                  value: String(projectLabel).toLowerCase(),
+                  label: projectLabel,
+                })),
+              ],
+            },
          ]}
           groupBy={groupBy}
           onGroupByChange={setGroupBy}
@@ -794,6 +833,7 @@ const ProjectReviewing = () => {
                         const reviewStartedAt = getReviewStartedAt(project);
                         const lastReviewerUpdateAt = getLastReviewerUpdateAt(project);
                         const decisionTime = getDecisionTime(project);
+                        const selfReviewerStatus = getSelfReviewerStatus(project);
                         const isInProgress = operationalStatus
                           .toLowerCase()
                           .startsWith("in progress");
@@ -908,13 +948,15 @@ const ProjectReviewing = () => {
                               >
                                 View Report
                               </button>
+                              {shouldShowValidateReport(project) ? (
                                 <button 
-                                onClick={() => openFeedbackModal(project)}
-                                className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
-                                title="Validate Report"
-                              >
-                                Validate Report 
-                              </button>
+                                  onClick={() => openFeedbackModal(project)}
+                                  className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
+                                  title="Validate Report"
+                                >
+                                  Validate Report 
+                                </button>
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -981,7 +1023,15 @@ const ProjectReviewing = () => {
                           </h3>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em]">
-                          <span className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-slate-300">
+                          <span
+                            className={`rounded-full border px-3 py-1 ${
+                              String(detail.status || "").toLowerCase() === "rejected"
+                                ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                                : String(detail.status || "").toLowerCase() === "accepted"
+                                  ? "border-orange-500/40 bg-orange-500/10 text-orange-300"
+                                  : "border-slate-700 bg-slate-900/60 text-slate-300"
+                            }`}
+                          >
                             {detail.status}
                           </span>
                           <span className="rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1 text-slate-400">
@@ -1033,11 +1083,11 @@ const ProjectReviewing = () => {
           <div className="flex flex-col gap-3 border-t border-slate-800 px-6 py-5 sm:flex-row sm:justify-end">
             <button
               type="button"
-              onClick={() => handleRemarkDecision("Report Rejected")}
+              onClick={openRejectFeedbackFromRemark}
               disabled={isSubmittingRemarkDecision}
               className="rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-3 text-sm font-bold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmittingRemarkDecision ? "Processing..." : "Reject"}
+              {isSubmittingRemarkDecision ? "Processing..." : "Reject With Feedback"}
             </button>
             <button
               type="button"

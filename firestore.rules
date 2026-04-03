@@ -148,6 +148,11 @@ service cloud.firestore {
              data.inspectorId == request.auth.uid ||
              data.supervisorId == request.auth.uid ||
              data.externalReviewerId == request.auth.uid ||
+             data.externalReviewerId2 == request.auth.uid ||
+             data.externalReviewerId3 == request.auth.uid ||
+             data.externalReviewerId4 == request.auth.uid ||
+             data.externalReviewerId5 == request.auth.uid ||
+             data.externalReviewerId6 == request.auth.uid ||
              data.managerId == request.auth.uid;
     }
 
