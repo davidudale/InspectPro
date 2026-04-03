@@ -2483,7 +2483,7 @@ const UTReport = ({
 
             </div>
             {user?.role === "Inspector" && !hideSaveReportButton && (
-              <div className="mt-8 flex justify-end">
+              <div className="mt-8 flex justify-start">
                 <button
                   onClick={handleSave}
                   disabled={isSaving}

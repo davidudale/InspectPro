@@ -38,6 +38,31 @@ const buildUniqueCode = (prefix) => {
   return `${prefix}/${year}/${sequence}`;
 };
 
+const buildChatParticipants = (project) =>
+  [
+    {
+      key: "inspector",
+      label: "Inspector",
+      id: project.inspectorId,
+      name: project.inspectorName,
+    },
+    {
+      key: "supervisor",
+      label: "Lead Inspector",
+      id: project.supervisorId,
+      name: project.supervisorName,
+    },
+    {
+      key: "manager",
+      label: "NDE Reviewer",
+      id: project.managerId,
+      name: project.managerName,
+    },
+  ].filter((participant) => participant.id || participant.name);
+
+const buildChatParticipantIds = (project) =>
+  [project.inspectorId, project.supervisorId, project.managerId].filter(Boolean);
+
 const ProjectSetup = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -269,8 +294,7 @@ const ProjectSetup = () => {
         setupData.contractNumber || buildUniqueCode("PEL-WPQ");
 
       const assignedInspectorName = setupData.inspectorName || "Inspector";
-
-      await setDoc(projectRef, {
+      const projectPayload = {
         ...setupData,
         status: `Not started- Report With ${assignedInspectorName}`,
         reportNum,
@@ -278,7 +302,44 @@ const ProjectSetup = () => {
         adminId: user?.uid || "",
         adminName: user?.displayName || user?.name || "System Admin",
         deploymentDate: serverTimestamp(),
-      });
+      };
+
+      await setDoc(projectRef, projectPayload);
+
+      const chatThreadId = String(projectPayload.projectId || projectRef.id).trim();
+      if (chatThreadId) {
+        await setDoc(
+          doc(db, "project_chats", chatThreadId),
+          {
+            projectId: projectPayload.projectId || chatThreadId,
+            projectDocId: projectRef.id,
+            projectName: projectPayload.projectName || "",
+            clientName: projectPayload.clientName || projectPayload.client || "",
+            participantIds: buildChatParticipantIds(projectPayload),
+            participants: buildChatParticipants(projectPayload),
+            lastMessageText: `Project forwarded to ${assignedInspectorName}.`,
+            lastMessageSenderId: user?.uid || "",
+            lastMessageSenderName: user?.displayName || user?.name || user?.email || "System Admin",
+            lastMessageAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+
+        await setDoc(
+          doc(collection(db, "project_chats", chatThreadId, "messages")),
+          {
+            text: `Project forwarded to ${assignedInspectorName}. Chat activated for the assigned review team.`,
+            projectId: projectPayload.projectId || chatThreadId,
+            projectDocId: projectRef.id,
+            userId: user?.uid || "",
+            userEmail: user?.email || "",
+            userName: user?.displayName || user?.name || user?.email || "System Admin",
+            userRole: user?.role || "Admin",
+            timestamp: serverTimestamp(),
+          },
+        );
+      }
 
       await addDoc(collection(db, "activity_logs"), {
         message: `Project Deployed: ${setupData.projectName}`,

@@ -25,6 +25,12 @@ const ApprovedProjects = () => {
   const [techniqueFilter, setTechniqueFilter] = useState("all");
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
+  const visibleStatuses = [
+    "approved",
+    "client review in progress",
+    "report accepted",
+    "report rejected",
+  ];
 
   const toMillis = (value) => {
     if (!value) return 0;
@@ -75,11 +81,10 @@ const ApprovedProjects = () => {
 
     const approvedQuery =
       user?.role === "Manager" || user?.role === "Admin"
-        ? query(collection(db, "projects"), where("status", "==", "Approved"))
+        ? query(collection(db, "projects"))
         : query(
             collection(db, "projects"),
             where("supervisorId", "==", user.uid),
-            where("status", "==", "Approved"),
           );
 
     const unsubscribe = onSnapshot(approvedQuery, (snapshot) => {
@@ -99,6 +104,8 @@ const ApprovedProjects = () => {
       projects
         .filter((project) => {
           const searchValue = searchTerm.toLowerCase();
+          const normalizedStatus = String(project.status || "").trim().toLowerCase();
+          const matchesStatus = visibleStatuses.includes(normalizedStatus);
           const matchesSearch =
             String(project.projectName || "").toLowerCase().includes(searchValue) ||
             String(project.clientName || "").toLowerCase().includes(searchValue) ||
@@ -108,7 +115,7 @@ const ApprovedProjects = () => {
           const matchesTechnique =
             techniqueFilter === "all" ||
             String(resolveTechnique(project)).toLowerCase() === techniqueFilter;
-          return matchesSearch && matchesTechnique;
+          return matchesStatus && matchesSearch && matchesTechnique;
         })
         .sort((a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a))),
     [projects, searchTerm, techniqueFilter],

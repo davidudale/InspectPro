@@ -958,9 +958,9 @@ const ProjectReviewing = () => {
           </div>
           <div className="overflow-y-auto px-6 py-6">
             <div className="space-y-4">
-              <div className="rounded-2xl border border-slate-800 bg-[#060b17] p-4 text-sm leading-7 text-slate-300 whitespace-pre-wrap">
+             {/* <div className="rounded-2xl border border-slate-800 bg-[#060b17] p-4 text-sm leading-7 text-slate-300 whitespace-pre-wrap">
                 {getProjectRemark(remarkProject) || "No remark available for this project yet."}
-              </div>
+              </div>*/}
 
               <div className="grid gap-4">
                 {reviewerColumns.map((column) => {

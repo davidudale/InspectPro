@@ -241,6 +241,17 @@ const SubInspectionsList = () => {
     [filteredProjects, groupBy],
   );
 
+  const getProjectFeedback = (project) =>
+    String(
+      project?.returnNote ||
+      project?.remark ||
+      project?.remarks ||
+      project?.adminRemark ||
+      project?.adminRemarks ||
+      project?.feedback ||
+      "",
+    ).trim();
+
   return (
     <>
       {ConfirmDialog}
@@ -286,7 +297,7 @@ const SubInspectionsList = () => {
         }
       >
         <div className="table-scroll-region max-h-[68vh] overflow-auto">
-          <table className="w-full min-w-[840px] text-left border-collapse">
+          <table className="w-full min-w-[1040px] text-left border-collapse">
                     <thead>
                       <tr className="border-b border-slate-800/80 bg-[#0b1326]">
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Project Identity</th>
@@ -294,6 +305,7 @@ const SubInspectionsList = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Facility</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Status</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Feedback</th>
                         <th className="px-3 py-3 text-right text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Approval Actions</th>
                       </tr>
                     </thead>
@@ -303,7 +315,7 @@ const SubInspectionsList = () => {
                           {groupBy !== TABLE_GROUP_NONE ? (
                             <tr className="bg-[#08101f]">
                               <td
-                                colSpan="6"
+                                colSpan="7"
                                 className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
                                 {group.label} ({group.items.length})
@@ -342,6 +354,11 @@ const SubInspectionsList = () => {
                             <div className="flex items-center gap-2 text-slate-400">
                               <MapPin size={14} className="text-orange-500/50" />
                               <span className="text-xs font-medium">{project.status}</span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div className="max-w-[260px] text-xs leading-5 text-slate-300 whitespace-pre-wrap">
+                              {getProjectFeedback(project) || "N/A"}
                             </div>
                           </td>
 
@@ -388,7 +405,6 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
-
 
 
 

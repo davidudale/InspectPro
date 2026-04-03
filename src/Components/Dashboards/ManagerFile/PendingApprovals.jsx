@@ -151,6 +151,10 @@ const PendingApprovals = () => {
       (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
     );
 
+  const pendingApprovalCount = filteredProjects.filter((project) =>
+    String(project?.status || "").toLowerCase().startsWith("passed and forwarded"),
+  ).length;
+
   const groupedProjects = groupRowsByOption(filteredProjects, groupBy, [
     {
       value: "status",
@@ -178,7 +182,7 @@ const PendingApprovals = () => {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         searchPlaceholder="Search reviews..."
-        summary={`${filteredProjects.length} Pending Approval${filteredProjects.length === 1 ? "" : "s"}`}
+        summary={`${pendingApprovalCount} Pending Approval${pendingApprovalCount === 1 ? "" : "s"}`}
         loading={loading}
         hasData={filteredProjects.length > 0}
         emptyTitle="No Pending Approvals"
@@ -292,12 +296,12 @@ const PendingApprovals = () => {
                                 state: { preFill: { ...project, assetType: project.equipmentCategory || project.assetType } } 
                               })}
                                className="bg-orange-600 hover:bg-orange-700 text-white ml-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.16em] transition-all shadow-lg "
-                            >
+                             >
                              {String(project?.status || "")
                                .toLowerCase()
                                .startsWith("passed and forwarded")
-                               ? "Review"
-                               : "View"}
+                                ? "Review"
+                                : "View"}
                             </button>
                           </td>
                         </tr>

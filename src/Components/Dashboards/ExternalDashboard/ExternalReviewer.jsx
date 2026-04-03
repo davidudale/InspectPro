@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  Activity,
   ArrowRight,
   ClipboardCheck,
   Clock,
@@ -10,6 +11,8 @@ import {
   MessageSquareText,
   RefreshCw,
 } from "lucide-react";
+import { ArcElement, Chart as ChartJS, Legend, Tooltip } from "chart.js";
+import { Doughnut } from "react-chartjs-2";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -18,6 +21,8 @@ import { useAuth } from "../../Auth/AuthContext";
 import ExternalSideBar from "./ExternalSideBar";
 import ExternalNavbar from "./ExternalNavbar";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
+
+ChartJS.register(ArcElement, Legend, Tooltip);
 
 const ExternalReviewer = () => {
   const { user } = useAuth();
@@ -180,6 +185,74 @@ const ExternalReviewer = () => {
     },
   ];
 
+  const stats = [
+    {
+      label: "Assigned Projects",
+      value: loading ? "..." : String(metrics.total),
+      icon: <Inbox className="text-orange-500" size={16} />,
+      trend: "Projects currently assigned into your external review workspace.",
+    },
+    {
+      label: "Approved Reports",
+      value: loading ? "..." : String(metrics.viewedReports),
+      icon: <Eye className="text-orange-500" size={16} />,
+      trend: "Approved project reports available for independent review.",
+    },
+    {
+      label: "Awaiting Review",
+      value: loading ? "..." : String(metrics.awaitingReview),
+      icon: <FileWarning className="text-orange-500" size={16} />,
+      trend: "Approved reports that still need your feedback or sign-off.",
+    },
+    {
+      label: "Feedback Provided",
+      value: loading ? "..." : String(metrics.feedbackProvided),
+      icon: <MessageSquareText className="text-orange-500" size={16} />,
+      trend: "Review notes and response items already sent back to the team.",
+    },
+  ];
+
+  const doughnutOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "72%",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#020617",
+          borderColor: "rgba(148,163,184,0.2)",
+          borderWidth: 1,
+          titleColor: "#f8fafc",
+          bodyColor: "#cbd5e1",
+        },
+      },
+    }),
+    [],
+  );
+
+  const statCardCharts = useMemo(
+    () => [
+      {
+        data: [metrics.total, Math.max(metrics.viewedReports + metrics.feedbackProvided, 1)],
+        colors: ["#f97316", "rgba(148,163,184,0.16)"],
+      },
+      {
+        data: [metrics.viewedReports, Math.max(metrics.total - metrics.viewedReports, 1)],
+        colors: ["#10b981", "rgba(148,163,184,0.16)"],
+      },
+      {
+        data: [metrics.awaitingReview, Math.max(metrics.viewedReports - metrics.awaitingReview, 1)],
+        colors: ["#f43f5e", "rgba(148,163,184,0.16)"],
+      },
+      {
+        data: [metrics.feedbackProvided, Math.max(metrics.total - metrics.feedbackProvided, 1)],
+        colors: ["#38bdf8", "rgba(148,163,184,0.16)"],
+      },
+    ],
+    [metrics],
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-950 text-slate-200">
       <ExternalNavbar />
@@ -208,7 +281,7 @@ const ExternalReviewer = () => {
                       Control Center
                     </p>
                     <h1 className="text-3xl font-black tracking-tight text-white lg:text-5xl">
-                      Reviewer Visibility
+                      External Visibility
                     </h1>
                     <p className="max-w-2xl text-sm leading-7 text-slate-400 lg:text-base">
                       Track assigned reviews, approved reports, and external feedback from one
@@ -234,30 +307,48 @@ const ExternalReviewer = () => {
             </header>
 
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-              <MetricCard
-                icon={<Inbox className="text-orange-500" size={16} />}
-                label="Assigned Projects"
-                value={loading ? "..." : metrics.total}
-                description="Projects currently assigned into your external review workspace."
-              />
-              <MetricCard
-                icon={<Eye className="text-orange-500" size={16} />}
-                label="Approved Reports"
-                value={loading ? "..." : metrics.viewedReports}
-                description="Approved project reports available for independent review."
-              />
-              <MetricCard
-                icon={<FileWarning className="text-orange-500" size={16} />}
-                label="Awaiting Review"
-                value={loading ? "..." : metrics.awaitingReview}
-                description="Approved reports that still need your feedback or sign-off."
-              />
-              <MetricCard
-                icon={<MessageSquareText className="text-orange-500" size={16} />}
-                label="Feedback Provided"
-                value={loading ? "..." : metrics.feedbackProvided}
-                description="Review notes and response items already sent back to the team."
-              />
+              {stats.map((stat, index) => (
+                <div
+                  key={stat.label}
+                  className="flex h-full min-h-[220px] flex-col rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700"
+                >
+                  <div className="mb-5 flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950">
+                      {stat.icon}
+                    </div>
+                  </div>
+                  <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-5">
+                    <div className="flex min-w-0 h-full flex-col justify-between">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">
+                        {stat.label}
+                      </p>
+                      <p className="mt-4 max-w-[15rem] text-sm leading-7 text-slate-400">
+                        {stat.trend}
+                      </p>
+                    </div>
+                    <div className="relative h-24 w-24 shrink-0 self-center rounded-[1.25rem] border border-slate-800 bg-slate-950/70 p-3">
+                      <Doughnut
+                        data={{
+                          labels: [stat.label, "Remaining"],
+                          datasets: [
+                            {
+                              data: statCardCharts[index].data,
+                              backgroundColor: statCardCharts[index].colors,
+                              borderWidth: 0,
+                            },
+                          ],
+                        }}
+                        options={doughnutOptions}
+                      />
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span className="text-2xl font-black leading-none text-white">
+                          {stat.value}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.3fr_1fr]">
@@ -265,10 +356,10 @@ const ExternalReviewer = () => {
                 <div className="mb-6 flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.36em] text-slate-500">
-                      Recent Assignments
+                      Recent Activity
                     </p>
                     <h2 className="mt-3 text-2xl font-black text-white">
-                      Latest Review Workspace Updates
+                      Latest External Review Updates
                     </h2>
                   </div>
                   <button
@@ -390,19 +481,6 @@ const ExternalReviewer = () => {
     </div>
   );
 };
-
-const MetricCard = ({ icon, label, value, description }) => (
-  <div className="rounded-[1.6rem] border border-slate-800 bg-[#0a1122] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition hover:border-slate-700">
-    <div className="mb-5 flex items-start justify-between">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-950">
-        {icon}
-      </div>
-    </div>
-    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-200/80">{label}</p>
-    <p className="mt-2 text-5xl font-black leading-none text-white">{value}</p>
-    <p className="mt-4 max-w-[16rem] text-sm leading-7 text-slate-400">{description}</p>
-  </div>
-);
 
 const SnapshotRow = ({ label, value }) => (
   <div className="rounded-[1.4rem] border border-slate-800 bg-slate-950/70 px-4 py-4">

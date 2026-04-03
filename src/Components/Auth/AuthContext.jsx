@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showTimeoutWarning, setShowTimeoutWarning] = useState(false);
-  const inactivityLimitMs = 15 * 60 * 1000;
+  const inactivityLimitMs = 5 * 60 * 1000;
   const warningOffsetMs = 1 * 60 * 1000;
   const resetTimerRef = useRef(null);
 
