@@ -18,11 +18,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../Auth/AuthContext";
 import ExternalSideBar from "../../ExternalDashboard/ExternalSideBar";
 import ExternalNavbar from "../../ExternalDashboard/ExternalNavbar";
-
-const verificationActionCodeSettings = {
-  url: `${window.location.origin}/login`,
-  handleCodeInApp: false,
-};
+import { getVerificationActionCodeSettings } from "../../../../utils/emailVerification";
 
 const Adduser = () => {
   const { user: currentUser } = useAuth();
@@ -95,7 +91,7 @@ const Adduser = () => {
           authUid: createdUser.uid,
         });
         if (role !== "Admin") {
-          await sendEmailVerification(createdUser, verificationActionCodeSettings);
+          await sendEmailVerification(createdUser, getVerificationActionCodeSettings());
         }
         await secondaryAuth.signOut();
       }

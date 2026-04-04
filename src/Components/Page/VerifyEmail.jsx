@@ -6,11 +6,7 @@ import { toast } from "react-toastify";
 import { auth } from "../Auth/firebase";
 import { useAuth } from "../Auth/AuthContext";
 import { getToastErrorMessage } from "../../utils/toast";
-
-const verificationActionCodeSettings = {
-  url: `${window.location.origin}/login`,
-  handleCodeInApp: false,
-};
+import { getVerificationActionCodeSettings } from "../../utils/emailVerification";
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
@@ -31,7 +27,7 @@ const VerifyEmail = () => {
 
     setIsSending(true);
     try {
-      await sendEmailVerification(auth.currentUser, verificationActionCodeSettings);
+      await sendEmailVerification(auth.currentUser, getVerificationActionCodeSettings());
       toast.success("Verification email sent again.");
     } catch (error) {
       toast.error(getToastErrorMessage(error, "Unable to resend verification email."));

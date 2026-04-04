@@ -8,11 +8,7 @@ import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../utils/toast";
 import { useConfirmDialog } from "../Common/ConfirmDialog";
-
-const verificationActionCodeSettings = {
-  url: `${window.location.origin}/login`,
-  handleCodeInApp: false,
-};
+import { getVerificationActionCodeSettings } from "../../utils/emailVerification";
 
 const Register = () => {
   const [fname, setFname] = useState("");
@@ -53,7 +49,7 @@ const Register = () => {
         });
 
         if (role !== "Admin") {
-          await sendEmailVerification(user, verificationActionCodeSettings);
+          await sendEmailVerification(user, getVerificationActionCodeSettings());
           await auth.signOut();
         }
       }

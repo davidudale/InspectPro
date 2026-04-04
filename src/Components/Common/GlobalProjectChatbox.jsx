@@ -6,7 +6,8 @@ import ProjectChatbox from "./ProjectChatbox";
 const HIDDEN_CHAT_PATHS = new Set(["/", "/login", "/register", "/unauthorized"]);
 
 const GlobalProjectChatbox = () => {
-  const { user } = useAuth();
+  const authState = useAuth();
+  const user = authState?.user ?? null;
   const location = useLocation();
   const role = String(user?.role || "").trim();
 

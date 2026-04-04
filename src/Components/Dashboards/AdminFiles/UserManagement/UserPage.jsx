@@ -23,7 +23,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../Auth/AuthContext";
 import ExternalNavbar from "../../ExternalDashboard/ExternalNavbar";
 import ExternalSideBar from "../../ExternalDashboard/ExternalSideBar";
-
+import { getVerificationActionCodeSettings } from "../../../../utils/emailVerification";
 const DEFAULT_ROLE = "Inspector";
 const ROLE_OPTIONS = [
   "Admin",
@@ -40,11 +40,6 @@ const REVIEWER_TYPE_OPTIONS = [
   "Verification officer_4",
   "Verification officer_5",
 ];
-const verificationActionCodeSettings = {
-  url: `${window.location.origin}/login`,
-  handleCodeInApp: false,
-};
-
 const EMPTY_FORM = {
   name: "",
   email: "",
@@ -268,12 +263,42 @@ const UserPage = () => {
           authUid: newUserId,
         });
 
+        let verificationEmailSent = false;
         if (normalizedDataToSave.role !== "Admin") {
-          await sendEmailVerification(userCredential.user, verificationActionCodeSettings);
+          try {
+            await sendEmailVerification(
+              userCredential.user,
+              getVerificationActionCodeSettings(),
+            );
+            verificationEmailSent = true;
+            console.info("Verification email sent successfully.", {
+              uid: newUserId,
+              email: normalizedDataToSave.email,
+              role: normalizedDataToSave.role,
+            });
+          } catch (verificationError) {
+            console.error("Verification email failed to send.", {
+              uid: newUserId,
+              email: normalizedDataToSave.email,
+              role: normalizedDataToSave.role,
+              code: verificationError?.code || "unknown",
+              message: verificationError?.message || "Unknown verification email error.",
+            });
+            toast.warning(
+              `User profile created, but the verification email could not be sent: ${getToastErrorMessage(
+                verificationError,
+                "Please verify the Firebase email configuration and try again.",
+              )}`,
+            );
+          }
         }
 
         await secondaryAuth.signOut();
-        toast.success("User profile created.");
+        if (normalizedDataToSave.role === "Admin") {
+          toast.success("Admin profile created.");
+        } else if (verificationEmailSent) {
+          toast.success("User profile created and verification email sent.");
+        }
       }
 
       handleCloseModal();

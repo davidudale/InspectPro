@@ -23,15 +23,19 @@ export const AuthProvider = ({ children }) => {
 
   const updatePresenceDocument = async (uid, payload) => {
     if (!uid) return;
+    if (auth.currentUser?.uid !== uid) return;
     try {
       await setDoc(doc(db, "users", uid), payload, { merge: true });
     } catch (error) {
-      console.error("Error updating presence document:", error);
+      if (error?.code !== "permission-denied" && error?.code !== "auth/permission-denied") {
+        console.error("Error updating presence document:", error);
+      }
     }
   };
 
   const markUserOffline = async (uid, email = "") => {
     if (!uid) return;
+    if (auth.currentUser?.uid !== uid) return;
 
     await Promise.allSettled([
       updatePresenceDocument(uid, {
@@ -50,11 +54,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Force sign-out on app start (aggressive: clears any persisted session)
-    auth.signOut().catch((error) => {
-      console.error("Error forcing sign-out:", error);
-    });
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
@@ -170,7 +169,9 @@ export const AuthProvider = ({ children }) => {
           updatedAt: serverTimestamp(),
         });
       } catch (error) {
-        console.error("Error syncing live presence:", error);
+        if (error?.code !== "permission-denied" && error?.code !== "auth/permission-denied") {
+          console.error("Error syncing live presence:", error);
+        }
       }
     });
 
@@ -299,4 +300,10 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () =>
+  useContext(AuthContext) || {
+    user: null,
+    logout: async () => {},
+    loading: true,
+    refreshEmailVerification: async () => false,
+  };
