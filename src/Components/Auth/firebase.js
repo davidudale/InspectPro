@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { browserSessionPersistence, getAuth, setPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
@@ -25,3 +25,10 @@ export const storage = getStorage(app);
 // We give it a unique name "Secondary" so it doesn't conflict with the main session
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryApp);
+
+export const authPersistenceReady = Promise.all([
+  setPersistence(auth, browserSessionPersistence),
+  setPersistence(secondaryAuth, browserSessionPersistence),
+]).catch((error) => {
+  console.error("Failed to apply session-only auth persistence:", error);
+});

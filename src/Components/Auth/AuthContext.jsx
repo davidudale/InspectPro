@@ -1,5 +1,5 @@
 import { createContext, useState, useContext, useEffect, useRef } from 'react';
-import { auth, db, rtdb } from '../Auth/firebase'; // Import your Firebase instances
+import { auth, authPersistenceReady, db, rtdb } from '../Auth/firebase'; // Import your Firebase instances
 import { onAuthStateChanged, reload } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'; // Import Firestore methods
 import {
@@ -54,49 +54,62 @@ export const AuthProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          // --- NEW: Fetch dynamic role from Firestore ---
-          const userDocRef = doc(db, "users", firebaseUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
+    let unsubscribe = () => {};
+    let isMounted = true;
 
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            const normalizedReviewerType = String(userData.reviewerType || "").trim();
-            const normalizedRole =
-              normalizedReviewerType ? "External_Reviewer" : (userData.role || "Inspector");
-            
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              emailVerified: firebaseUser.emailVerified,
-              displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
-              ...userData, // Spreads other profile fields if needed
-              // Treat reviewerType-backed users as external reviewers for shared access control.
-              role: normalizedRole,
-              reviewerType: normalizedReviewerType,
-            });
-          } else {
-            // Fallback if auth exists but Firestore profile is missing
-            setUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              emailVerified: firebaseUser.emailVerified,
-              role: null
-            });
+    const initializeAuthState = async () => {
+      await authPersistenceReady;
+      if (!isMounted) return;
+
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          try {
+            // --- NEW: Fetch dynamic role from Firestore ---
+            const userDocRef = doc(db, "users", firebaseUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+
+            if (userDocSnap.exists()) {
+              const userData = userDocSnap.data();
+              const normalizedReviewerType = String(userData.reviewerType || "").trim();
+              const normalizedRole =
+                normalizedReviewerType ? "External_Reviewer" : (userData.role || "Inspector");
+              
+              setUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                emailVerified: firebaseUser.emailVerified,
+                displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
+                ...userData, // Spreads other profile fields if needed
+                // Treat reviewerType-backed users as external reviewers for shared access control.
+                role: normalizedRole,
+                reviewerType: normalizedReviewerType,
+              });
+            } else {
+              // Fallback if auth exists but Firestore profile is missing
+              setUser({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                emailVerified: firebaseUser.emailVerified,
+                role: null
+              });
+            }
+          } catch (error) {
+            console.error("Error fetching user role:", error);
+            setUser(null);
           }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
+        } else {
           setUser(null);
         }
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
+    };
 
-    return () => unsubscribe();
+    initializeAuthState();
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

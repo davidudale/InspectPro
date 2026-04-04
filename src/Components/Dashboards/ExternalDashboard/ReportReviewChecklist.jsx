@@ -206,7 +206,7 @@ const ReportReviewChecklist = () => {
   const saveChecklistEntries = async (sectionKey = "", checklistState = checklist, summaryState = reviewSummary) => {
     if (!selectedProject || !user?.uid) {
       toast.error("Select a report before saving the checklist.");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -242,8 +242,10 @@ const ReportReviewChecklist = () => {
           ? `${CHECKLIST_SECTIONS.find((section) => section.key === sectionKey)?.title || "Section"} saved successfully.`
           : "Checklist saved successfully.",
       );
+      return true;
     } catch (error) {
       toast.error(getToastErrorMessage(error, "Unable to save the checklist."));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -265,7 +267,10 @@ const ReportReviewChecklist = () => {
     }
     setActiveDecision(decisionLabel);
     try {
-      await saveChecklistEntries("", nextChecklist, nextSummary);
+      const saved = await saveChecklistEntries("", nextChecklist, nextSummary);
+      if (saved) {
+        navigate("/external-reviewer-projects");
+      }
     } finally {
       setActiveDecision("");
     }

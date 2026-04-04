@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Rig from "../../assets/Rig.jpg";
 import { useNavigate } from "react-router-dom";
 import { ArrowBigLeftIcon, Loader2 } from "lucide-react"; // Added Loader2 icon
-import { auth, db } from "../Auth/firebase";
+import { auth, authPersistenceReady, db } from "../Auth/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
@@ -18,6 +18,7 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true); // Start loading
     try {
+      await authPersistenceReady;
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 

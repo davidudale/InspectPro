@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Rig from "../../assets/Rig.jpg";
 import { useNavigate } from "react-router-dom";
 import { ArrowBigLeftIcon } from "lucide-react";
-import { auth, db } from "../Auth/firebase";
+import { auth, authPersistenceReady, db } from "../Auth/firebase";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
@@ -22,6 +22,7 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
+      await authPersistenceReady;
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
