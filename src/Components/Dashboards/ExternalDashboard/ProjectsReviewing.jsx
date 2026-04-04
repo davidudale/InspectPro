@@ -113,7 +113,7 @@ const ProjectReviewing = () => {
   const reviewVisibleStatuses = [
     "Approved",
     "Client Review In Progress",
-    "Reported Accepted",
+    "Report Accepted",
   ];
   const normalizedReviewerType = String(user?.reviewerType || "")
     .trim()
@@ -539,7 +539,9 @@ const ProjectReviewing = () => {
 
   const getDecisionTime = (project) => {
     const leadReviewerId = String(project?.externalReviewerId || "").trim();
-    if (!leadReviewerId) return null;
+    if (!leadReviewerId) {
+      return project?.reportAcceptedAt || project?.reportRejectedAt || null;
+    }
 
     const leadChecklistEntry =
       latestChecklistByProjectReviewer.get(`${project.id}|${leadReviewerId}`) ||
@@ -554,7 +556,7 @@ const ProjectReviewing = () => {
       return leadChecklistEntry?.updatedAt || leadChecklistEntry?.createdAt || null;
     }
 
-    return null;
+    return project?.reportAcceptedAt || project?.reportRejectedAt || null;
   };
 
   const openFeedbackModal = async (project) => {
@@ -828,6 +830,8 @@ const ProjectReviewing = () => {
                           ) : null}
                       {group.items.map((project, index) => {
                         const operationalStatus = getOperationalStatus(project);
+                        const isReportAccepted =
+                          String(project?.status || "").trim().toLowerCase() === "report accepted";
                         const projectStartDate = getProjectStartDate(project);
                         const projectEndDate = getProjectEndDate(project);
                         const reviewStartedAt = getReviewStartedAt(project);
@@ -932,7 +936,7 @@ const ProjectReviewing = () => {
                           </td>
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
-                             {shouldShowValidateReport(project) ? (
+                             {!isReportAccepted && shouldShowValidateReport(project) ? (
                                 <button 
                                   onClick={() => openFeedbackModal(project)}
                                   className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
@@ -949,7 +953,7 @@ const ProjectReviewing = () => {
                               >
                                 View Report
                               </button>
-                              {isVerificationLeadOfficer ? (
+                              {isVerificationLeadOfficer && !isReportAccepted ? (
                                 <button 
                                   onClick={() => setRemarkProject(project)}
                                   className="ml-2 p-2 text-[10px] bg-slate-900 border border-slate-700 text-slate-200 hover:border-orange-500/40 hover:text-white transition-all rounded-xl"
