@@ -61,8 +61,6 @@ const ProjectList = () => {
     project?.timestamp ||
     null;
   const getProjectEndDate = (project) => {
-    const status = String(project?.status || "").toLowerCase();
-    if (status !== "approved") return null;
     return (
       project?.inspectionEndDate ||
       project?.approvedAt ||
@@ -459,10 +457,13 @@ const ProjectList = () => {
                             const submittedBy = getSubmittedBy(project);
                             const decisionAt = getDecisionAt(project);
                             const decisionBy = getDecisionBy(project);
-                            const reportViewCode =
-                              String(project?.status || "").trim().toLowerCase() === "client review in progress"
-                                ? "External"
-                                : "Internal";
+                            const reportViewCode = [
+                              "client review in progress",
+                              "report accepted",
+                              "report rejected",
+                            ].includes(String(project?.status || "").trim().toLowerCase())
+                              ? "External"
+                              : "Internal";
                             const isInProgress = operationalStatus
                               .toLowerCase()
                               .startsWith("in progress");
@@ -501,12 +502,12 @@ const ProjectList = () => {
                           </td>
                           <td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
-                              {formatDate(projectStartDate)}
+                              {formatDateTime(projectStartDate)}
                             </div>
                           </td>
                           <td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
-                              {projectEndDate ? formatDate(projectEndDate) : "Pending"}
+                              {projectEndDate ? formatDateTime(projectEndDate) : "Pending"}
                             </div>
                           </td>
                           <td className="px-3 py-4">

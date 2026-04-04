@@ -932,6 +932,23 @@ const ProjectReviewing = () => {
                           </td>
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
+                             {shouldShowValidateReport(project) ? (
+                                <button 
+                                  onClick={() => openFeedbackModal(project)}
+                                  className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
+                                  title="Validate Report"
+                                >
+                                  Validate Report 
+                                </button>
+                              ) : null}
+                              
+                              <button 
+                                onClick={() => handleViewReport(project.id)}
+                                className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
+                                title="View Report"
+                              >
+                                View Report
+                              </button>
                               {isVerificationLeadOfficer ? (
                                 <button 
                                   onClick={() => setRemarkProject(project)}
@@ -941,22 +958,7 @@ const ProjectReviewing = () => {
                                   View Remark
                                 </button>
                               ) : null}
-                              <button 
-                                onClick={() => handleViewReport(project.id)}
-                                className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
-                                title="View Report"
-                              >
-                                View Report
-                              </button>
-                              {shouldShowValidateReport(project) ? (
-                                <button 
-                                  onClick={() => openFeedbackModal(project)}
-                                  className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
-                                  title="Validate Report"
-                                >
-                                  Validate Report 
-                                </button>
-                              ) : null}
+                             
                             </div>
                           </td>
                         </tr>
