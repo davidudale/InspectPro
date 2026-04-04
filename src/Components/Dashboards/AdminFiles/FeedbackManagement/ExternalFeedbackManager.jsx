@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   collection,
   deleteDoc,
@@ -37,6 +38,7 @@ const formatDateTime = (value) => {
 };
 
 const ExternalFeedbackManager = () => {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [notificationLogs, setNotificationLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -181,6 +183,17 @@ const ExternalFeedbackManager = () => {
     }
   };
 
+  const handleReassignProject = (item) => {
+    const projectDocId = String(item?.projectDocId || "").trim();
+
+    if (!projectDocId) {
+      toast.error("This feedback entry is missing a linked project.");
+      return;
+    }
+
+    navigate(`/viewprojects/project-edit/${projectDocId}`);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       <AdminNavbar />
@@ -248,7 +261,7 @@ const ExternalFeedbackManager = () => {
                           <th className="px-4 py-4">Project</th>
                           <th className="px-4 py-4">Client</th>
                           <th className="px-4 py-4">Reviewer</th>
-                          <th className="px-4 py-4">Status</th>
+                          {/* <th className="px-4 py-4">Status</th> */}
                           <th className="px-4 py-4">Submitted</th>
                           <th className="px-4 py-4">Action</th>
                         </tr>
@@ -285,9 +298,9 @@ const ExternalFeedbackManager = () => {
                                   {item.externalReviewerEmail || "No email"}
                                 </div>
                               </td>
-                              <td className="px-4 py-4">
+                              {/* <td className="px-4 py-4">
                                 <StatusBadge status={item.status || "New"} />
-                              </td>
+                              </td> */}
                               <td className="px-4 py-4 text-slate-400">
                                 {formatDateTime(item.createdAt)}
                               </td>
@@ -451,6 +464,14 @@ const ExternalFeedbackManager = () => {
               <div className="mt-6 flex flex-wrap gap-3">
                 <button
                   type="button"
+                  onClick={() => handleReassignProject(selectedItem)}
+                  disabled={updatingId === selectedItem.id || !selectedItem.projectDocId}
+                  className="rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-sky-300 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Reassign Project
+                </button>
+               {/*} <button
+                  type="button"
                   onClick={() => updateStatus(selectedItem, "In Review")}
                   disabled={updatingId === selectedItem.id}
                   className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.18em] text-amber-300 transition hover:bg-amber-500/20 disabled:opacity-50"
@@ -465,7 +486,7 @@ const ExternalFeedbackManager = () => {
                 >
                   <CheckCheck size={14} />
                   Mark Resolved
-                </button>
+                </button> */}
                 <button
                   type="button"
                   onClick={() => handleDelete(selectedItem)}
