@@ -105,10 +105,7 @@ const UserPage = () => {
 
   const getPresenceMeta = (entry) => {
     const livePresence = presenceByUserId[String(entry?.id || "").trim()] || null;
-    const isOnline =
-      String(livePresence?.state || "").toLowerCase() === "online" ||
-      Boolean(entry?.isOnline) ||
-      String(entry?.presenceState || "").toLowerCase() === "online";
+    const isOnline = String(livePresence?.state || "").toLowerCase() === "online";
 
     return isOnline
       ? {
