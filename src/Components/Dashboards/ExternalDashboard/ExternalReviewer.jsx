@@ -84,6 +84,9 @@ const ExternalReviewer = () => {
     const viewedReports = assignedProjects.filter(
       (project) => String(project.status || "").trim().toLowerCase() === "approved",
     );
+    const rejectedReports = assignedProjects.filter(
+      (project) => String(project.status || "").trim().toLowerCase() === "report rejected",
+    ).length;
     const reviewedProjectIds = new Set(
       feedbackEntries
         .map((entry) => entry.projectDocId || entry.projectId || "")
@@ -99,6 +102,7 @@ const ExternalReviewer = () => {
       total: assignedProjects.length,
       viewedReports: viewedReports.length,
       awaitingReview,
+      rejectedReports,
       feedbackProvided: feedbackEntries.length,
     };
   }, [assignedProjects, feedbackEntries]);
@@ -205,10 +209,10 @@ const ExternalReviewer = () => {
       trend: "Approved reports that still need your feedback or sign-off.",
     },
     {
-      label: "Feedback Provided",
-      value: loading ? "..." : String(metrics.feedbackProvided),
-      icon: <MessageSquareText className="text-orange-500" size={16} />,
-      trend: "Review notes and response items already sent back to the team.",
+      label: "Rejected Reports",
+      value: loading ? "..." : String(metrics.rejectedReports),
+      icon: <AlertCircle className="text-orange-500" size={16} />,
+      trend: "Reports you rejected and returned with external review feedback.",
     },
   ];
 
@@ -246,8 +250,8 @@ const ExternalReviewer = () => {
         colors: ["#f43f5e", "rgba(148,163,184,0.16)"],
       },
       {
-        data: [metrics.feedbackProvided, Math.max(metrics.total - metrics.feedbackProvided, 1)],
-        colors: ["#38bdf8", "rgba(148,163,184,0.16)"],
+        data: [metrics.rejectedReports, Math.max(metrics.total - metrics.rejectedReports, 1)],
+        colors: ["#f43f5e", "rgba(148,163,184,0.16)"],
       },
     ],
     [metrics],
@@ -466,6 +470,10 @@ const ExternalReviewer = () => {
                     <SnapshotRow
                       label="Reviews Awaiting Feedback"
                       value={String(metrics.awaitingReview)}
+                    />
+                    <SnapshotRow
+                      label="Rejected Reports Logged"
+                      value={String(metrics.rejectedReports)}
                     />
                     <SnapshotRow
                       label="Feedback Entries Logged"

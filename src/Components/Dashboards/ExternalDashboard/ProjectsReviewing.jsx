@@ -19,6 +19,7 @@ import ExternalNavbar from "./ExternalNavbar";
 import ExternalSideBar from "./ExternalSideBar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../Common/TableQueryControls";
+import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 import { getToastErrorMessage } from "../../../utils/toast";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
@@ -35,6 +36,7 @@ const LEGACY_REVIEW_COLLECTION = "report_review_checklists";
 
 const ProjectReviewing = () => {
   const { user } = useAuth();
+  const { openConfirm, ConfirmDialog } = useConfirmDialog();
   const formatDate = (value) => {
     if (!value) return "N/A";
     if (typeof value?.toDate === "function") {
@@ -114,6 +116,7 @@ const ProjectReviewing = () => {
     "Approved",
     "Client Review In Progress",
     "Report Accepted",
+    "Report Rejected",
   ];
   const normalizedReviewerType = String(user?.reviewerType || "")
     .trim()
@@ -497,8 +500,99 @@ const ProjectReviewing = () => {
     return getReviewerStatus(project, matchedColumn);
   };
 
-  const shouldShowValidateReport = (project) =>
-    getSelfReviewerStatus(project).label !== "Accepted";
+  const getAssignedReviewerDecisionSummary = (project) => {
+    const assignedReviewers = reviewerColumns
+      .map((column) => {
+        const reviewerId = String(project?.[column.idKey] || "").trim();
+        if (!reviewerId) return null;
+
+        return {
+          reviewerId,
+          reviewerName:
+            String(project?.[column.nameKey] || "").trim() || column.label,
+          label: getReviewerStatus(project, column).label,
+        };
+      })
+      .filter(Boolean);
+
+    const normalizedStatuses = assignedReviewers.map((reviewer) =>
+      String(reviewer.label || "").trim().toLowerCase(),
+    );
+
+    const pendingStatuses = ["yet to start", "ongoing", "onhold", "pending", "unassigned"];
+    const acceptedStatuses = ["accepted", "approved", "completed"];
+
+    return {
+      assignedReviewers,
+      hasAssignedReviewers: assignedReviewers.length > 0,
+      hasPendingReviewers: normalizedStatuses.some((status) => pendingStatuses.includes(status)),
+      hasRejectedReviewer: normalizedStatuses.includes("rejected"),
+      allAccepted:
+        assignedReviewers.length > 0 &&
+        normalizedStatuses.every((status) => acceptedStatuses.includes(status)),
+    };
+  };
+
+  const getDecisionGuard = (project, decision) => {
+    const summary = getAssignedReviewerDecisionSummary(project);
+
+    if (!summary.hasAssignedReviewers) {
+      return {
+        allowed: false,
+        summary,
+        reason: "No verification officers are assigned to this project yet.",
+      };
+    }
+
+    if (decision === "Approved") {
+      if (summary.hasRejectedReviewer) {
+        return {
+          allowed: false,
+          summary,
+          reason: "Approval is blocked because at least one verification officer rejected the report.",
+        };
+      }
+
+      if (summary.hasPendingReviewers) {
+        return {
+          allowed: false,
+          summary,
+          reason: "Approval is blocked until every assigned verification officer completes review.",
+        };
+      }
+
+      if (!summary.allAccepted) {
+        return {
+          allowed: false,
+          summary,
+          reason: "Approval requires all assigned verification officers to accept the report.",
+        };
+      }
+    }
+
+    if (decision === "Rejected" && summary.hasPendingReviewers && !summary.hasRejectedReviewer) {
+      return {
+        allowed: false,
+        summary,
+        reason: "Rejection is blocked until a verification officer rejects the report or all assigned reviews are completed.",
+      };
+    }
+
+    return { allowed: true, summary, reason: "" };
+  };
+
+  const formatReviewerConfirmationSummary = (summary) =>
+    summary.assignedReviewers
+      .map((reviewer) => `${reviewer.reviewerName}: ${reviewer.label}`)
+      .join(" | ");
+
+  const shouldShowValidateReport = (project) => {
+    const normalizedStatus = String(project?.status || "").trim().toLowerCase();
+    if (normalizedStatus === "report accepted" || normalizedStatus === "report rejected") {
+      return false;
+    }
+    return getSelfReviewerStatus(project).label !== "Accepted";
+  };
 
   const getReviewerChecklistDetails = (project, column) => {
     const reviewerId = String(project?.[column.idKey] || "").trim();
@@ -746,6 +840,12 @@ const ProjectReviewing = () => {
       return;
     }
 
+    const decisionGuard = getDecisionGuard(feedbackProject, feedbackDecision);
+    if (!decisionGuard.allowed) {
+      toast.error(decisionGuard.reason);
+      return;
+    }
+
     const normalizedMessage = feedbackMessage.trim();
     if (!normalizedMessage) {
       toast.error(
@@ -753,6 +853,27 @@ const ProjectReviewing = () => {
           ? "Please enter a commendation before approving."
           : "Please enter feedback before rejecting.",
       );
+      return;
+    }
+
+    const confirmationMessage = [
+      `Project: ${feedbackProject.projectName || feedbackProject.projectId || feedbackProject.id}`,
+      `Decision: ${feedbackDecision === "Approved" ? "Report Accepted" : "Report Rejected"}`,
+      `Reviewers: ${formatReviewerConfirmationSummary(decisionGuard.summary)}`,
+      feedbackDecision === "Approved"
+        ? "This will finalize the report as accepted for the current external review cycle."
+        : "This will reject the report and send corrective feedback back into the workflow.",
+    ].join(" ");
+
+    const confirmed = await openConfirm({
+      title: feedbackDecision === "Approved" ? "Confirm Report Approval" : "Confirm Report Rejection",
+      message: confirmationMessage,
+      confirmLabel: feedbackDecision === "Approved" ? "Confirm Approval" : "Confirm Rejection",
+      cancelLabel: "Cancel",
+      tone: feedbackDecision === "Approved" ? "success" : "warning",
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -827,6 +948,7 @@ const ProjectReviewing = () => {
 
   return (
     <>
+    {ConfirmDialog}
     <ControlCenterTableShell
       navbar={<ExternalNavbar />}
       sidebar={<ExternalSideBar />}
@@ -916,6 +1038,8 @@ const ProjectReviewing = () => {
                         const operationalStatus = getOperationalStatus(project);
                         const isReportAccepted =
                           String(project?.status || "").trim().toLowerCase() === "report accepted";
+                        const isReportRejected =
+                          String(project?.status || "").trim().toLowerCase() === "report rejected";
                         const projectStartDate = getProjectStartDate(project);
                         const projectEndDate = getProjectEndDate(project);
                         const reviewStartedAt = getReviewStartedAt(project);
@@ -1016,7 +1140,14 @@ const ProjectReviewing = () => {
                           </td>
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
-                             {!isReportAccepted && shouldShowValidateReport(project) ? (
+                              <button 
+                                onClick={() => handleViewReport(project.id)}
+                                className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
+                                title="View Report"
+                              >
+                                View Report
+                              </button>
+                             {!isReportAccepted && !isReportRejected && shouldShowValidateReport(project) ? (
                                 <button 
                                   onClick={() => openFeedbackModal(project)}
                                   className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
@@ -1026,20 +1157,14 @@ const ProjectReviewing = () => {
                                 </button>
                               ) : null}
                               
-                              <button 
-                                onClick={() => handleViewReport(project.id)}
-                                className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
-                                title="View Report"
-                              >
-                                View Report
-                              </button>
+                              
                               {isVerificationLeadOfficer && !isReportAccepted ? (
                                 <button 
                                   onClick={() => setRemarkProject(project)}
                                   className="ml-2 p-2 text-[10px] bg-slate-900 border border-slate-700 text-slate-200 hover:border-orange-500/40 hover:text-white transition-all rounded-xl"
-                                  title="View Remark"
+                                  title="Accept/Reject"
                                 >
-                                  View Remark
+                                  Accept/Reject
                                 </button>
                               ) : null}
                              
@@ -1251,6 +1376,53 @@ const ProjectReviewing = () => {
                 </div>
               </div>
             </div>
+
+            {(() => {
+              const decisionGuard = getDecisionGuard(
+                feedbackProject,
+                feedbackDecision || "Approved",
+              );
+              const shouldShowGuard = Boolean(feedbackDecision);
+
+              if (!shouldShowGuard) return null;
+
+              return (
+                <div
+                  className={`rounded-2xl border p-4 ${
+                    decisionGuard.allowed
+                      ? "border-emerald-500/30 bg-emerald-500/10"
+                      : "border-amber-500/30 bg-amber-500/10"
+                  }`}
+                >
+                  <p
+                    className={`text-[10px] font-black uppercase tracking-[0.22em] ${
+                      decisionGuard.allowed ? "text-emerald-300" : "text-amber-300"
+                    }`}
+                  >
+                    Reviewer Confirmation Check
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {decisionGuard.summary.assignedReviewers.map((reviewer) => (
+                      <span
+                        key={reviewer.reviewerId}
+                        className="rounded-full border border-slate-700 bg-slate-950/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-200"
+                      >
+                        {reviewer.reviewerName}: {reviewer.label}
+                      </span>
+                    ))}
+                  </div>
+                  <p
+                    className={`mt-3 text-xs ${
+                      decisionGuard.allowed ? "text-emerald-100" : "text-amber-100"
+                    }`}
+                  >
+                    {decisionGuard.allowed
+                      ? "All required verification officer conditions are satisfied. A final confirmation prompt will appear before submission."
+                      : decisionGuard.reason}
+                  </p>
+                </div>
+              );
+            })()}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <button
