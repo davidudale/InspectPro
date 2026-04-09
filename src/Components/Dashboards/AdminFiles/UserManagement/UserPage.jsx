@@ -110,14 +110,14 @@ const UserPage = () => {
     return isOnline
       ? {
           isOnline: true,
-          label: "Online",
+          label: "Y",
           className:
             "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20",
           dotClassName: "bg-emerald-400",
         }
       : {
           isOnline: false,
-          label: "Offline",
+          label: "N",
           className: "bg-slate-800 text-slate-300 border border-slate-700",
           dotClassName: "bg-slate-500",
         };
@@ -510,9 +510,7 @@ const UserPage = () => {
                               <span
                                 className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${getPresenceMeta(user).className}`}
                               >
-                                <span
-                                  className={`h-2 w-2 rounded-full ${getPresenceMeta(user).dotClassName}`}
-                                ></span>
+                                
                                 {getPresenceMeta(user).label}
                               </span>
                             </td>

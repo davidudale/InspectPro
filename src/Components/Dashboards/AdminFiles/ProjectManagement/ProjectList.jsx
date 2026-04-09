@@ -74,17 +74,27 @@ const ProjectList = () => {
   const getSubmittedAt = (project) =>
     project?.submittedAt ||
     project?.reportSubmittedAt ||
-    project?.inspectionStartedAt ||
-    project?.deploymentDate ||
-    project?.createdAt ||
+    project?.report?.submittedAt ||
     null;
-  const getSubmittedBy = (project) =>
-    project?.submittedBy ||
-    project?.inspectorName ||
-    project?.assignedInspectorName ||
-    project?.createdBy ||
-    project?.createdByUserName ||
-    "N/A";
+  const getSubmittedBy = (project) => {
+    const hasSubmissionRecord = Boolean(
+      project?.submittedAt ||
+        project?.reportSubmittedAt ||
+        project?.report?.submittedAt,
+    );
+
+    if (!hasSubmissionRecord) {
+      return "N/A";
+    }
+
+    return (
+      project?.submittedBy ||
+      project?.report?.submittedBy ||
+      project?.inspectorName ||
+      project?.assignedInspectorName ||
+      "N/A"
+    );
+  };
   const getLatestExternalDecision = (project) =>
     latestExternalDecisionByProject.get(project?.id || "") ||
     latestExternalDecisionByProject.get(project?.projectId || "") ||
@@ -263,6 +273,90 @@ const ProjectList = () => {
     }
 
     return "Planned";
+  };
+  const getOperationalStatusBadgeTheme = (status) => {
+    const normalizedStatus = String(status || "").trim().toLowerCase();
+
+    if (
+      normalizedStatus.startsWith("report accepted") ||
+      normalizedStatus.startsWith("reported accepted") ||
+      normalizedStatus === "approved"
+    ) {
+      return {
+        wrapper:
+          "border-emerald-400/40 bg-emerald-500/15 text-emerald-200 shadow-[0_0_0_1px_rgba(16,185,129,0.08)]",
+        dot: "bg-emerald-400",
+      };
+    }
+
+    if (
+      normalizedStatus.startsWith("report rejected") ||
+      normalizedStatus.startsWith("reported rejected") ||
+      normalizedStatus.includes("rejected")
+    ) {
+      return {
+        wrapper:
+          "border-rose-400/40 bg-rose-500/15 text-rose-200 shadow-[0_0_0_1px_rgba(244,63,94,0.08)]",
+        dot: "bg-rose-400",
+      };
+    }
+
+    if (normalizedStatus.includes("returned for correction")) {
+      return {
+        wrapper:
+          "border-red-400/40 bg-red-500/15 text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]",
+        dot: "bg-red-400",
+      };
+    }
+
+    if (normalizedStatus.includes("client review")) {
+      return {
+        wrapper:
+          "border-fuchsia-400/40 bg-fuchsia-500/15 text-fuchsia-200 shadow-[0_0_0_1px_rgba(217,70,239,0.08)]",
+        dot: "bg-fuchsia-400",
+      };
+    }
+
+    if (
+      normalizedStatus.startsWith("passed and forwarded") ||
+      normalizedStatus.startsWith("pending confirmation")
+    ) {
+      return {
+        wrapper:
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
+      };
+    }
+
+    if (normalizedStatus.startsWith("in progress")) {
+      return {
+        wrapper:
+          "border-amber-400/40 bg-amber-500/15 text-amber-100 shadow-[0_0_0_1px_rgba(245,158,11,0.08)]",
+        dot: "bg-amber-400",
+      };
+    }
+
+    if (normalizedStatus.startsWith("not started")) {
+      return {
+        wrapper:
+          "border-indigo-400/40 bg-indigo-500/15 text-indigo-100 shadow-[0_0_0_1px_rgba(99,102,241,0.08)]",
+        dot: "bg-indigo-400",
+      };
+    }
+
+    if (normalizedStatus === "planned") {
+      return {
+        wrapper:
+          "border-slate-500/40 bg-slate-700/30 text-slate-200 shadow-[0_0_0_1px_rgba(100,116,139,0.08)]",
+        dot: "bg-slate-400",
+      };
+    }
+
+    return {
+      wrapper:
+        "border-cyan-400/40 bg-cyan-500/15 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.08)]",
+      dot: "bg-cyan-400",
+    };
   };
 
   const filteredProjects = useMemo(() => {
@@ -457,6 +551,9 @@ const ProjectList = () => {
                             const submittedBy = getSubmittedBy(project);
                             const decisionAt = getDecisionAt(project);
                             const decisionBy = getDecisionBy(project);
+                            const statusBadgeTheme = getOperationalStatusBadgeTheme(
+                              operationalStatus,
+                            );
                             const reportViewCode = [
                               "client review in progress",
                               "report accepted",
@@ -464,9 +561,6 @@ const ProjectList = () => {
                             ].includes(String(project?.status || "").trim().toLowerCase())
                               ? "External"
                               : "Internal";
-                            const isInProgress = operationalStatus
-                              .toLowerCase()
-                              .startsWith("in progress");
                             return (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
                           <td className="px-3 py-4 text-xs font-bold text-slate-400">
@@ -511,12 +605,8 @@ const ProjectList = () => {
                             </div>
                           </td>
                           <td className="px-3 py-4">
-                            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${
-                              isInProgress
-                                ? 'border-orange-500/50 text-orange-500 bg-orange-500/5' 
-                                : 'border-slate-700 text-slate-500 bg-slate-800/20'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isInProgress ? 'bg-orange-500 animate-pulse' : 'bg-slate-600'}`}></span>
+                            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest ${statusBadgeTheme.wrapper}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${statusBadgeTheme.dot}`}></span>
                               {operationalStatus}
                             </div>
                           </td>
