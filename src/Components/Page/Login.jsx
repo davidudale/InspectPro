@@ -43,6 +43,12 @@ const Login = () => {
           return;
         }
 
+        if (userData.mustChangePassword) {
+          toast.info("Change your default password before continuing.");
+          navigate("/profile/security", { replace: true, state: { forcedPasswordChange: true } });
+          return;
+        }
+
         if (role === "Admin") navigate("/admin-dashboard");
         else if (role === "Manager") navigate("/ManagerDashboard");
         else if (

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import {
   LayoutDashboard,
+  LifeBuoy,
   FolderKanban,
   FolderOpen,
   MessageSquareMore,
+  Bug,
   ChevronDown,
   FileText,
   Menu,
@@ -34,6 +36,28 @@ const sidebarLinks = [
     name: "Report Review Checklist",
     icon: <FileText size={20} />,
     href: "/external-reviewer-checklist",
+  },
+  {
+    name: "Report Manager",
+    icon: <FileText size={20} />,
+    subLinks: [
+      {
+        name: "360° Inspection Summary",
+        icon: <FileText size={16} />,
+        href: "/reports/daily-inspection-summary",
+      },
+    ],
+  },
+  {
+    name: "Support",
+    icon: <LifeBuoy size={20} />,
+    subLinks: [
+      {
+        name: "Issue Log",
+        icon: <Bug size={16} />,
+        href: "/support/issues",
+      },
+    ],
   },
   {
     name: "Equipment Management",

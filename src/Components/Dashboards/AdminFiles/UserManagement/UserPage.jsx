@@ -247,6 +247,8 @@ const UserPage = () => {
           presenceState: "offline",
           lastSeen: serverTimestamp(),
           lastActiveAt: serverTimestamp(),
+          mustChangePassword: true,
+          passwordChangedAt: null,
           emailNotificationsEnabled: true,
           notificationChannels: {
             email: true,

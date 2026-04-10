@@ -2,6 +2,7 @@ import React from "react";
 import {
   BadgeCheck,
   Building2,
+  Bug,
   ClipboardList,
   ClipboardPlus,
   FileClock,
@@ -12,6 +13,7 @@ import {
   MapPin,
   Users,
   Settings,
+  LifeBuoy,
   ChevronDown,
   Menu,
   X,
@@ -41,6 +43,17 @@ const sidebarLinks = [
     name: "Approved Projects",
     icon: <BadgeCheck size={20} />,
     href: "/approval_projects",
+  },
+  {
+    name: "Support",
+    icon: <LifeBuoy size={20} />,
+    subLinks: [
+      {
+        name: "Issue Log",
+        icon: <Bug size={16} />,
+        href: "/support/issues",
+      },
+    ],
   },
   {
     name: "Project Management",

@@ -1,31 +1,13 @@
-import { Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { auth, db } from "./firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "./AuthContext";
 
 export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const [role, setRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [hasUser, setHasUser] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
-
-  useEffect(() => {
-    const checkRole = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        setHasUser(true);
-        setEmailVerified(Boolean(user.emailVerified));
-        const docSnap = await getDoc(doc(db, "users", user.uid));
-        const userData = docSnap.data() || {};
-        const normalizedReviewerType = String(userData.reviewerType || "").trim();
-        const normalizedRole =
-          normalizedReviewerType ? "External_Reviewer" : userData.role || null;
-        setRole(normalizedRole);
-      }
-      setLoading(false);
-    };
-    checkRole();
-  }, []);
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const role = user?.role || null;
+  const hasUser = Boolean(user?.uid);
+  const emailVerified = Boolean(user?.emailVerified);
+  const isPasswordChangeRoute = location.pathname === "/profile/security";
 
   if (loading)
     return (
@@ -40,6 +22,10 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (role !== "Admin" && !emailVerified) {
     return <Navigate to="/verify-email" replace />;
+  }
+
+  if (user?.mustChangePassword && !isPasswordChangeRoute) {
+    return <Navigate to="/profile/security" replace state={{ forcedPasswordChange: true }} />;
   }
 
   if (allowedRoles.length === 0 || allowedRoles.includes(role)) {

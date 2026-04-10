@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect, useRef } from 'react';
+import { createContext, useState, useContext, useEffect, useRef, useCallback } from 'react';
 import { auth, authPersistenceReady, db, rtdb } from '../Auth/firebase'; // Import your Firebase instances
 import { onAuthStateChanged, reload } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'; // Import Firestore methods
@@ -20,6 +20,46 @@ export const AuthProvider = ({ children }) => {
   const inactivityLimitMs = 5 * 60 * 1000;
   const warningOffsetMs = 1 * 60 * 1000;
   const resetTimerRef = useRef(null);
+
+  const loadUserProfile = useCallback(async (firebaseUser) => {
+    if (!firebaseUser) {
+      setUser(null);
+      return;
+    }
+
+    try {
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        const normalizedReviewerType = String(userData.reviewerType || "").trim();
+        const normalizedRole =
+          normalizedReviewerType ? "External_Reviewer" : (userData.role || "Inspector");
+
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          emailVerified: firebaseUser.emailVerified,
+          displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
+          ...userData,
+          role: normalizedRole,
+          reviewerType: normalizedReviewerType,
+        });
+        return;
+      }
+
+      setUser({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        emailVerified: firebaseUser.emailVerified,
+        role: null,
+      });
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+      setUser(null);
+    }
+  }, []);
 
   const updatePresenceDocument = async (uid, payload) => {
     if (!uid) return;
@@ -63,40 +103,7 @@ export const AuthProvider = ({ children }) => {
 
       unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
-          try {
-            // --- NEW: Fetch dynamic role from Firestore ---
-            const userDocRef = doc(db, "users", firebaseUser.uid);
-            const userDocSnap = await getDoc(userDocRef);
-
-            if (userDocSnap.exists()) {
-              const userData = userDocSnap.data();
-              const normalizedReviewerType = String(userData.reviewerType || "").trim();
-              const normalizedRole =
-                normalizedReviewerType ? "External_Reviewer" : (userData.role || "Inspector");
-              
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                emailVerified: firebaseUser.emailVerified,
-                displayName: firebaseUser.displayName || userData.displayName || userData.name || "",
-                ...userData, // Spreads other profile fields if needed
-                // Treat reviewerType-backed users as external reviewers for shared access control.
-                role: normalizedRole,
-                reviewerType: normalizedReviewerType,
-              });
-            } else {
-              // Fallback if auth exists but Firestore profile is missing
-              setUser({
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                emailVerified: firebaseUser.emailVerified,
-                role: null
-              });
-            }
-          } catch (error) {
-            console.error("Error fetching user role:", error);
-            setUser(null);
-          }
+          await loadUserProfile(firebaseUser);
         } else {
           setUser(null);
         }
@@ -214,6 +221,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUserProfile = async () => {
+    if (!auth.currentUser) return null;
+    await loadUserProfile(auth.currentUser);
+    return auth.currentUser;
+  };
+
   const refreshEmailVerification = async () => {
     if (!auth.currentUser) return false;
 
@@ -287,7 +300,7 @@ export const AuthProvider = ({ children }) => {
   }, [user, inactivityLimitMs, warningOffsetMs, showTimeoutWarning]);
 
   return (
-    <AuthContext.Provider value={{ user, logout, loading, refreshEmailVerification }}>
+    <AuthContext.Provider value={{ user, logout, loading, refreshEmailVerification, refreshUserProfile }}>
       {showTimeoutWarning && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
           <div className="w-full max-w-md mx-4 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl">
@@ -319,4 +332,5 @@ export const useAuth = () =>
     logout: async () => {},
     loading: true,
     refreshEmailVerification: async () => false,
+    refreshUserProfile: async () => null,
   };

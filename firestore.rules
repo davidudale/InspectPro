@@ -293,6 +293,23 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /issue_logs/{issueId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        resource.data.reportedById == request.auth.uid
+      );
+
+      allow create: if signedIn() &&
+        request.resource.data.reportedById == request.auth.uid;
+
+      allow update: if signedIn() && (
+        isAdmin() ||
+        resource.data.reportedById == request.auth.uid
+      );
+
+      allow delete: if isAdmin();
+    }
+
     match /project_verification_reviews/{projectId}/reviewers/{uid} {
       allow read: if signedIn() && (
         isAdmin() ||

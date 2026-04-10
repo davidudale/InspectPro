@@ -34,7 +34,6 @@ import MutReport from "./Components/Dashboards/AdminFiles/ReportManagement/MutRe
 import DetailedReport from "./Components/Dashboards/AdminFiles/ReportManagement/DetailedReport.jsx";
 import IntegrityCheck from "./Components/Dashboards/AdminFiles/ReportManagement/IntegrityCheck.jsx";
 import ViewInspectionsList from "./Components/Dashboards/InspectorsFile/ViewInspectionsList.jsx";
-import UserPreferences from "./Components/Dashboards/InspectorsFile/UserPreferences.jsx";
 import SupervisorDashboard from "./Components/Page/SupervisorDashboard.jsx";
 import ExternalReviewer from "./Components/Dashboards/ExternalDashboard/ExternalReviewer.jsx";
 import SubInspectionsList from "./Components/Dashboards/SupervisorFiles/SubInspectionsList.jsx";
@@ -48,12 +47,15 @@ import ApprovedProjects from "./Components/Dashboards/ManagerFile/ApprovedProjec
 import ReportDownloadView from "./Components/Dashboards/ManagerFile/ReportDownloadView.jsx";
 import ProjectPreview from "./Components/Dashboards/AdminFiles/ProjectManagement/ProjectPreview.jsx";
 import ReportPlaceholder from "./Components/Dashboards/ReportManager/ReportPlaceholder.jsx";
+import Inspection360Summary from "./Components/Dashboards/ReportManager/Inspection360Summary.jsx";
 import ProjectsReviewing from "./Components/Dashboards/ExternalDashboard/ProjectsReviewing.jsx";
 import Feedback from "./Components/Dashboards/ExternalDashboard/Feedback.jsx";
 import ExternalFeedbackManager from "./Components/Dashboards/AdminFiles/FeedbackManagement/ExternalFeedbackManager.jsx";
 import InspectedEquipment from "./Components/Dashboards/ExternalDashboard/InspectedEquipment.jsx";
 import ReportReviewChecklist from "./Components/Dashboards/ExternalDashboard/ReportReviewChecklist.jsx";
 import NextInspectionScheduler from "./Components/Dashboards/ProjectScheduler/NextInspectionScheduler.jsx";
+import ProfileSecurity from "./Components/Page/ProfileSecurity.jsx";
+import IssueLogCenter from "./Components/Dashboards/Support/IssueLogCenter.jsx";
 function App() {
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
@@ -156,12 +158,32 @@ function App() {
         />
         
         <Route
+          path="/profile/security"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+            >
+              <ProfileSecurity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/support/issues"
+          element={
+            <ProtectedRoute
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+            >
+              <IssueLogCenter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/inspector/settings"
           element={
             <ProtectedRoute
               allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
-              <UserPreferences />
+              <ProfileSecurity />
             </ProtectedRoute>
           }
         />
@@ -504,7 +526,7 @@ function App() {
                 "Admin",
               ]}
             >
-              <ReportPlaceholder title="Daily Inspection Summary" />
+              <Inspection360Summary />
             </ProtectedRoute>
           }
         />

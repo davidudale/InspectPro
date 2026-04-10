@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 import {
   ClipboardList,
+  Bug,
   LayoutDashboard,
+  LifeBuoy,
   Settings,
   ChevronDown,
   Menu,
@@ -28,6 +30,17 @@ const sidebarLinks = [
   },
 
   {
+    name: "Support",
+    icon: <LifeBuoy size={20} />,
+    subLinks: [
+      {
+        name: "Issue Log",
+        icon: <Bug size={16} />,
+        href: "/support/issues",
+      },
+    ],
+  },
+  {
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
@@ -43,7 +56,7 @@ const sidebarLinks = [
     icon: <FileText size={20} />,
     subLinks: [
       {
-        name: "Daily Inspection Summary",
+        name: "360° Inspection Summary",
         icon: <FileText size={16} />,
         href: "/reports/daily-inspection-summary",
       },

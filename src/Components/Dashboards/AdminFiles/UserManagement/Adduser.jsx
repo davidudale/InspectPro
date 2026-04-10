@@ -74,6 +74,8 @@ const Adduser = () => {
           presenceState: "offline",
           lastSeen: serverTimestamp(),
           lastActiveAt: serverTimestamp(),
+          mustChangePassword: true,
+          passwordChangedAt: null,
           emailNotificationsEnabled: true,
           notificationChannels: {
             email: true,
