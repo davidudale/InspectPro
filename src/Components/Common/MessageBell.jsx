@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Bell, MessageSquare } from "lucide-react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { Bell, LifeBuoy, MessageSquare } from "lucide-react";
+import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { db } from "../Auth/firebase";
 
@@ -33,6 +33,7 @@ const formatTimeAgo = (value) => {
 const MessageBell = ({ user }) => {
   const navigate = useNavigate();
   const [threads, setThreads] = useState([]);
+  const [issueNotifications, setIssueNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const [seenMap, setSeenMap] = useState({});
   const [clearedMap, setClearedMap] = useState({});
@@ -40,6 +41,7 @@ const MessageBell = ({ user }) => {
   useEffect(() => {
     if (!user?.uid) {
       setThreads([]);
+      setIssueNotifications([]);
       setSeenMap({});
       setClearedMap({});
       return undefined;
@@ -76,19 +78,43 @@ const MessageBell = ({ user }) => {
       setThreads(nextThreads);
     });
 
-    return () => unsubscribe();
+    const issueNotificationsRef = query(
+      collection(db, "notification_logs"),
+      where("recipientId", "==", user.uid),
+      where("channel", "==", "issue_support"),
+      orderBy("createdAt", "desc"),
+    );
+
+    const unsubscribeIssueNotifications = onSnapshot(issueNotificationsRef, (snapshot) => {
+      const nextNotifications = snapshot.docs
+        .map((docItem) => ({ id: docItem.id, ...docItem.data() }))
+        .sort((left, right) => getMillis(right.createdAt) - getMillis(left.createdAt));
+      setIssueNotifications(nextNotifications);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeIssueNotifications();
+    };
   }, [user?.role, user?.uid]);
 
   useEffect(() => {
-    if (!open || !user?.uid || threads.length === 0) return;
+    if (!open || !user?.uid) return;
 
     const nextSeenMap = threads.reduce((accumulator, thread) => {
       const currentMillis = getMillis(thread.lastMessageAt);
       if (currentMillis) {
-        accumulator[thread.id] = currentMillis;
+        accumulator[`chat:${thread.id}`] = currentMillis;
       }
       return accumulator;
     }, { ...seenMap });
+
+    issueNotifications.forEach((notification) => {
+      const currentMillis = getMillis(notification.createdAt);
+      if (currentMillis) {
+        nextSeenMap[`issue:${notification.id}`] = currentMillis;
+      }
+    });
 
     setSeenMap(nextSeenMap);
     try {
@@ -96,23 +122,33 @@ const MessageBell = ({ user }) => {
     } catch {
       // Ignore storage write failures.
     }
-  }, [open, threads, user?.uid]);
+  }, [issueNotifications, open, threads, user?.uid]);
 
   const visibleThreads = useMemo(
     () =>
       threads.filter((thread) => {
         const lastMessageMillis = getMillis(thread.lastMessageAt);
-        const clearedMillis = Number(clearedMap[thread.id] || 0);
+        const clearedMillis = Number(clearedMap[`chat:${thread.id}`] || 0);
         return lastMessageMillis > clearedMillis;
       }),
     [clearedMap, threads],
+  );
+
+  const visibleIssueNotifications = useMemo(
+    () =>
+      issueNotifications.filter((notification) => {
+        const createdMillis = getMillis(notification.createdAt);
+        const clearedMillis = Number(clearedMap[`issue:${notification.id}`] || 0);
+        return createdMillis > clearedMillis;
+      }),
+    [clearedMap, issueNotifications],
   );
 
   const unreadThreads = useMemo(
     () =>
       visibleThreads.filter((thread) => {
         const lastMessageMillis = getMillis(thread.lastMessageAt);
-        const seenMillis = Number(seenMap[thread.id] || 0);
+        const seenMillis = Number(seenMap[`chat:${thread.id}`] || 0);
         return (
           thread.lastMessageSenderId &&
           thread.lastMessageSenderId !== user?.uid &&
@@ -122,7 +158,34 @@ const MessageBell = ({ user }) => {
     [seenMap, user?.uid, visibleThreads],
   );
 
-  const recentThreads = useMemo(() => visibleThreads.slice(0, 5), [visibleThreads]);
+  const unreadIssueNotifications = useMemo(
+    () =>
+      visibleIssueNotifications.filter((notification) => {
+        const createdMillis = getMillis(notification.createdAt);
+        const seenMillis = Number(seenMap[`issue:${notification.id}`] || 0);
+        return createdMillis > seenMillis;
+      }),
+    [seenMap, visibleIssueNotifications],
+  );
+
+  const recentNotifications = useMemo(() => {
+    const chatItems = visibleThreads.map((thread) => ({
+      key: `chat:${thread.id}`,
+      kind: "chat",
+      createdAt: thread.lastMessageAt,
+      thread,
+    }));
+    const issueItems = visibleIssueNotifications.map((notification) => ({
+      key: `issue:${notification.id}`,
+      kind: "issue",
+      createdAt: notification.createdAt,
+      notification,
+    }));
+
+    return [...chatItems, ...issueItems]
+      .sort((left, right) => getMillis(right.createdAt) - getMillis(left.createdAt))
+      .slice(0, 5);
+  }, [visibleIssueNotifications, visibleThreads]);
 
   const persistSeenMap = (nextSeenMap) => {
     setSeenMap(nextSeenMap);
@@ -168,7 +231,7 @@ const MessageBell = ({ user }) => {
     const lastMessageMillis = getMillis(thread.lastMessageAt);
     const nextSeenMap = {
       ...seenMap,
-      [thread.id]: lastMessageMillis,
+      [`chat:${thread.id}`]: lastMessageMillis,
     };
     persistSeenMap(nextSeenMap);
 
@@ -177,24 +240,45 @@ const MessageBell = ({ user }) => {
     if (route) navigate(route);
   };
 
+  const handleIssueNotificationClick = (notification) => {
+    if (!user?.uid) return;
+
+    const createdMillis = getMillis(notification.createdAt);
+    const nextSeenMap = {
+      ...seenMap,
+      [`issue:${notification.id}`]: createdMillis,
+    };
+    persistSeenMap(nextSeenMap);
+    setOpen(false);
+    navigate("/support/issues");
+  };
+
   const handleClearNotifications = () => {
-    if (!user?.uid || visibleThreads.length === 0) return;
+    if (!user?.uid || recentNotifications.length === 0) return;
 
     const nextClearedMap = visibleThreads.reduce(
       (accumulator, thread) => {
-        accumulator[thread.id] = getMillis(thread.lastMessageAt);
+        accumulator[`chat:${thread.id}`] = getMillis(thread.lastMessageAt);
         return accumulator;
       },
       { ...clearedMap },
     );
 
+    visibleIssueNotifications.forEach((notification) => {
+      nextClearedMap[`issue:${notification.id}`] = getMillis(notification.createdAt);
+    });
+
     const nextSeenMap = visibleThreads.reduce(
       (accumulator, thread) => {
-        accumulator[thread.id] = getMillis(thread.lastMessageAt);
+        accumulator[`chat:${thread.id}`] = getMillis(thread.lastMessageAt);
         return accumulator;
       },
       { ...seenMap },
     );
+
+    visibleIssueNotifications.forEach((notification) => {
+      nextSeenMap[`issue:${notification.id}`] = getMillis(notification.createdAt);
+    });
 
     persistClearedMap(nextClearedMap);
     persistSeenMap(nextSeenMap);
@@ -206,13 +290,15 @@ const MessageBell = ({ user }) => {
         type="button"
         onClick={() => setOpen((current) => !current)}
         className="relative rounded-xl border border-slate-800 bg-slate-950/80 p-2 text-slate-300 transition hover:border-orange-500/40 hover:text-white"
-        aria-label="Open chat notifications"
-        title="Chat notifications"
+        aria-label="Open notifications"
+        title="Notifications"
       >
         <Bell size={18} />
-        {unreadThreads.length > 0 ? (
+        {unreadThreads.length + unreadIssueNotifications.length > 0 ? (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-600 px-1 text-[10px] font-bold text-white">
-            {unreadThreads.length > 9 ? "9+" : unreadThreads.length}
+            {unreadThreads.length + unreadIssueNotifications.length > 9
+              ? "9+"
+              : unreadThreads.length + unreadIssueNotifications.length}
           </span>
         ) : null}
       </button>
@@ -222,18 +308,20 @@ const MessageBell = ({ user }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-orange-400">
-                Messages
+                Notifications
               </p>
               <h3 className="mt-1 text-sm font-bold text-white">
-                {unreadThreads.length > 0
-                  ? `${unreadThreads.length} unread conversation${unreadThreads.length > 1 ? "s" : ""}`
-                  : "No unread chat messages"}
+                {unreadThreads.length + unreadIssueNotifications.length > 0
+                  ? `${unreadThreads.length + unreadIssueNotifications.length} unread notification${
+                      unreadThreads.length + unreadIssueNotifications.length > 1 ? "s" : ""
+                    }`
+                  : "No unread notifications"}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={handleClearNotifications}
-                disabled={recentThreads.length === 0}
+                disabled={recentNotifications.length === 0}
                 className="rounded-xl border border-slate-800 bg-slate-950/80 px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-300 transition hover:border-orange-500/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Clear
@@ -241,13 +329,52 @@ const MessageBell = ({ user }) => {
           </div>
 
           <div className="mt-4 space-y-3">
-            {recentThreads.length > 0 ? (
-              recentThreads.map((thread) => {
+            {recentNotifications.length > 0 ? (
+              recentNotifications.map((entry) => {
+                if (entry.kind === "issue") {
+                  const { notification } = entry;
+                  const isUnread = unreadIssueNotifications.some(
+                    (item) => item.id === notification.id,
+                  );
+                  return (
+                    <button
+                      type="button"
+                      key={entry.key}
+                      onClick={() => handleIssueNotificationClick(notification)}
+                      className={`rounded-2xl border px-4 py-3 ${
+                        isUnread
+                          ? "border-sky-500/30 bg-sky-500/5"
+                          : "border-slate-800 bg-slate-950/70"
+                      } w-full text-left transition hover:border-sky-500/40 hover:bg-slate-950`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className="rounded-xl bg-slate-900 p-2 text-sky-400">
+                            <LifeBuoy size={14} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-white">
+                              {notification.subject || "Issue update"}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-400">
+                              {notification.message || "A support update is available."}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="whitespace-nowrap text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                          {formatTimeAgo(notification.createdAt)}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                }
+
+                const { thread } = entry;
                 const isUnread = unreadThreads.some((item) => item.id === thread.id);
                 return (
                   <button
                     type="button"
-                    key={thread.id}
+                    key={entry.key}
                     onClick={() => handleNotificationClick(thread)}
                     className={`rounded-2xl border px-4 py-3 ${
                       isUnread
@@ -279,7 +406,7 @@ const MessageBell = ({ user }) => {
               })
             ) : (
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-4 py-6 text-center text-sm text-slate-500">
-                No chat activity yet.
+                No notifications yet.
               </div>
             )}
           </div>

@@ -554,6 +554,9 @@ const ProjectList = () => {
                             const statusBadgeTheme = getOperationalStatusBadgeTheme(
                               operationalStatus,
                             );
+                            const isReportAccepted =
+                              String(operationalStatus || "").trim().toLowerCase() ===
+                              "report accepted";
                             const reportViewCode = [
                               "client review in progress",
                               "report accepted",
@@ -637,14 +640,16 @@ const ProjectList = () => {
                           </td>
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                              <button 
-                                onClick={() => navigate(`/viewprojects/project-edit/${project.projectId || project.id}`, { state: { editMode: true, project } })}
-                                className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-blue-500 hover:border-blue-500/50 transition-all rounded-xl shadow-inner"
-                                title="Edit Project"
-                              >
-                                <Edit3 size={14} />
-                         </button>
-                                  
+                              {!isReportAccepted ? (
+                                <button 
+                                  onClick={() => navigate(`/viewprojects/project-edit/${project.projectId || project.id}`, { state: { editMode: true, project } })}
+                                  className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-blue-500 hover:border-blue-500/50 transition-all rounded-xl shadow-inner"
+                                  title="Edit Project"
+                                >
+                                  <Edit3 size={14} />
+                                </button>
+                              ) : null}
+                                   
                               <button 
                                 onClick={() => navigate(`/admin/project/${project.id}`)}
                                 className="ml-2 p-2.5 bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"

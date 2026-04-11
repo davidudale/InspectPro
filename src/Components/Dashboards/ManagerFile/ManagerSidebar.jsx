@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   Building2,
   Bug,
+  LogOut,
   ClipboardList,
   ClipboardPlus,
   FileClock,
@@ -17,8 +18,10 @@ import {
   ChevronDown,
   Menu,
   X,
+  UserCircle2,
   Wrench,
   Sliders,
+  Shield,
 } from "lucide-react"; // Example icons
 import { useState, useEffect } from "react";
 
@@ -26,6 +29,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../Auth/firebase"; // Ensure auth is exported from your firebase config
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "../../Auth/AuthContext";
 
 const sidebarLinks = [
   {
@@ -43,6 +47,17 @@ const sidebarLinks = [
     name: "Approved Projects",
     icon: <BadgeCheck size={20} />,
     href: "/approval_projects",
+  },
+  {
+    name: "Report Manager",
+    icon: <FileText size={20} />,
+    subLinks: [
+      {
+        name: "360° Inspection Summary",
+        icon: <FileText size={16} />,
+        href: "/reports/daily-inspection-summary",
+      },
+    ],
   },
   {
     name: "Support",
@@ -77,98 +92,26 @@ const sidebarLinks = [
       },
     ],
   },
-
-  
-  {/*{
-    name: "System Setup",
-    icon: <Settings size={20} />,
+  {
+    name: "Profile",
+    icon: <UserCircle2 size={20} />,
     subLinks: [
       {
-        name: "Client Management",
-        icon: <Building2 size={16} />,
-        href: "/Client",
+        name: "Profile & Security",
+        icon: <Shield size={16} />,
+        href: "/profile/security",
       },
       {
-        name: "Location Management",
-        icon: <MapPin size={16} />,
-        href: "/location",
-      },
-      {
-        name: "Inspection Types",
-        icon: <ClipboardList size={16} />,
-        href: "/inspection_type",
-      },
-      {
-        name: "Equipment Management",
-        icon: <Wrench size={16} />,
-        href: "/equipment",
-      },
-      {
-        name: "Report Template",
-        icon: <FileText size={16} />,
-        href: "/admin/inspections",
-      },
-      {
-        name: "User Management",
-        icon: <Users size={20} />,
-        href: "/admin/users",
-      },
-      {
-        name: "System Config",
-        icon: <Sliders size={16} />,
-        href: "/admin/config",
+        name: "Sign Out",
+        icon: <LogOut size={16} />,
+        action: "logout",
       },
     ],
   },
-  {
-    name: "Report Manager",
-    icon: <FileText size={20} />,
-    subLinks: [
-      {
-        name: "Daily Inspection Summary",
-        icon: <FileText size={16} />,
-        href: "/reports/daily-inspection-summary",
-      },
-      {
-        name: "Inspection Progress",
-        icon: <FileText size={16} />,
-        href: "/reports/inspection-progress",
-      },
-      {
-        name: "Non-Conformance Report",
-        icon: <FileText size={16} />,
-        href: "/reports/non-conformance",
-      },
-      {
-        name: "Corrective Action Report",
-        icon: <FileText size={16} />,
-        href: "/reports/corrective-action",
-      },
-      {
-        name: "Equipment Status Report",
-        icon: <FileText size={16} />,
-        href: "/reports/equipment-status",
-      },
-      {
-        name: "Personnel Activity Report",
-        icon: <FileText size={16} />,
-        href: "/reports/personnel-activity",
-      },
-      {
-        name: "Safety Report",
-        icon: <FileText size={16} />,
-        href: "/reports/safety",
-      },
-      {
-        name: "Next Day Plan",
-        icon: <FileText size={16} />,
-        href: "/reports/next-day-plan",
-      },
-    ],
-  },*/}
 ];
 
 const ManagerSidebar = () => {
+  const { logout } = useAuth();
   const [fullName, setFullName] = useState(""); // State for logged-in user's name
   const navigate = useNavigate();
   const location = useLocation();
@@ -205,6 +148,22 @@ const ManagerSidebar = () => {
 
     return () => unsubscribe();
   }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    setIsMobileExpanded(false);
+    navigate("/login");
+  };
+
+  const handleSubLinkClick = async (subLink) => {
+    if (subLink.action === "logout") {
+      await handleLogout();
+      return;
+    }
+
+    navigate(subLink.href);
+    setIsMobileExpanded(false);
+  };
 
   return (
     <>
@@ -293,15 +252,14 @@ const ManagerSidebar = () => {
                   {link.subLinks.map((sub, subIdx) => (
                     <button
                       key={subIdx}
-                      onClick={() => {
-                        navigate(sub.href);
-                        setIsMobileExpanded(false);
-                      }}
+                      onClick={() => handleSubLinkClick(sub)}
                       className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
                         ${
-                          location.pathname === sub.href
+                          sub.href && location.pathname === sub.href
                             ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
+                            : sub.action === "logout"
+                              ? "text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
+                              : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
                     >
                       <span>{sub.icon}</span>

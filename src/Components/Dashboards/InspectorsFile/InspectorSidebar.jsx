@@ -4,18 +4,22 @@ import {
   Bug,
   LayoutDashboard,
   LifeBuoy,
+  LogOut,
   Settings,
   ChevronDown,
   Menu,
   X,
   Sliders,
   FileText,
+  UserCircle2,
+  Shield,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../../Auth/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "../../Auth/AuthContext";
 
 const sidebarLinks = [
   {
@@ -97,9 +101,26 @@ const sidebarLinks = [
       },
     ],
   },
+  {
+    name: "Profile",
+    icon: <UserCircle2 size={20} />,
+    subLinks: [
+      {
+        name: "Profile & Security",
+        icon: <Shield size={16} />,
+        href: "/profile/security",
+      },
+      {
+        name: "Sign Out",
+        icon: <LogOut size={16} />,
+        action: "logout",
+      },
+    ],
+  },
 ];
 
 const InspectorSidebar = () => {
+  const { logout } = useAuth();
   const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
@@ -140,6 +161,22 @@ const InspectorSidebar = () => {
   const isPathActive = (href) => {
     if (!href) return false;
     return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setIsMobileExpanded(false);
+    navigate("/login");
+  };
+
+  const handleSubLinkClick = async (subLink) => {
+    if (subLink.action === "logout") {
+      await handleLogout();
+      return;
+    }
+
+    navigate(subLink.href);
+    setIsMobileExpanded(false);
   };
 
   return (
@@ -228,15 +265,14 @@ const InspectorSidebar = () => {
                   {link.subLinks.map((sub) => (
                     <button
                       key={sub.name}
-                      onClick={() => {
-                        navigate(sub.href);
-                        setIsMobileExpanded(false);
-                      }}
+                      onClick={() => handleSubLinkClick(sub)}
                       className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
                         ${
-                          isPathActive(sub.href)
+                          sub.href && isPathActive(sub.href)
                             ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
+                            : sub.action === "logout"
+                              ? "text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
+                              : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
                         }`}
                     >
                       <span>{sub.icon}</span>

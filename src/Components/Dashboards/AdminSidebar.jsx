@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Building2,
   Bug,
+  LogOut,
   ClipboardList,
   ClipboardPlus,
   FolderKanban,
@@ -16,14 +17,17 @@ import {
   ChevronDown,
   Menu,
   X,
+  UserCircle2,
   Wrench,
   Sliders,
+  Shield,
 } from "lucide-react";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import { db, auth } from "../Auth/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import { useAuth } from "../Auth/AuthContext";
 
 const sidebarLinks = [
   {
@@ -165,10 +169,26 @@ const sidebarLinks = [
       },
     ],
   },
-  
+  {
+    name: "Profile",
+    icon: <UserCircle2 size={20} />,
+    subLinks: [
+      {
+        name: "Profile & Security",
+        icon: <Shield size={16} />,
+        href: "/profile/security",
+      },
+      {
+        name: "Sign Out",
+        icon: <LogOut size={16} />,
+        action: "logout",
+      },
+    ],
+  },
 ];
 
 const AdminSidebar = () => {
+  const { logout } = useAuth();
   const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
@@ -206,6 +226,22 @@ const AdminSidebar = () => {
   const isPathActive = (href) => {
     if (!href) return false;
     return location.pathname === href || location.pathname.startsWith(`${href}/`);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    setIsMobileExpanded(false);
+    navigate("/login");
+  };
+
+  const handleSubLinkClick = async (subLink) => {
+    if (subLink.action === "logout") {
+      await handleLogout();
+      return;
+    }
+
+    navigate(subLink.href);
+    setIsMobileExpanded(false);
   };
 
   return (
@@ -286,28 +322,27 @@ const AdminSidebar = () => {
                 )}
               </div>
 
-              {hasSubLinks && isOpen && (
-                <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block ml-9 mt-1 space-y-1 border-l border-slate-800`}>
-                  {link.subLinks.map((sub) => (
-                    <button
-                      key={sub.name}
-                      onClick={() => {
-                        navigate(sub.href);
-                        setIsMobileExpanded(false);
-                      }}
-                      className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
-                        ${
-                          isPathActive(sub.href)
-                            ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
-                            : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
-                        }`}
-                    >
-                      <span>{sub.icon}</span>
-                      {sub.name}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {hasSubLinks && isOpen && (
+                  <div className={`${isMobileExpanded ? "block" : "hidden"} lg:block ml-9 mt-1 space-y-1 border-l border-slate-800`}>
+                    {link.subLinks.map((sub) => (
+                        <button
+                          key={sub.name}
+                          onClick={() => handleSubLinkClick(sub)}
+                          className={`w-full flex items-center gap-3 pl-4 py-2 text-xs font-medium rounded-r-lg transition-all
+                            ${
+                              sub.href && isPathActive(sub.href)
+                                ? "text-orange-500 bg-orange-500/5 border-l-2 border-orange-500"
+                                : sub.action === "logout"
+                                  ? "text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
+                                  : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/30"
+                            }`}
+                        >
+                          <span>{sub.icon}</span>
+                          {sub.name}
+                        </button>
+                    ))}
+                  </div>
+                )}
             </div>
           );
         })}

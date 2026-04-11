@@ -84,6 +84,9 @@ const ExternalReviewer = () => {
     const viewedReports = assignedProjects.filter(
       (project) => String(project.status || "").trim().toLowerCase() === "approved",
     );
+    const acceptedReports = assignedProjects.filter(
+      (project) => String(project.status || "").trim().toLowerCase() === "report accepted",
+    ).length;
     const rejectedReports = assignedProjects.filter(
       (project) => String(project.status || "").trim().toLowerCase() === "report rejected",
     ).length;
@@ -92,6 +95,11 @@ const ExternalReviewer = () => {
         .map((entry) => entry.projectDocId || entry.projectId || "")
         .filter(Boolean),
     );
+    const reviewedProjects = viewedReports.filter((project) => {
+      const docId = String(project.id || "").trim();
+      const projectId = String(project.projectId || "").trim();
+      return reviewedProjectIds.has(docId) || reviewedProjectIds.has(projectId);
+    }).length;
     const awaitingReview = viewedReports.filter((project) => {
       const docId = String(project.id || "").trim();
       const projectId = String(project.projectId || "").trim();
@@ -100,8 +108,10 @@ const ExternalReviewer = () => {
 
     return {
       total: assignedProjects.length,
-      viewedReports: viewedReports.length,
-      awaitingReview,
+      readyForReview: viewedReports.length,
+      awaitingFeedback: awaitingReview,
+      reviewedProjects,
+      acceptedReports,
       rejectedReports,
       feedbackProvided: feedbackEntries.length,
     };
@@ -197,22 +207,22 @@ const ExternalReviewer = () => {
       trend: "Projects currently assigned into your external review workspace.",
     },
     {
-      label: "Approved Reports",
-      value: loading ? "..." : String(metrics.viewedReports),
+      label: "Ready for Review",
+      value: loading ? "..." : String(metrics.readyForReview),
       icon: <Eye className="text-orange-500" size={16} />,
-      trend: "Approved project reports available for independent review.",
+      trend: "Assigned reports that are approved and ready for your external review.",
     },
     {
-      label: "Awaiting Review",
-      value: loading ? "..." : String(metrics.awaitingReview),
+      label: "Awaiting Feedback",
+      value: loading ? "..." : String(metrics.awaitingFeedback),
       icon: <FileWarning className="text-orange-500" size={16} />,
-      trend: "Approved reports that still need your feedback or sign-off.",
+      trend: "Ready reports that still need your review decision or feedback.",
     },
     {
-      label: "Rejected Reports",
-      value: loading ? "..." : String(metrics.rejectedReports),
+      label: "Accepted Reports",
+      value: loading ? "..." : String(metrics.acceptedReports),
       icon: <AlertCircle className="text-orange-500" size={16} />,
-      trend: "Reports you rejected and returned with external review feedback.",
+      trend: "Reports finalized as accepted after external review confirmation.",
     },
   ];
 
@@ -238,20 +248,23 @@ const ExternalReviewer = () => {
   const statCardCharts = useMemo(
     () => [
       {
-        data: [metrics.total, Math.max(metrics.viewedReports + metrics.feedbackProvided, 1)],
+        data: [metrics.total, Math.max(metrics.readyForReview + metrics.feedbackProvided, 1)],
         colors: ["#f97316", "rgba(148,163,184,0.16)"],
       },
       {
-        data: [metrics.viewedReports, Math.max(metrics.total - metrics.viewedReports, 1)],
+        data: [metrics.readyForReview, Math.max(metrics.total - metrics.readyForReview, 1)],
         colors: ["#10b981", "rgba(148,163,184,0.16)"],
       },
       {
-        data: [metrics.awaitingReview, Math.max(metrics.viewedReports - metrics.awaitingReview, 1)],
+        data: [
+          metrics.awaitingFeedback,
+          Math.max(metrics.readyForReview - metrics.awaitingFeedback, 1),
+        ],
         colors: ["#f43f5e", "rgba(148,163,184,0.16)"],
       },
       {
-        data: [metrics.rejectedReports, Math.max(metrics.total - metrics.rejectedReports, 1)],
-        colors: ["#f43f5e", "rgba(148,163,184,0.16)"],
+        data: [metrics.acceptedReports, Math.max(metrics.total - metrics.acceptedReports, 1)],
+        colors: ["#a3e635", "rgba(148,163,184,0.16)"],
       },
     ],
     [metrics],
@@ -465,11 +478,15 @@ const ExternalReviewer = () => {
                     />
                     <SnapshotRow
                       label="Approved Reports Ready"
-                      value={String(metrics.viewedReports)}
+                      value={String(metrics.readyForReview)}
                     />
                     <SnapshotRow
                       label="Reviews Awaiting Feedback"
-                      value={String(metrics.awaitingReview)}
+                      value={String(metrics.awaitingFeedback)}
+                    />
+                    <SnapshotRow
+                      label="Accepted Reports Logged"
+                      value={String(metrics.acceptedReports)}
                     />
                     <SnapshotRow
                       label="Rejected Reports Logged"

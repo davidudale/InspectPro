@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { Bug, CheckCheck, LifeBuoy, RefreshCcw, Save } from "lucide-react";
 import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import { useConfirmDialog } from "../../Common/ConfirmDialog";
@@ -60,6 +61,16 @@ const resolveShell = (role) => {
   return { navbar: <InspectorNavbar />, sidebar: <InspectorSidebar /> };
 };
 
+const getSupportExitRoute = (role) => {
+  if (role === "Admin") return "/admin-dashboard";
+  if (role === "Manager") return "/ManagerDashboard";
+  if (role === "Lead Inspector") return "/SupervisorDashboard";
+  if (role === "External_Reviewer" || role === "External Reviewer") {
+    return "/external-reviewer-dashboard";
+  }
+  return "/inspectionDashboard";
+};
+
 const toMillis = (value) => {
   if (!value) return 0;
   if (typeof value === "number") return value;
@@ -87,6 +98,7 @@ const formatDateTime = (value) => {
 const IssueLogCenter = () => {
   const { user } = useAuth();
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const navigate = useNavigate();
   const shell = useMemo(() => resolveShell(user?.role), [user?.role]);
   const isAdmin = user?.role === "Admin";
   const [items, setItems] = useState([]);
@@ -101,6 +113,8 @@ const IssueLogCenter = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusEdits, setStatusEdits] = useState({});
   const [updatingId, setUpdatingId] = useState("");
+  const [closingFeedback, setClosingFeedback] = useState(null);
+  const redirectTimeoutRef = React.useRef(null);
 
   React.useEffect(() => {
     const issuesQuery = query(collection(db, "issue_logs"), orderBy("createdAt", "desc"));
@@ -121,6 +135,15 @@ const IssueLogCenter = () => {
 
     return () => unsubscribe();
   }, []);
+
+  React.useEffect(
+    () => () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   const visibleItems = useMemo(() => {
     const ownId = String(user?.uid || "").trim();
@@ -261,7 +284,24 @@ const IssueLogCenter = () => {
         resolutionConfirmedById: isClosing ? user?.uid || "" : "",
         reopenedAt: isClosing ? item.reopenedAt || null : serverTimestamp(),
       });
-      toast.success(isClosing ? "Issue closed successfully." : "Issue reopened successfully.");
+      if (isClosing) {
+        const issueLabel = item.module || "Support";
+        const exitRoute = getSupportExitRoute(user?.role);
+        setClosingFeedback({
+          title: "Issue closed successfully.",
+          message: `${issueLabel} has been marked as closed. Redirecting you now...`,
+        });
+        toast.success("Issue closed successfully. Redirecting...");
+        if (redirectTimeoutRef.current) {
+          clearTimeout(redirectTimeoutRef.current);
+        }
+        redirectTimeoutRef.current = setTimeout(() => {
+          navigate(exitRoute, { replace: true });
+        }, 1400);
+      } else {
+        setClosingFeedback(null);
+        toast.success("Issue reopened successfully.");
+      }
     } catch (error) {
       toast.error(getToastErrorMessage(error, "Unable to update the issue."));
     } finally {
@@ -341,8 +381,25 @@ const IssueLogCenter = () => {
             ]}
           />
         }
-      >
+        >
         <div className="space-y-6 p-4 sm:p-6">
+          {!isAdmin && closingFeedback ? (
+            <section className="rounded-[1.5rem] border border-emerald-500/20 bg-emerald-500/10 p-5">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2 text-emerald-300">
+                  <CheckCheck size={16} />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-300">
+                    Issue Closed
+                  </p>
+                  <h2 className="text-sm font-bold text-white">{closingFeedback.title}</h2>
+                  <p className="mt-1 text-sm text-emerald-100/90">{closingFeedback.message}</p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
           {!isAdmin ? (
             <section className="rounded-[1.5rem] border border-slate-800 bg-slate-950/40 p-5">
               <div className="mb-4 flex items-center gap-3">

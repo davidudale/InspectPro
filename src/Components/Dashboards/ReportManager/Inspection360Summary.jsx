@@ -64,7 +64,8 @@ const normalizeProjectStatus = (project) => {
     .toLowerCase();
 
   if (!rawStatus) return "Planned";
-  if (rawStatus === "report accepted" || rawStatus === "approved") return "Accepted";
+  if (rawStatus === "report accepted") return "Accepted";
+  if (rawStatus === "approved") return "Approved";
   if (rawStatus === "report rejected") return "Rejected";
   if (rawStatus.includes("client review")) return "Client Review";
   if (rawStatus.startsWith("passed and forwarded") || rawStatus.startsWith("pending confirmation")) {
@@ -180,6 +181,7 @@ const Inspection360Summary = () => {
     }, {});
 
     return [
+      { label: "Approved", value: counts.Approved || 0 },
       { label: "Accepted", value: counts.Accepted || 0 },
       { label: "Rejected", value: counts.Rejected || 0 },
       { label: "Client Review", value: counts["Client Review"] || 0 },
@@ -221,6 +223,7 @@ const Inspection360Summary = () => {
       const current = accumulator.get(key) || {
         client: key,
         totalProjects: 0,
+        approved: 0,
         accepted: 0,
         rejected: 0,
         inProgress: 0,
@@ -229,10 +232,13 @@ const Inspection360Summary = () => {
 
       const bucket = normalizeProjectStatus(project);
       current.totalProjects += 1;
+      if (bucket === "Approved") current.approved += 1;
       if (bucket === "Accepted") current.accepted += 1;
       if (bucket === "Rejected") current.rejected += 1;
       if (bucket === "In Progress") current.inProgress += 1;
-      if (bucket === "Client Review" || bucket === "Approval Queue") current.reviewQueue += 1;
+      if (bucket === "Approved" || bucket === "Client Review" || bucket === "Approval Queue") {
+        current.reviewQueue += 1;
+      }
 
       accumulator.set(key, current);
       return accumulator;
@@ -309,6 +315,7 @@ const Inspection360Summary = () => {
         label: "Projects",
         data: statusSummary.map((item) => item.value),
         backgroundColor: [
+          "#22c55e",
           "#10b981",
           "#f43f5e",
           "#a855f7",
@@ -457,6 +464,7 @@ const Inspection360Summary = () => {
                         <tr>
                           <th className="px-4 py-4">Client</th>
                           <th className="px-4 py-4">Total Projects</th>
+                          <th className="px-4 py-4">Approved</th>
                           <th className="px-4 py-4">Accepted</th>
                           <th className="px-4 py-4">Rejected</th>
                           <th className="px-4 py-4">In Progress</th>
@@ -469,6 +477,7 @@ const Inspection360Summary = () => {
                             <tr key={row.client} className="hover:bg-white/5 transition-colors">
                               <td className="px-4 py-4 text-sm font-semibold text-white">{row.client}</td>
                               <td className="px-4 py-4 text-sm text-slate-300">{row.totalProjects}</td>
+                              <td className="px-4 py-4 text-sm text-lime-300">{row.approved}</td>
                               <td className="px-4 py-4 text-sm text-emerald-300">{row.accepted}</td>
                               <td className="px-4 py-4 text-sm text-rose-300">{row.rejected}</td>
                               <td className="px-4 py-4 text-sm text-amber-300">{row.inProgress}</td>
@@ -477,7 +486,7 @@ const Inspection360Summary = () => {
                           ))
                         ) : (
                           <tr>
-                            <td colSpan="6" className="px-4 py-12 text-center text-sm text-slate-500">
+                            <td colSpan="7" className="px-4 py-12 text-center text-sm text-slate-500">
                               No inspection records are visible for this report scope yet.
                             </td>
                           </tr>

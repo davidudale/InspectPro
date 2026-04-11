@@ -3,8 +3,10 @@ import {
   Activity,
   ArrowRight,
   Boxes,
+  Bug,
   ClipboardList,
   Clock,
+  Eye,
   PlusCircle,
   RefreshCw,
   ShieldCheck,
@@ -65,6 +67,7 @@ const AdminDashboard = () => {
   const [projectsData, setProjectsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState([]);
+  const [issueLogs, setIssueLogs] = useState([]);
   const [fullName, setFullName] = useState("");
   const [onlineUserCount, setOnlineUserCount] = useState(0);
 
@@ -99,6 +102,16 @@ const AdminDashboard = () => {
     const unsubscribe = onSnapshot(inspectionRef, (snapshot) => {
       setProjectsData(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       setInspectionCount(snapshot.size);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const issueLogsRef = collection(db, "issue_logs");
+    const unsubscribe = onSnapshot(issueLogsRef, (snapshot) => {
+      setIssueLogs(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
       setLoading(false);
     });
 
@@ -200,6 +213,44 @@ const AdminDashboard = () => {
       { label: "Other", value: counts.Other || 0, color: "#64748b" },
     ];
   }, [projectsData]);
+  const activeInspectionCount = useMemo(
+    () =>
+      projectsData.filter(
+        (project) => String(project?.status || "").trim().toLowerCase() !== "report accepted",
+      ).length,
+    [projectsData],
+  );
+  const pendingConfirmationCount = useMemo(
+    () =>
+      projectsData.filter((project) =>
+        String(project?.status || "").trim().toLowerCase().startsWith("pending confirmation"),
+      ).length,
+    [projectsData],
+  );
+  const clientReviewInProgressCount = useMemo(
+    () =>
+      projectsData.filter(
+        (project) =>
+          String(project?.status || "").trim().toLowerCase() === "client review in progress",
+      ).length,
+    [projectsData],
+  );
+  const reportAcceptedCount = useMemo(
+    () =>
+      projectsData.filter(
+        (project) => String(project?.status || "").trim().toLowerCase() === "report accepted",
+      ).length,
+    [projectsData],
+  );
+  const openSupportIssuesCount = useMemo(
+    () =>
+      issueLogs.filter((issue) =>
+        ["open", "in progress", "reopened"].includes(
+          String(issue?.status || "").trim().toLowerCase(),
+        ),
+      ).length,
+    [issueLogs],
+  );
   const deploymentTrend = useMemo(() => {
     const months = Array.from({ length: 6 }, (_, index) => {
       const date = new Date();
@@ -239,7 +290,7 @@ const AdminDashboard = () => {
   const stats = [
     {
       label: "Active Inspections",
-      value: loading ? "..." : inspectionCount.toString(),
+      value: loading ? "..." : activeInspectionCount.toString(),
       trend: "Projects currently moving through the inspection workflow",
       icon: <ClipboardList className="text-orange-500" size={16} />,
     },
@@ -262,6 +313,30 @@ const AdminDashboard = () => {
       value: loading ? "..." : equipmentCount.toString(),
       trend: "Assets currently under lifecycle management",
       icon: <Boxes className="text-orange-500" size={16} />,
+    },
+    {
+      label: "Pending Confirmation",
+      value: loading ? "..." : pendingConfirmationCount.toString(),
+      trend: "Projects currently waiting for confirmation in the workflow.",
+      icon: <Clock className="text-orange-500" size={16} />,
+    },
+    {
+      label: "Client Review In Progress",
+      value: loading ? "..." : clientReviewInProgressCount.toString(),
+      trend: "Projects currently under external or client-side review.",
+      icon: <Eye className="text-orange-500" size={16} />,
+    },
+    {
+      label: "Report Accepted",
+      value: loading ? "..." : reportAcceptedCount.toString(),
+      trend: "Projects finalized as accepted after client review.",
+      icon: <ShieldCheck className="text-orange-500" size={16} />,
+    },
+    {
+      label: "Open Support Issues",
+      value: loading ? "..." : openSupportIssuesCount.toString(),
+      trend: "Support issues still open, in progress, or reopened.",
+      icon: <Bug className="text-orange-500" size={16} />,
     },
   ];
   const chartBaseOptions = useMemo(
@@ -306,7 +381,7 @@ const AdminDashboard = () => {
           labels: ["Active Inspections", "Remaining"],
           datasets: [
             {
-              data: [inspectionCount, Math.max(reportCount + equipmentCount, 1)],
+              data: [activeInspectionCount, Math.max(reportCount + equipmentCount, 1)],
               backgroundColor: ["#f97316", "rgba(148,163,184,0.16)"],
               borderWidth: 0,
             },
@@ -319,7 +394,7 @@ const AdminDashboard = () => {
           labels: ["Approved Reports", "Other Projects"],
           datasets: [
             {
-              data: [reportCount, Math.max(inspectionCount - reportCount, 1)],
+              data: [reportCount, Math.max(activeInspectionCount - reportCount, 1)],
               backgroundColor: ["#10b981", "rgba(148,163,184,0.16)"],
               borderWidth: 0,
             },
@@ -332,7 +407,7 @@ const AdminDashboard = () => {
           labels: ["Users", "Capacity"],
           datasets: [
             {
-              data: [userCount, Math.max(inspectionCount, 20)],
+              data: [userCount, Math.max(activeInspectionCount, 20)],
               backgroundColor: ["#38bdf8", "rgba(148,163,184,0.16)"],
               borderWidth: 0,
             },
@@ -352,8 +427,74 @@ const AdminDashboard = () => {
           ],
         },
       },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Pending Confirmation", "Other Projects"],
+          datasets: [
+            {
+              data: [pendingConfirmationCount, Math.max(activeInspectionCount - pendingConfirmationCount, 1)],
+              backgroundColor: ["#f59e0b", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Client Review", "Other Projects"],
+          datasets: [
+            {
+              data: [
+                clientReviewInProgressCount,
+                Math.max(activeInspectionCount - clientReviewInProgressCount, 1),
+              ],
+              backgroundColor: ["#8b5cf6", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Accepted", "Other Projects"],
+          datasets: [
+            {
+              data: [reportAcceptedCount, Math.max(inspectionCount - reportAcceptedCount, 1)],
+              backgroundColor: ["#22c55e", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
+      {
+        type: "doughnut",
+        data: {
+          labels: ["Open Issues", "Other Tickets"],
+          datasets: [
+            {
+              data: [openSupportIssuesCount, Math.max(issueLogs.length - openSupportIssuesCount, 1)],
+              backgroundColor: ["#ef4444", "rgba(148,163,184,0.16)"],
+              borderWidth: 0,
+            },
+          ],
+        },
+      },
     ],
-    [equipmentCount, inspectionCount, reportCount, userCount],
+    [
+      activeInspectionCount,
+      clientReviewInProgressCount,
+      equipmentCount,
+      issueLogs.length,
+      inspectionCount,
+      openSupportIssuesCount,
+      pendingConfirmationCount,
+      reportAcceptedCount,
+      reportCount,
+      userCount,
+    ],
   );
 
   return (

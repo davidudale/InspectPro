@@ -246,6 +246,19 @@ const ProjectSetup = () => {
       setupData.clientId &&
       String(reviewer.clientId || "").trim() === String(setupData.clientId).trim(),
   );
+  const getAvailableExternalReviewersForField = (fieldIdKey) =>
+    availableExternalReviewers.filter((reviewer) => {
+      const reviewerId = String(reviewer.id || "").trim();
+      return (
+        !reviewerId ||
+        setupData[fieldIdKey] === reviewerId ||
+        !externalReviewerFields.some(
+          (otherField) =>
+            otherField.idKey !== fieldIdKey &&
+            String(setupData[otherField.idKey] || "").trim() === reviewerId,
+        )
+      );
+    });
   const clearedExternalReviewerAssignments = externalReviewerFields.reduce(
     (acc, field) => ({
       ...acc,
@@ -703,16 +716,19 @@ const ProjectSetup = () => {
                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
                            {field.label}
                          </label>
-                         <select
+                          <select
                            required={field.required}
                            disabled={!setupData.clientId}
                            className={`w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white ${!setupData.clientId ? "opacity-40 cursor-not-allowed" : ""}`}
-                            value={setupData[field.idKey]}
-                            onChange={(e) => {
-                              const selectedReviewerId = e.target.value;
-                              if (
-                                selectedReviewerId &&
-                                externalReviewerFields.some(
+                             value={setupData[field.idKey]}
+                             onChange={(e) => {
+                               const selectedReviewerId = e.target.value;
+                               const fieldReviewers = getAvailableExternalReviewersForField(
+                                 field.idKey,
+                               );
+                               if (
+                                 selectedReviewerId &&
+                                 externalReviewerFields.some(
                                   (otherField) =>
                                     otherField.idKey !== field.idKey &&
                                     setupData[otherField.idKey] === selectedReviewerId,
@@ -721,7 +737,7 @@ const ProjectSetup = () => {
                                 toast.warn("This external reviewer has already been selected.");
                                 return;
                               }
-                              const selected = availableExternalReviewers.find(
+                              const selected = fieldReviewers.find(
                                 (reviewer) => reviewer.id === selectedReviewerId,
                               );
                               setSetupData({
@@ -735,15 +751,15 @@ const ProjectSetup = () => {
                               });
                             }}
                          >
-                           <option value="">
-                             {setupData.clientId
-                               ? "Choose External Reviewer..."
-                               : "Select Client First..."}
-                           </option>
-                           {availableExternalReviewers.map((reviewer) => (
-                             <option key={reviewer.id} value={reviewer.id}>
-                               {reviewer.name || reviewer.displayName || reviewer.fullName}
-                             </option>
+                            <option value="">
+                              {setupData.clientId
+                                ? "Choose External Reviewer..."
+                                : "Select Client First..."}
+                            </option>
+                            {getAvailableExternalReviewersForField(field.idKey).map((reviewer) => (
+                              <option key={reviewer.id} value={reviewer.id}>
+                                {reviewer.name || reviewer.displayName || reviewer.fullName}
+                              </option>
                            ))}
                          </select>
                        </div>
