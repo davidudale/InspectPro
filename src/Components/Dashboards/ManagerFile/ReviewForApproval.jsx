@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import {
@@ -18,6 +18,8 @@ import ManagerSidebar from "./ManagerSidebar";
 import ReportDownloadView from "./ReportDownloadView";
 import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
 import { buildScheduleFromProject } from "../../../utils/inspectionScheduling";
+import { getExternalFeedbackSummary } from "../../../utils/externalFeedbackSummary";
+import { resetVerificationReviewState } from "../../../utils/externalReviewCycle";
 
 const ReviewForApproval = () => {
   const { user } = useAuth();
@@ -26,6 +28,7 @@ const ReviewForApproval = () => {
   const { id } = useParams();
 
   const [isSaving, setIsSaving] = useState(false);
+  const [projectDetails, setProjectDetails] = useState(location.state?.preFill || null);
   // Return modal state (manager -> supervisor feedback loop).
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnFeedback, setReturnFeedback] = useState("");
@@ -40,6 +43,24 @@ const ReviewForApproval = () => {
   const isEditableView = currentStatus
     .toLowerCase()
     .startsWith("passed and forwarded");
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      if (!targetProjectId) {
+        return;
+      }
+
+      const projectSnap = await getDoc(doc(db, "projects", targetProjectId));
+      if (projectSnap.exists()) {
+        setProjectDetails({
+          id: projectSnap.id,
+          ...projectSnap.data(),
+        });
+      }
+    };
+
+    fetchProject().catch(() => {});
+  }, [targetProjectId]);
 
   const getTechniqueType = () => {
     const normalize = (value) =>
@@ -191,8 +212,32 @@ const ReviewForApproval = () => {
         inspectionEndDate: serverTimestamp(),
         approvedAt: serverTimestamp(),
         confirmedAt: serverTimestamp(),
+        clientReviewDecisionAt: null,
+        clientReviewDecisionBy: null,
+        clientReviewDecisionById: null,
+        reportAcceptedAt: null,
+        reportAcceptedBy: null,
+        reportRejectedAt: null,
+        reportRejectedBy: null,
         updatedAt: serverTimestamp(),
+        returnNote: "",
       });
+
+      await resetVerificationReviewState({
+        db,
+        projectDocId: projectId,
+        projectId: preFillProject.projectId || "",
+      });
+      setProjectDetails((current) => ({
+        ...(current || {}),
+        status: "Approved",
+        externalFeedbackLatestMessage: null,
+        externalFeedbackLatestDecisionAt: null,
+        externalFeedbackLatestBy: null,
+        externalFeedbackLatestByEmail: null,
+        externalFeedbackLatestId: null,
+        externalFeedbackLatestStatus: null,
+      }));
 
       const { scheduleDoc, equipmentSnapshot } = buildScheduleFromProject({
         project: preFillProject,
@@ -275,6 +320,19 @@ const ReviewForApproval = () => {
         <ManagerSidebar />
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-slate-950">
           <div className="max-w-6xl mx-auto">
+            {getExternalFeedbackSummary(projectDetails) ? (
+              <section className="mb-6 rounded-3xl border border-rose-500/30 bg-rose-500/10 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-300">
+                  External Rejection Feedback
+                </p>
+                <p className="mt-3 text-sm leading-7 text-rose-100">
+                  {getExternalFeedbackSummary(projectDetails)}
+                </p>
+                <p className="mt-3 text-xs uppercase tracking-[0.18em] text-rose-200/80">
+                  Latest note from {projectDetails?.externalFeedbackLatestBy || "External Reviewer"}
+                </p>
+              </section>
+            ) : null}
             <header className="flex justify-between items-center mb-10 bg-slate-900/40 p-6 rounded-3xl border border-slate-800 backdrop-blur-md">
               <div className="flex items-center gap-4">
                 <button

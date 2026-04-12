@@ -503,7 +503,6 @@ const DetailedReport = ({
         roleAtSubmission: user?.role || "Inspector",
         updatedAt: serverTimestamp(),
       };
-
       // Final mapping for the Project collection
       let projectFinalStatus = workflowStatus;
       if (workflowStatus === "Authorized") {

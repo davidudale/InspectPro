@@ -56,6 +56,10 @@ import ReportReviewChecklist from "./Components/Dashboards/ExternalDashboard/Rep
 import NextInspectionScheduler from "./Components/Dashboards/ProjectScheduler/NextInspectionScheduler.jsx";
 import ProfileSecurity from "./Components/Page/ProfileSecurity.jsx";
 import IssueLogCenter from "./Components/Dashboards/Support/IssueLogCenter.jsx";
+import SuperAdminDashboard from "./Components/Page/SuperAdminDashboard.jsx";
+import SuperAdminAccessCenter from "./Components/Page/SuperAdminAccessCenter.jsx";
+import SuperAdminSystemCenter from "./Components/Page/SuperAdminSystemCenter.jsx";
+import SuperAdminAuditCenter from "./Components/Page/SuperAdminAuditCenter.jsx";
 function App() {
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
@@ -164,6 +168,38 @@ function App() {
               allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <ProfileSecurity />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin"
+          element={
+            <ProtectedRoute allowedRoles={["Super_Admin"]}>
+              <SuperAdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/access"
+          element={
+            <ProtectedRoute allowedRoles={["Super_Admin"]}>
+              <SuperAdminAccessCenter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/system"
+          element={
+            <ProtectedRoute allowedRoles={["Super_Admin"]}>
+              <SuperAdminSystemCenter />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/super-admin/audit"
+          element={
+            <ProtectedRoute allowedRoles={["Super_Admin"]}>
+              <SuperAdminAuditCenter />
             </ProtectedRoute>
           }
         />

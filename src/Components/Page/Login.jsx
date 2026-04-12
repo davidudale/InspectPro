@@ -35,7 +35,7 @@ const Login = () => {
         const userData = docSnap.data();
         const role = userData.role;
         const hasReviewerType = Boolean(String(userData.reviewerType || "").trim());
-        const isAdmin = role === "Admin";
+        const isAdmin = role === "Admin" || role === "Super_Admin";
 
         if (!user.emailVerified && !isAdmin) {
           toast.info("Verify your email before accessing the dashboard.");
@@ -49,7 +49,8 @@ const Login = () => {
           return;
         }
 
-        if (role === "Admin") navigate("/admin-dashboard");
+        if (role === "Super_Admin") navigate("/super-admin");
+        else if (role === "Admin") navigate("/admin-dashboard");
         else if (role === "Manager") navigate("/ManagerDashboard");
         else if (
           role === "External_Reviewer" ||

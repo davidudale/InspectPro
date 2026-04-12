@@ -319,13 +319,66 @@ service cloud.firestore {
         )
       );
 
-      allow create, update: if signedIn() &&
+      allow create: if signedIn() &&
         request.auth.uid == uid &&
         isExternalReviewer() &&
         projectDocExists(projectId) &&
         projectAssignedToMe(projectDocById(projectId).data) &&
         request.resource.data.projectDocId == projectId &&
         request.resource.data.externalReviewerId == request.auth.uid;
+
+      allow update: if signedIn() && (
+        (
+          request.auth.uid == uid &&
+          isExternalReviewer() &&
+          projectDocExists(projectId) &&
+          projectAssignedToMe(projectDocById(projectId).data) &&
+          request.resource.data.projectDocId == projectId &&
+          request.resource.data.externalReviewerId == request.auth.uid
+        ) ||
+        (
+          isManagerOrAbove() &&
+          projectDocExists(projectId) &&
+          canReadProject(projectDocById(projectId).data)
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    match /report_review_checklists/{docId} {
+      allow read: if signedIn() && (
+        isAdmin() ||
+        (
+          resource.data.projectDocId is string &&
+          projectDocExists(resource.data.projectDocId) &&
+          canReadProject(projectDocById(resource.data.projectDocId).data)
+        )
+      );
+
+      allow create: if signedIn() &&
+        isExternalReviewer() &&
+        request.resource.data.externalReviewerId == request.auth.uid &&
+        request.resource.data.projectDocId is string &&
+        projectDocExists(request.resource.data.projectDocId) &&
+        projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data);
+
+      allow update: if signedIn() && (
+        (
+          isExternalReviewer() &&
+          resource.data.externalReviewerId == request.auth.uid &&
+          request.resource.data.externalReviewerId == request.auth.uid &&
+          resource.data.projectDocId is string &&
+          projectDocExists(resource.data.projectDocId) &&
+          projectAssignedToMe(projectDocById(resource.data.projectDocId).data)
+        ) ||
+        (
+          isManagerOrAbove() &&
+          resource.data.projectDocId is string &&
+          projectDocExists(resource.data.projectDocId) &&
+          canReadProject(projectDocById(resource.data.projectDocId).data)
+        )
+      );
 
       allow delete: if isAdmin();
     }

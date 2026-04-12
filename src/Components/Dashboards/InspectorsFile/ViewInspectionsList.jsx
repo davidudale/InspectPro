@@ -39,6 +39,7 @@ import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
+import { getExternalFeedbackSummary } from "../../../utils/externalFeedbackSummary";
 
 const ViewInspectionsList = () => {
   const { user } = useAuth(); // Get current logged-in inspector
@@ -196,14 +197,19 @@ const ViewInspectionsList = () => {
   };
 
   const getReturnFeedback = (project) => {
+    const messages = [];
     const status = (project?.status || "").toLowerCase();
+    const externalFeedback = getExternalFeedbackSummary(project);
+    if (externalFeedback) {
+      messages.push(`External reviewer: ${externalFeedback}`);
+    }
     if (
       status.startsWith("returned for correction - rpt_with ") &&
       project?.returnNote
     ) {
-      return project.returnNote;
+      messages.push(`Lead inspector: ${project.returnNote}`);
     }
-    return "";
+    return messages.join("\n\n");
   };
 
   const getInspectorStatusLabel = (project) => {

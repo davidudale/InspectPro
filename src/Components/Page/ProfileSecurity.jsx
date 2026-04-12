@@ -32,8 +32,11 @@ import InspectorNavbar from "../Dashboards/InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../Dashboards/InspectorsFile/InspectorSidebar";
 import ExternalNavbar from "../Dashboards/ExternalDashboard/ExternalNavbar";
 import ExternalSideBar from "../Dashboards/ExternalDashboard/ExternalSideBar";
+import SuperAdminNavbar from "../Dashboards/SuperAdminNavbar";
+import SuperAdminSidebar from "../Dashboards/SuperAdminSidebar";
 
 const resolveDashboardPath = (role) => {
+  if (role === "Super_Admin") return "/super-admin";
   if (role === "Admin") return "/admin-dashboard";
   if (role === "Manager") return "/ManagerDashboard";
   if (role === "Lead Inspector") return "/SupervisorDashboard";
@@ -44,6 +47,9 @@ const resolveDashboardPath = (role) => {
 };
 
 const resolveShell = (role) => {
+  if (role === "Super_Admin") {
+    return { navbar: <SuperAdminNavbar />, sidebar: <SuperAdminSidebar /> };
+  }
   if (role === "Admin") {
     return { navbar: <AdminNavbar />, sidebar: <AdminSidebar /> };
   }

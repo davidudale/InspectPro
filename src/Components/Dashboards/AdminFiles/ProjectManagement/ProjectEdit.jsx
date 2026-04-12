@@ -33,6 +33,7 @@ import AdminSidebar from "../../AdminSidebar";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
+import { resetVerificationReviewState } from "../../../../utils/externalReviewCycle";
 
 const ProjectEdit = () => {
   const { user } = useAuth();
@@ -247,10 +248,39 @@ const ProjectEdit = () => {
           setupData.status === "Approved"
             ? setupData.inspectionEndDate || serverTimestamp()
             : setupData.inspectionEndDate || null,
+        clientReviewDecisionAt: setupData.status === "Approved" ? null : setupData.clientReviewDecisionAt || null,
+        clientReviewDecisionBy: setupData.status === "Approved" ? null : setupData.clientReviewDecisionBy || null,
+        clientReviewDecisionById:
+          setupData.status === "Approved" ? null : setupData.clientReviewDecisionById || null,
+        reportAcceptedAt: setupData.status === "Approved" ? null : setupData.reportAcceptedAt || null,
+        reportAcceptedBy: setupData.status === "Approved" ? null : setupData.reportAcceptedBy || null,
+        reportRejectedAt: setupData.status === "Approved" ? null : setupData.reportRejectedAt || null,
+        reportRejectedBy: setupData.status === "Approved" ? null : setupData.reportRejectedBy || null,
+        externalFeedbackLatestMessage:
+          setupData.status === "Approved" ? null : setupData.externalFeedbackLatestMessage || null,
+        externalFeedbackLatestDecisionAt:
+          setupData.status === "Approved" ? null : setupData.externalFeedbackLatestDecisionAt || null,
+        externalFeedbackLatestBy:
+          setupData.status === "Approved" ? null : setupData.externalFeedbackLatestBy || null,
+        externalFeedbackLatestByEmail:
+          setupData.status === "Approved" ? null : setupData.externalFeedbackLatestByEmail || null,
+        externalFeedbackLatestId:
+          setupData.status === "Approved" ? null : setupData.externalFeedbackLatestId || null,
+        externalFeedbackLatestStatus:
+          setupData.status === "Approved" ? null : setupData.externalFeedbackLatestStatus || null,
+        returnNote: setupData.status === "Approved" ? "" : setupData.returnNote || "",
         lastUpdated: serverTimestamp(),
         adminId: user?.uid || "",
         adminName: user?.displayName || user?.name || "System Admin",
       });
+
+      if (setupData.status === "Approved") {
+        await resetVerificationReviewState({
+          db,
+          projectDocId: resolvedDocId,
+          projectId: setupData.projectId || "",
+        });
+      }
       toast.success("Project updated successfully.");
       navigate("/admin/projects");
     } catch (error) {

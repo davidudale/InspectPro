@@ -1,5 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
 import {
   Briefcase,
   MessageSquareText,
@@ -21,6 +31,10 @@ import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
+import {
+  buildExternalFeedbackProjectFields,
+  clearExternalFeedbackProjectFields,
+} from "../../../utils/externalFeedbackSummary";
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -178,6 +192,62 @@ const Feedback = () => {
     [filteredProjects, groupBy, latestDecisionByProject],
   );
 
+  const logExternalFeedbackAlerts = async ({ project, feedbackMessage, reviewerName }) => {
+    const recipients = [
+      {
+        userId: String(project?.inspectorId || "").trim(),
+        fallbackName: project?.inspectorName || "Inspector",
+      },
+      {
+        userId: String(project?.supervisorId || "").trim(),
+        fallbackName: project?.supervisorName || "Lead Inspector",
+      },
+      {
+        userId: String(project?.managerId || "").trim(),
+        fallbackName: project?.managerName || "Manager",
+      },
+    ].filter((entry) => entry.userId);
+
+    if (recipients.length === 0) {
+      return;
+    }
+
+    const seenKeys = new Set();
+    const recipientPayloads = await Promise.all(
+      recipients.map(async (entry) => {
+        const userSnap = await getDoc(doc(db, "users", entry.userId));
+        const userData = userSnap.exists() ? userSnap.data() : {};
+        const userEmail = String(userData?.email || "").trim();
+        const dedupeKey = `${entry.userId}|${userEmail}`;
+        if (seenKeys.has(dedupeKey)) {
+          return null;
+        }
+        seenKeys.add(dedupeKey);
+        return {
+          userId: entry.userId,
+          userEmail,
+          userName: userData?.fullName || userData?.name || entry.fallbackName,
+        };
+      }),
+    );
+
+    await Promise.all(
+      recipientPayloads.filter(Boolean).map((recipient) =>
+        addDoc(collection(db, "activity_logs"), {
+          message: `External reviewer rejection for ${
+            project?.projectName || project?.projectId || "project"
+          }: ${feedbackMessage}`,
+          target: project?.projectId || project?.id || "",
+          userEmail: recipient.userEmail || "",
+          userId: recipient.userId || "",
+          type: "alert",
+          timestamp: serverTimestamp(),
+          actorName: reviewerName,
+        }),
+      ),
+    );
+  };
+
   const handleDecision = async (project, decision, rejectionMessage = "") => {
     const projectKey = project.id;
     if (!user?.uid) {
@@ -203,7 +273,7 @@ const Feedback = () => {
 
     setSubmittingProjectId(submittingKey);
     try {
-      await addDoc(collection(db, "external_feedback"), {
+      const feedbackDoc = await addDoc(collection(db, "external_feedback"), {
         projectDocId: project.id,
         projectId: project.projectId || "",
         projectName: project.projectName || "",
@@ -219,6 +289,40 @@ const Feedback = () => {
         status: "New",
         createdAt: serverTimestamp(),
       });
+
+      const reviewerName =
+        user.fullName || user.name || user.displayName || user.email || "External Reviewer";
+      const feedbackProjectFields =
+        normalizedDecision === "Rejected"
+          ? buildExternalFeedbackProjectFields({
+              feedbackId: feedbackDoc.id,
+              message: normalizedFeedback,
+              decisionAt: serverTimestamp(),
+              reviewerName,
+              reviewerEmail: user.email || "",
+            })
+          : clearExternalFeedbackProjectFields();
+
+      await updateDoc(doc(db, "projects", project.id), {
+        status: normalizedDecision === "Approved" ? "Report Accepted" : "Report Rejected",
+        updatedAt: serverTimestamp(),
+        clientReviewDecisionAt: serverTimestamp(),
+        clientReviewDecisionBy: reviewerName,
+        clientReviewDecisionById: user.uid,
+        reportAcceptedAt: normalizedDecision === "Approved" ? serverTimestamp() : null,
+        reportAcceptedBy: normalizedDecision === "Approved" ? reviewerName : null,
+        reportRejectedAt: normalizedDecision === "Rejected" ? serverTimestamp() : null,
+        reportRejectedBy: normalizedDecision === "Rejected" ? reviewerName : null,
+        ...feedbackProjectFields,
+      });
+
+      if (normalizedDecision === "Rejected") {
+        await logExternalFeedbackAlerts({
+          project,
+          feedbackMessage: normalizedFeedback,
+          reviewerName,
+        });
+      }
 
       toast.success(`Project ${normalizedDecision.toLowerCase()} and sent to admin.`);
       if (normalizedDecision === "Rejected") {

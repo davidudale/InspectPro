@@ -31,6 +31,7 @@ import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import ControlCenterTableShell from "../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
+import { getExternalFeedbackSummary } from "../../../utils/externalFeedbackSummary";
 
 const SubInspectionsList = () => {
   const { user } = useAuth();
@@ -243,24 +244,35 @@ const SubInspectionsList = () => {
 
   const getProjectFeedback = (project) => {
     const normalizedStatus = String(project?.status || "").trim().toLowerCase();
-    if (
-      normalizedStatus === "approved" ||
-      normalizedStatus === "client review in progress" ||
-      normalizedStatus === "report accepted" ||
-      normalizedStatus === "report rejected"
-    ) {
-      return "";
+    const messages = [];
+    const externalFeedback = getExternalFeedbackSummary(project);
+
+    if (externalFeedback) {
+      messages.push(`External reviewer: ${externalFeedback}`);
     }
 
-    return String(
-      project?.returnNote ||
-      project?.remark ||
-      project?.remarks ||
-      project?.adminRemark ||
-      project?.adminRemarks ||
-      project?.feedback ||
-      "",
-    ).trim();
+    if (
+      normalizedStatus !== "approved" &&
+      normalizedStatus !== "client review in progress" &&
+      normalizedStatus !== "report accepted" &&
+      normalizedStatus !== "report rejected"
+    ) {
+      const internalFeedback = String(
+        project?.returnNote ||
+          project?.remark ||
+          project?.remarks ||
+          project?.adminRemark ||
+          project?.adminRemarks ||
+          project?.feedback ||
+          "",
+      ).trim();
+
+      if (internalFeedback) {
+        messages.push(internalFeedback);
+      }
+    }
+
+    return messages.join("\n\n").trim();
   };
 
   return (
@@ -416,5 +428,4 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
-
 

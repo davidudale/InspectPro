@@ -8,6 +8,7 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const hasUser = Boolean(user?.uid);
   const emailVerified = Boolean(user?.emailVerified);
   const isPasswordChangeRoute = location.pathname === "/profile/security";
+  const isElevatedOwner = role === "Admin" || role === "Super_Admin";
 
   if (loading)
     return (
@@ -20,12 +21,16 @@ export const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (role !== "Admin" && !emailVerified) {
+  if (!isElevatedOwner && !emailVerified) {
     return <Navigate to="/verify-email" replace />;
   }
 
   if (user?.mustChangePassword && !isPasswordChangeRoute) {
     return <Navigate to="/profile/security" replace state={{ forcedPasswordChange: true }} />;
+  }
+
+  if (role === "Super_Admin") {
+    return children;
   }
 
   if (allowedRoles.length === 0 || allowedRoles.includes(role)) {

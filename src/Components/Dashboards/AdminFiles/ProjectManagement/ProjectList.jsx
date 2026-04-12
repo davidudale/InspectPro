@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
-import { collection, onSnapshot, query } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, updateDoc } from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
   MapPin, Users, Edit3, ShieldAlert, MoreVertical
@@ -75,12 +75,31 @@ const ProjectList = () => {
     project?.submittedAt ||
     project?.reportSubmittedAt ||
     project?.report?.submittedAt ||
+    (String(getOperationalStatus(project) || "")
+      .trim()
+      .toLowerCase()
+      .startsWith("pending confirmation")
+      ? project?.report?.updatedAt ||
+        project?.updatedAt ||
+        project?.lastUpdated ||
+        project?.inspectionStartedAt ||
+        null
+      : null);
+  const getPendingConfirmationSubmittedAt = (project) =>
+    project?.report?.updatedAt ||
+    project?.updatedAt ||
+    project?.lastUpdated ||
+    project?.inspectionStartedAt ||
     null;
   const getSubmittedBy = (project) => {
     const hasSubmissionRecord = Boolean(
       project?.submittedAt ||
         project?.reportSubmittedAt ||
-        project?.report?.submittedAt,
+        project?.report?.submittedAt ||
+        String(getOperationalStatus(project) || "")
+          .trim()
+          .toLowerCase()
+          .startsWith("pending confirmation"),
     );
 
     if (!hasSubmissionRecord) {
@@ -217,6 +236,7 @@ const ProjectList = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
+  const persistedSubmissionIdsRef = useRef(new Set());
 
   useEffect(() => {
     const q = query(collection(db, "projects"));
@@ -274,6 +294,45 @@ const ProjectList = () => {
 
     return "Planned";
   };
+
+  useEffect(() => {
+    projects.forEach((project) => {
+      const normalizedStatus = String(getOperationalStatus(project) || "").trim().toLowerCase();
+      if (!normalizedStatus.startsWith("pending confirmation")) {
+        return;
+      }
+
+      if (
+        project?.submittedAt ||
+        project?.reportSubmittedAt ||
+        project?.report?.submittedAt ||
+        persistedSubmissionIdsRef.current.has(project.id)
+      ) {
+        return;
+      }
+
+      const submittedAt = getPendingConfirmationSubmittedAt(project);
+      const submittedBy =
+        project?.submittedBy ||
+        project?.report?.submittedBy ||
+        project?.inspectorName ||
+        project?.assignedInspectorName ||
+        "";
+
+      if (!submittedAt || !submittedBy) {
+        return;
+      }
+
+      persistedSubmissionIdsRef.current.add(project.id);
+      updateDoc(doc(db, "projects", project.id), {
+        submittedAt,
+        submittedBy,
+      }).catch(() => {
+        persistedSubmissionIdsRef.current.delete(project.id);
+      });
+    });
+  }, [projects]);
+
   const getOperationalStatusBadgeTheme = (status) => {
     const normalizedStatus = String(status || "").trim().toLowerCase();
 

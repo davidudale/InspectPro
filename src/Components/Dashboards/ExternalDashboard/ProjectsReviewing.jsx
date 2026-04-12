@@ -5,6 +5,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   onSnapshot,
   serverTimestamp,
   updateDoc,
@@ -23,6 +24,10 @@ import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 import { getToastErrorMessage } from "../../../utils/toast";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
+import {
+  buildExternalFeedbackProjectFields,
+  clearExternalFeedbackProjectFields,
+} from "../../../utils/externalFeedbackSummary";
 
 const CHECKLIST_SECTION_TITLES = {
   documentReview: "Document Review",
@@ -879,7 +884,7 @@ const ProjectReviewing = () => {
 
     setIsSubmittingFeedback(true);
     try {
-      await addDoc(collection(db, "external_feedback"), {
+      const feedbackDoc = await addDoc(collection(db, "external_feedback"), {
         projectDocId: feedbackProject.id,
         projectId: feedbackProject.projectId || "",
         projectName: feedbackProject.projectName || "",
@@ -905,6 +910,19 @@ const ProjectReviewing = () => {
         createdAt: serverTimestamp(),
       });
 
+      const reviewerName =
+        user.fullName || user.name || user.displayName || user.email || "External Reviewer";
+      const feedbackProjectFields =
+        feedbackDecision === "Rejected"
+          ? buildExternalFeedbackProjectFields({
+              feedbackId: feedbackDoc.id,
+              message: normalizedMessage,
+              decisionAt: serverTimestamp(),
+              reviewerName,
+              reviewerEmail: user.email || "",
+            })
+          : clearExternalFeedbackProjectFields();
+
       await updateDoc(doc(db, "projects", feedbackProject.id), {
         status: feedbackDecision === "Approved" ? "Report Accepted" : "Report Rejected",
         updatedAt: serverTimestamp(),
@@ -920,9 +938,18 @@ const ProjectReviewing = () => {
         reportRejectedAt: feedbackDecision === "Rejected" ? serverTimestamp() : null,
         reportRejectedBy:
           feedbackDecision === "Rejected"
-            ? user.fullName || user.name || user.displayName || user.email || "External Reviewer"
+            ? reviewerName
             : null,
+        ...feedbackProjectFields,
       });
+
+      if (feedbackDecision === "Rejected") {
+        await logExternalFeedbackAlerts({
+          project: feedbackProject,
+          feedbackMessage: normalizedMessage,
+          reviewerName,
+        });
+      }
 
       toast.success(
         feedbackDecision === "Approved"
@@ -1536,3 +1563,58 @@ const ProjectReviewing = () => {
 };
 
 export default ProjectReviewing;
+  const logExternalFeedbackAlerts = async ({ project, feedbackMessage, reviewerName }) => {
+    const recipients = [
+      {
+        userId: String(project?.inspectorId || "").trim(),
+        fallbackName: project?.inspectorName || "Inspector",
+      },
+      {
+        userId: String(project?.supervisorId || "").trim(),
+        fallbackName: project?.supervisorName || "Lead Inspector",
+      },
+      {
+        userId: String(project?.managerId || "").trim(),
+        fallbackName: project?.managerName || "Manager",
+      },
+    ].filter((entry) => entry.userId);
+
+    if (recipients.length === 0) {
+      return;
+    }
+
+    const seenKeys = new Set();
+    const recipientPayloads = await Promise.all(
+      recipients.map(async (entry) => {
+        const userSnap = await getDoc(doc(db, "users", entry.userId));
+        const userData = userSnap.exists() ? userSnap.data() : {};
+        const userEmail = String(userData?.email || "").trim();
+        const dedupeKey = `${entry.userId}|${userEmail}`;
+        if (seenKeys.has(dedupeKey)) {
+          return null;
+        }
+        seenKeys.add(dedupeKey);
+        return {
+          userId: entry.userId,
+          userEmail,
+          userName: userData?.fullName || userData?.name || entry.fallbackName,
+        };
+      }),
+    );
+
+    await Promise.all(
+      recipientPayloads.filter(Boolean).map((recipient) =>
+        addDoc(collection(db, "activity_logs"), {
+          message: `External reviewer rejection for ${
+            project?.projectName || project?.projectId || "project"
+          }: ${feedbackMessage}`,
+          target: project?.projectId || project?.id || "",
+          userEmail: recipient.userEmail || "",
+          userId: recipient.userId || "",
+          type: "alert",
+          timestamp: serverTimestamp(),
+          actorName: reviewerName,
+        }),
+      ),
+    );
+  };

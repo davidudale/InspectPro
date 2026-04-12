@@ -342,9 +342,14 @@ const UserPage = () => {
     () =>
       [...users]
         .filter((entry) => {
+          const normalizedRole = String(entry.role || DEFAULT_ROLE).trim();
+          if (normalizedRole === "Super_Admin") {
+            return false;
+          }
+
           const matchesRole =
             effectiveRoleFilter === "all" ||
-            String(entry.role || DEFAULT_ROLE) === effectiveRoleFilter;
+            normalizedRole === effectiveRoleFilter;
           const matchesCreator = !isExternalReviewer
             ? true
             : String(entry.createdByUserId || "").trim() === String(user?.uid || "").trim();

@@ -22,6 +22,7 @@ import { useAuth } from "../../Auth/AuthContext";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
 import ReportDownloadView from "../ManagerFile/ReportDownloadView";
+import { getExternalFeedbackSummary } from "../../../utils/externalFeedbackSummary";
 
 const ReviewForConfirmation = () => {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ const ReviewForConfirmation = () => {
   const [isReturning, setIsReturning] = useState(false);
   const [isSavingReport, setIsSavingReport] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [projectDetails, setProjectDetails] = useState(null);
   const [resolvedProjectDocId, setResolvedProjectDocId] = useState("");
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnFeedback, setReturnFeedback] = useState("");
@@ -233,9 +235,16 @@ const ReviewForConfirmation = () => {
 
         if (projectData?.report) {
           setReportData(projectData.report);
+          setProjectDetails({
+            id: resolvedDocId || targetProjectId,
+            ...projectData,
+          });
         } else {
           toast.warn("No inspection data found.");
-          if (location.state?.preFill) setReportData(location.state.preFill);
+          if (location.state?.preFill) {
+            setReportData(location.state.preFill);
+            setProjectDetails(location.state.preFill);
+          }
         }
       } catch (err) {
         console.error("Fetch Error:", err);
@@ -396,6 +405,9 @@ const ReviewForConfirmation = () => {
 
   if (!reportData) return null;
 
+  const externalFeedbackSummary = getExternalFeedbackSummary(projectDetails);
+  const externalFeedbackBy = String(projectDetails?.externalFeedbackLatestBy || "").trim();
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
       {user?.role === "Admin" ? <AdminNavbar /> : <SupervisorNavbar />}
@@ -450,6 +462,18 @@ const ReviewForConfirmation = () => {
                 </button>
               </div>
             </header>
+
+            {externalFeedbackSummary ? (
+              <section className="mb-6 rounded-3xl border border-rose-500/30 bg-rose-500/10 p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-rose-300">
+                  External Rejection Feedback
+                </p>
+                <p className="mt-3 text-sm leading-7 text-rose-100">{externalFeedbackSummary}</p>
+                <p className="mt-3 text-xs uppercase tracking-[0.18em] text-rose-200/80">
+                  Latest note from {externalFeedbackBy || "External Reviewer"}
+                </p>
+              </section>
+            ) : null}
 
             <ReportDownloadView
               projectId={targetProjectId}
