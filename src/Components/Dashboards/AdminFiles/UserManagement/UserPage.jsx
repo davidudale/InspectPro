@@ -137,7 +137,7 @@ const UserPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
   const isSuperAdmin = user?.role === "Super_Admin";
-  const isSuperAdmin = user?.role === "Super_Admin";
+  
   const isExternalReviewer = user?.role === "External_Reviewer";
   const availableRoleOptions = isExternalReviewer
     ? ["External_Reviewer"]
