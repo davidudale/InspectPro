@@ -126,11 +126,11 @@ const sidebarLinks = [
     name: "System Setup",
     icon: <Settings size={20} />,
     subLinks: [
-      {
-        name: "Company Profile",
-        icon: <Building2 size={16} />,
-        href: "/admin/company-profile",
-      },
+     // {
+     //   name: "Company Profile",
+     //   icon: <Building2 size={16} />,
+     //   href: "/admin/company-profile",
+     // },
       {
         name: "Client Management",
         icon: <Building2 size={16} />,

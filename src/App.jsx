@@ -165,7 +165,7 @@ function App() {
           path="/profile/security"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Super_Admin", "Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
             >
               <ProfileSecurity />
             </ProtectedRoute>
@@ -450,7 +450,7 @@ function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute allowedRoles={["Admin", "External_Reviewer"]}>
+            <ProtectedRoute allowedRoles={["Super_Admin", "Admin", "External_Reviewer"]}>
               <UserPage />
             </ProtectedRoute>
           }
@@ -491,7 +491,7 @@ function App() {
         <Route
           path="/admin/projects"
           element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
+            <ProtectedRoute allowedRoles={["Super_Admin", "Admin"]}>
               <ProjectList />
             </ProtectedRoute>
           }
@@ -523,7 +523,7 @@ function App() {
         <Route
           path="/admin/company-profile"
           element={
-            <ProtectedRoute allowedRoles={["Admin"]}>
+            <ProtectedRoute allowedRoles={["Super_Admin", "Admin"]}>
               <CompanyProfile />
             </ProtectedRoute>
           }

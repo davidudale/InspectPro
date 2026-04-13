@@ -192,20 +192,8 @@ const ReviewForApproval = () => {
         ...(location.state?.preFill || {}),
         id: projectId,
       };
-      let inspectionTypeData = null;
 
-      if (preFillProject.inspectionTypeId) {
-        const inspectionTypeSnap = await getDoc(
-          doc(db, "inspection_types", preFillProject.inspectionTypeId),
-        );
-        if (inspectionTypeSnap.exists()) {
-          inspectionTypeData = {
-            id: inspectionTypeSnap.id,
-            ...inspectionTypeSnap.data(),
-          };
-        }
-      }
-
+      // Main approval write is the only blocking operation for user-facing success/error.
       await updateDoc(projectRef, {
         status: "Approved",
         confirmedBy: user?.name || user?.email || "Manager",
@@ -223,11 +211,40 @@ const ReviewForApproval = () => {
         returnNote: "",
       });
 
-      await resetVerificationReviewState({
-        db,
-        projectDocId: projectId,
-        projectId: preFillProject.projectId || "",
-      });
+      // Everything below is non-blocking follow-up.
+      let inspectionTypeData = null;
+      if (preFillProject.inspectionTypeId) {
+        try {
+          const inspectionTypeSnap = await getDoc(
+            doc(db, "inspection_types", preFillProject.inspectionTypeId),
+          );
+          if (inspectionTypeSnap.exists()) {
+            inspectionTypeData = {
+              id: inspectionTypeSnap.id,
+              ...inspectionTypeSnap.data(),
+            };
+          }
+        } catch (inspectionTypeError) {
+          console.warn(
+            "Non-blocking warning: failed to load inspection type after approval:",
+            inspectionTypeError,
+          );
+        }
+      }
+
+      try {
+        await resetVerificationReviewState({
+          db,
+          projectDocId: projectId,
+          projectId: preFillProject.projectId || "",
+        });
+      } catch (resetError) {
+        console.warn(
+          "Non-blocking warning: failed to reset verification state after approval:",
+          resetError,
+        );
+      }
+
       setProjectDetails((current) => ({
         ...(current || {}),
         status: "Approved",
@@ -247,23 +264,37 @@ const ReviewForApproval = () => {
       });
 
       if (scheduleDoc.equipmentId) {
-        await addDoc(collection(db, "inspection_schedules"), {
-          ...scheduleDoc,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        try {
+          await addDoc(collection(db, "inspection_schedules"), {
+            ...scheduleDoc,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (scheduleError) {
+          console.warn(
+            "Non-blocking warning: failed to create inspection schedule after approval:",
+            scheduleError,
+          );
+        }
 
-        await updateDoc(doc(db, "equipment", scheduleDoc.equipmentId), {
-          lastInspection: equipmentSnapshot.lastInspection,
-          nextInspection: equipmentSnapshot.nextInspection,
-          updatedAt: serverTimestamp(),
-        });
+        try {
+          await updateDoc(doc(db, "equipment", scheduleDoc.equipmentId), {
+            lastInspection: equipmentSnapshot.lastInspection,
+            nextInspection: equipmentSnapshot.nextInspection,
+            updatedAt: serverTimestamp(),
+          });
+        } catch (equipError) {
+          console.warn(
+            "Non-blocking warning: failed to update equipment after approval:",
+            equipError,
+          );
+        }
       }
 
       toast.success("Project approved successfully.");
       navigate("/Pending_approval");
     } catch (error) {
-      console.error("Confirm Error:", error);
+      console.error("Confirm Error (main approval write):", error);
       toast.error(getToastErrorMessage(error, "Unable to approve the project."));
     } finally {
       setIsSaving(false);

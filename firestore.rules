@@ -44,6 +44,10 @@ service cloud.firestore {
       return myRole() == "Admin";
     }
 
+    function isSuperAdmin() {
+      return myRole() == "Super_Admin";
+    }
+
     function isManager() {
       return myRole() == "Manager";
     }
@@ -450,7 +454,7 @@ service cloud.firestore {
 
     match /companyprofile/{docId} {
       allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin() || isSuperAdmin();
     }
   }
 }

@@ -106,6 +106,7 @@ const Inspection360Summary = () => {
   const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [projectFilter, setProjectFilter] = useState("all");
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
@@ -145,23 +146,52 @@ const Inspection360Summary = () => {
     });
   }, [projects, user]);
 
-  const scopedProjectKeys = useMemo(
+  const projectFilterOptions = useMemo(
+    () =>
+      [...scopedProjects]
+        .sort((left, right) => {
+          const leftLabel = String(left.projectName || left.projectId || left.id || "").toLowerCase();
+          const rightLabel = String(right.projectName || right.projectId || right.id || "").toLowerCase();
+          return leftLabel.localeCompare(rightLabel);
+        })
+        .map((project) => ({
+          value: project.id,
+          label: project.projectName || project.projectId || project.id,
+          hint: project.projectId && project.projectName ? project.projectId : "",
+        })),
+    [scopedProjects],
+  );
+
+  useEffect(() => {
+    if (projectFilter === "all") return;
+    const exists = scopedProjects.some((project) => project.id === projectFilter);
+    if (!exists) {
+      setProjectFilter("all");
+    }
+  }, [projectFilter, scopedProjects]);
+
+  const filteredProjects = useMemo(() => {
+    if (projectFilter === "all") return scopedProjects;
+    return scopedProjects.filter((project) => project.id === projectFilter);
+  }, [scopedProjects, projectFilter]);
+
+  const filteredProjectKeys = useMemo(
     () =>
       new Set(
-        scopedProjects.flatMap((project) =>
+        filteredProjects.flatMap((project) =>
           [String(project.id || "").trim(), String(project.projectId || "").trim()].filter(Boolean),
         ),
       ),
-    [scopedProjects],
+    [filteredProjects],
   );
 
   const scopedFeedback = useMemo(
     () =>
       feedbackEntries.filter((entry) =>
-        scopedProjectKeys.has(String(entry.projectDocId || "").trim()) ||
-        scopedProjectKeys.has(String(entry.projectId || "").trim()),
+        filteredProjectKeys.has(String(entry.projectDocId || "").trim()) ||
+        filteredProjectKeys.has(String(entry.projectId || "").trim()),
       ),
-    [feedbackEntries, scopedProjectKeys],
+    [feedbackEntries, filteredProjectKeys],
   );
 
   const scopedLogs = useMemo(() => {
@@ -169,12 +199,15 @@ const Inspection360Summary = () => {
     return activityLogs.filter((entry) => {
       const target = String(entry.target || "").trim();
       const logEmail = String(entry.userEmail || "").trim().toLowerCase();
-      return scopedProjectKeys.has(target) || (!!currentEmail && logEmail === currentEmail) || user?.role === "Admin";
+      if (projectFilter !== "all") {
+        return filteredProjectKeys.has(target);
+      }
+      return filteredProjectKeys.has(target) || (!!currentEmail && logEmail === currentEmail) || user?.role === "Admin";
     });
-  }, [activityLogs, scopedProjectKeys, user?.email, user?.role]);
+  }, [activityLogs, filteredProjectKeys, projectFilter, user?.email, user?.role]);
 
   const statusSummary = useMemo(() => {
-    const counts = scopedProjects.reduce((accumulator, project) => {
+    const counts = filteredProjects.reduce((accumulator, project) => {
       const bucket = normalizeProjectStatus(project);
       accumulator[bucket] = (accumulator[bucket] || 0) + 1;
       return accumulator;
@@ -191,7 +224,7 @@ const Inspection360Summary = () => {
       { label: "Not Started", value: counts["Not Started"] || 0 },
       { label: "Other", value: counts.Other || 0 },
     ];
-  }, [scopedProjects]);
+  }, [filteredProjects]);
 
   const decisionSummary = useMemo(() => {
     const counts = scopedFeedback.reduce(
@@ -205,7 +238,7 @@ const Inspection360Summary = () => {
       { approved: 0, rejected: 0, pending: 0 },
     );
 
-    const projectsInClientReview = scopedProjects.filter(
+    const projectsInClientReview = filteredProjects.filter(
       (project) => normalizeProjectStatus(project) === "Client Review",
     ).length;
 
@@ -213,12 +246,12 @@ const Inspection360Summary = () => {
       approved: counts.approved,
       rejected: counts.rejected,
       inReview: projectsInClientReview,
-      pending: Math.max(scopedProjects.length - counts.approved - counts.rejected - projectsInClientReview, 0),
+      pending: Math.max(filteredProjects.length - counts.approved - counts.rejected - projectsInClientReview, 0),
     };
-  }, [scopedFeedback, scopedProjects]);
+  }, [scopedFeedback, filteredProjects]);
 
   const clientSummaryRows = useMemo(() => {
-    const grouped = scopedProjects.reduce((accumulator, project) => {
+    const grouped = filteredProjects.reduce((accumulator, project) => {
       const key = String(project.clientName || project.client || "Unassigned Client").trim();
       const current = accumulator.get(key) || {
         client: key,
@@ -245,11 +278,11 @@ const Inspection360Summary = () => {
     }, new Map());
 
     return Array.from(grouped.values()).sort((left, right) => right.totalProjects - left.totalProjects);
-  }, [scopedProjects]);
+  }, [filteredProjects]);
 
   const auditRows = useMemo(
     () =>
-      [...scopedProjects]
+      [...filteredProjects]
         .sort((left, right) => {
           const leftValue = Math.max(
             toMillis(left.updatedAt),
@@ -266,7 +299,7 @@ const Inspection360Summary = () => {
           return rightValue - leftValue;
         })
         .slice(0, 20),
-    [scopedProjects],
+    [filteredProjects],
   );
 
   const recentAuditTrail = useMemo(
@@ -363,8 +396,8 @@ const Inspection360Summary = () => {
         <main className="flex-1 ml-16 min-w-0 overflow-x-hidden bg-[radial-gradient(circle_at_top_right,_rgba(249,115,22,0.10),_transparent_26%),linear-gradient(180deg,_#07101f_0%,_#050816_55%,_#040712_100%)] p-3 sm:p-5 lg:ml-64 lg:p-8">
           <div className="mx-auto max-w-[1500px] space-y-6">
             <section className="rounded-[2rem] border border-slate-800/80 bg-[#08101f]/95 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.55)]">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-                <div>
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+                  <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.28em] text-orange-400">
                     Report Manager
                   </p>
@@ -376,11 +409,32 @@ const Inspection360Summary = () => {
                     summary tables, and a full audit trail for {reportAudienceLabel.toLowerCase()}.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/70 px-5 py-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                    Generated
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-white">{formatDateTime(Date.now())}</p>
+                <div className="w-full max-w-sm space-y-3 rounded-2xl border border-slate-800 bg-slate-950/70 px-5 py-4">
+                  <label
+                    htmlFor="inspection360-project-filter"
+                    className="block text-[10px] font-black uppercase tracking-[0.2em] text-slate-500"
+                  >
+                    Project Filter
+                  </label>
+                  <select
+                    id="inspection360-project-filter"
+                    value={projectFilter}
+                    onChange={(event) => setProjectFilter(event.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 outline-none transition focus:border-orange-500"
+                  >
+                    <option value="all">All Visible Projects</option>
+                    {projectFilterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.hint ? `${option.label} (${option.hint})` : option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                      Generated
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-white">{formatDateTime(Date.now())}</p>
+                  </div>
                 </div>
               </div>
             </section>
@@ -395,7 +449,7 @@ const Inspection360Summary = () => {
                   <MetricCard
                     icon={<ShieldCheck size={16} />}
                     label="Visible Projects"
-                    value={String(scopedProjects.length)}
+                    value={String(filteredProjects.length)}
                     tone="orange"
                   />
                   <MetricCard

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import AdminNavbar from "../../AdminNavbar";
+import SuperAdminNavbar from "../../SuperAdminNavbar";
+import SuperAdminSidebar from "../../SuperAdminSidebar";
 import { PlusCircle, Edit2, Trash2, User, X, Save, Lock } from "lucide-react";
 import AdminSidebar from "../../AdminSidebar";
 import TableQueryControls from "../../../Common/TableQueryControls";
@@ -134,6 +136,8 @@ const UserPage = () => {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { openConfirm, ConfirmDialog } = useConfirmDialog();
+  const isSuperAdmin = user?.role === "Super_Admin";
+  const isSuperAdmin = user?.role === "Super_Admin";
   const isExternalReviewer = user?.role === "External_Reviewer";
   const availableRoleOptions = isExternalReviewer
     ? ["External_Reviewer"]
@@ -378,10 +382,10 @@ const UserPage = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      {isExternalReviewer ? <ExternalNavbar /> : <AdminNavbar />}
+      {isSuperAdmin ? <SuperAdminNavbar /> : isExternalReviewer ? <ExternalNavbar /> : <AdminNavbar />}
       {ConfirmDialog}
       <div className="flex flex-1 relative">
-        {isExternalReviewer ? <ExternalSideBar /> : <AdminSidebar />}
+        {isSuperAdmin ? <SuperAdminSidebar /> : isExternalReviewer ? <ExternalSideBar /> : <AdminSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-4 lg:p-8 min-h-[calc(100vh-65px)] overflow-y-auto bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">

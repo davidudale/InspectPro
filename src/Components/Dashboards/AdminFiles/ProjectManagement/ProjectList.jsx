@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
+import { useAuth } from "../../../Auth/AuthContext";
 import { collection, doc, onSnapshot, query, updateDoc } from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
@@ -8,11 +9,24 @@ import {
 } from "lucide-react";
 import AdminNavbar from "../../AdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import SuperAdminNavbar from "../../SuperAdminNavbar";
+import SuperAdminSidebar from "../../SuperAdminSidebar";
 import ControlCenterTableShell from "../../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
 
 const ProjectList = () => {
+  const { user } = useAuth();
+
+  const getNavbarAndSidebar = () => {
+    if (user?.role === "Super_Admin") {
+      return { navbar: <SuperAdminNavbar />, sidebar: <SuperAdminSidebar /> };
+    }
+    return { navbar: <AdminNavbar />, sidebar: <AdminSidebar /> };
+  };
+
+  const { navbar, sidebar } = getNavbarAndSidebar();
+
   const formatDate = (value) => {
     if (!value) return "N/A";
     if (typeof value?.toDate === "function") {
@@ -91,29 +105,12 @@ const ProjectList = () => {
     project?.lastUpdated ||
     project?.inspectionStartedAt ||
     null;
-  const getSubmittedBy = (project) => {
-    const hasSubmissionRecord = Boolean(
-      project?.submittedAt ||
-        project?.reportSubmittedAt ||
-        project?.report?.submittedAt ||
-        String(getOperationalStatus(project) || "")
-          .trim()
-          .toLowerCase()
-          .startsWith("pending confirmation"),
-    );
-
-    if (!hasSubmissionRecord) {
-      return "N/A";
-    }
-
-    return (
-      project?.submittedBy ||
-      project?.report?.submittedBy ||
-      project?.inspectorName ||
-      project?.assignedInspectorName ||
-      "N/A"
-    );
-  };
+  const getInspectionBy = (project) =>
+    project?.inspectorName ||
+    project?.assignedInspectorName ||
+    project?.report?.signoff?.inspector ||
+    project?.report?.submittedBy ||
+    "N/A";
   const getLatestExternalDecision = (project) =>
     latestExternalDecisionByProject.get(project?.id || "") ||
     latestExternalDecisionByProject.get(project?.projectId || "") ||
@@ -518,8 +515,8 @@ const ProjectList = () => {
   return (
     <>
       <ControlCenterTableShell
-        navbar={<AdminNavbar />}
-        sidebar={<AdminSidebar />}
+        navbar={navbar}
+        sidebar={sidebar}
         title="Project Directory"
         subtitle="Monitor every project, review lifecycle status, and open admin actions from one grid."
         icon={<Briefcase size={18} />}
@@ -581,8 +578,7 @@ const ProjectList = () => {
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection Start Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection End Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Operational Status</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspected At</th>
-                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspected By</th>
+                        <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Inspection By</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report Acceptance/Rejection Date</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report Acceptance/Rejection By</th>
                         <th className="px-3 py-3 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Report View</th>
@@ -607,7 +603,7 @@ const ProjectList = () => {
                             const projectStartDate = getProjectStartDate(project);
                             const projectEndDate = getProjectEndDate(project);
                             const submittedAt = getSubmittedAt(project);
-                            const submittedBy = getSubmittedBy(project);
+                            const inspectionBy = getInspectionBy(project);
                             const decisionAt = getDecisionAt(project);
                             const decisionBy = getDecisionBy(project);
                             const statusBadgeTheme = getOperationalStatusBadgeTheme(
@@ -672,14 +668,14 @@ const ProjectList = () => {
                               {operationalStatus}
                             </div>
                           </td>
-                          <td className="px-3 py-4">
+                          {/*<td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
                               {formatDateTime(submittedAt)}
                             </div>
-                          </td>
+                          </td>*/}
                           <td className="px-3 py-4">
                             <div className="text-xs font-medium text-slate-300">
-                              {submittedBy}
+                              {inspectionBy}
                             </div>
                           </td>
                           <td className="px-3 py-4">

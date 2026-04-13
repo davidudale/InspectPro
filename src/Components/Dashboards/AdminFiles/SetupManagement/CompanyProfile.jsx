@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../../../Auth/AuthContext";
 import AdminNavbar from "../../AdminNavbar";
+import SuperAdminNavbar from "../../SuperAdminNavbar";
 import AdminSidebar from "../../AdminSidebar";
+import SuperAdminSidebar from "../../SuperAdminSidebar";
 import { db } from "../../../Auth/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 
 const CompanyProfile = () => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "Super_Admin";
+
   const [formData, setFormData] = useState({
     companyName: "",
     address: "",
@@ -70,9 +76,9 @@ const CompanyProfile = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
-      <AdminNavbar />
+      {isSuperAdmin ? <SuperAdminNavbar /> : <AdminNavbar />}
       <div className="flex flex-1">
-        <AdminSidebar />
+        {isSuperAdmin ? <SuperAdminSidebar /> : <AdminSidebar />}
         <main className="flex-1 ml-16 lg:ml-64 p-4 sm:p-6 lg:p-8 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-slate-900/50 via-slate-950 to-slate-950">
           <div className="max-w-5xl mx-auto">
             <header className="mb-8">

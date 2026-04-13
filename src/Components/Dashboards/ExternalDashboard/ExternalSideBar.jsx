@@ -31,16 +31,7 @@ const sidebarLinks = [
     icon: <LayoutDashboard size={20} />,
     href: "/external-reviewer-dashboard",
   },
-  {
-    name: "Reports",
-    icon: <FolderKanban size={20} />,
-    href: "/external-reviewer-projects",
-  },
-  {
-    name: "Report Review Checklist",
-    icon: <FileText size={20} />,
-    href: "/external-reviewer-checklist",
-  },
+  
   {
     name: "Report Manager",
     icon: <FileText size={20} />,
@@ -50,19 +41,19 @@ const sidebarLinks = [
         icon: <FileText size={16} />,
         href: "/reports/daily-inspection-summary",
       },
-    ],
+      {
+    name: "Reports",
+    icon: <FolderKanban size={20} />,
+    href: "/external-reviewer-projects",
   },
   {
-    name: "Support",
-    icon: <LifeBuoy size={20} />,
-    subLinks: [
-      {
-        name: "Issue Log",
-        icon: <Bug size={16} />,
-        href: "/support/issues",
-      },
+    name: "Report Review Checklist",
+    icon: <FileText size={20} />,
+    href: "/external-reviewer-checklist",
+  },
     ],
   },
+  
   {
     name: "Equipment Management",
     icon: <Wrench size={20} />,
@@ -107,6 +98,17 @@ const sidebarLinks = [
         name: "Sign Out",
         icon: <LogOut size={16} />,
         action: "logout",
+      },
+    ],
+  },
+  {
+    name: "Report an Issue",
+    icon: <LifeBuoy size={20} />,
+    subLinks: [
+      {
+        name: "Issue Log",
+        icon: <Bug size={16} />,
+        href: "/support/issues",
       },
     ],
   },

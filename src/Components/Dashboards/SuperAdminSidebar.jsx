@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Activity,
+  Building2,
   ChevronDown,
   FileClock,
   LayoutDashboard,
@@ -25,6 +26,13 @@ const sidebarLinks = [
       { name: "Admin users", icon: <Users size={16} />, href: "/admin/users" },
       { name: "Projects", icon: <Activity size={16} />, href: "/admin/projects" },
       { name: "Profile & Security", icon: <Shield size={16} />, href: "/profile/security" },
+    ],
+  },
+  {
+    name: "System Setup",
+    icon: <Settings2 size={20} />,
+    subLinks: [
+      { name: "Company Profile", icon: <Building2 size={16} />, href: "/admin/company-profile" },
     ],
   },
 ];

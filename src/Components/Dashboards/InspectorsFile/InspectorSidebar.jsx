@@ -34,7 +34,7 @@ const sidebarLinks = [
   },
 
   {
-    name: "Support",
+    name: "Report an Issue",
     icon: <LifeBuoy size={20} />,
     subLinks: [
       {
