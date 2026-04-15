@@ -523,7 +523,15 @@ function App() {
         <Route
           path="/admin/company-profile"
           element={
-            <ProtectedRoute allowedRoles={["Super_Admin", "Admin"]}>
+            <ProtectedRoute allowedRoles={["Super_Admin"]}>
+              <CompanyProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/company-profile-readonly"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
               <CompanyProfile />
             </ProtectedRoute>
           }

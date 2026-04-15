@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
@@ -509,7 +510,7 @@ const UTReport = ({
     };
 
     initializeFromPrefill();
-  }, [location.state]);
+  }, [location.state, user?.role]);
 
   useEffect(() => {
     if (companyLogoProp) {
@@ -2582,7 +2583,7 @@ export const UTWebView = ({
         "inspection-report";
       const safeFileBase = String(fileBase)
         .trim()
-        .replace(/[^\w\-]+/g, "_")
+        .replace(/[^\w-]+/g, "_")
         .replace(/^_+|_+$/g, "");
 
       await html2pdf()
@@ -3495,20 +3496,20 @@ export const UTWebView = ({
                         block.key,
                       ) ? (
                         <table
-                          className={`w-full border-collapse border-black ${
+                          className={`w-full border-collapse ${
                             block.isContinuation
                               ? mergesWithNext
-                                ? "mt-0 border-x border-t-0 border-b-0"
-                                : "mt-0 border-x border-b border-t-0"
+                                ? "mt-0"
+                                : "mt-0"
                               : mergesWithNext
-                                ? "mt-2 border-x border-t border-b-0"
-                                : "mt-2 border"
+                                ? "mt-2"
+                                : "mt-2"
                           }`}
                         >
                           <tbody>
                             {!block.isContinuation && (
                               <tr>
-                                <th className="border border-black bg-blue-900 px-4 py-3 text-center text-[18px] font-bold uppercase text-white">
+                                <th className="bg-blue-900 px-4 py-3 text-center text-[18px] font-bold uppercase text-white">
                                   {block.title}
                                 </th>
                               </tr>
@@ -3870,7 +3871,8 @@ export const UTWebView = ({
           </div>
         </div>
 
-        {false && schematicNotePages.map((noteChunk, pageIdx) => (
+        {Boolean(reportData?.general?.showSchematicNotes) &&
+          schematicNotePages.map((noteChunk, pageIdx) => (
           <div
             key={`schematic-page-${pageIdx}`}
             className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden"
@@ -3941,7 +3943,7 @@ export const UTWebView = ({
               </div>
             </div>
           </div>
-        ))}
+          ))}
 
         <div className="report-page bg-white text-slate-950 p-0 print:p-0 min-h-[297mm] flex flex-col relative overflow-hidden">
           {reportHeader}

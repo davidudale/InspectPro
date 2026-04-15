@@ -29,49 +29,85 @@ const SuperAdminDashboard = () => {
 
   useEffect(
     () =>
-      onSnapshot(collection(db, "users"), (snapshot) => {
-        setUsersData(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
-      }),
+      onSnapshot(
+        collection(db, "users"),
+        (snapshot) => {
+          setUsersData(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        },
+        (error) => {
+          console.error("users listener error:", error);
+        },
+      ),
     [],
   );
 
   useEffect(
     () =>
-      onSnapshot(collection(db, "projects"), (snapshot) => {
-        setProjectsData(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
-      }),
+      onSnapshot(
+        collection(db, "projects"),
+        (snapshot) => {
+          setProjectsData(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        },
+        (error) => {
+          console.error("projects listener error:", error);
+        },
+      ),
     [],
   );
 
   useEffect(
     () =>
-      onSnapshot(collection(db, "equipment"), (snapshot) => {
-        setEquipmentCount(snapshot.size);
-      }),
+      onSnapshot(
+        collection(db, "equipment"),
+        (snapshot) => {
+          setEquipmentCount(snapshot.size);
+        },
+        (error) => {
+          console.error("equipment listener error:", error);
+        },
+      ),
     [],
   );
 
   useEffect(
     () =>
-      onSnapshot(collection(db, "issue_logs"), (snapshot) => {
-        setIssueLogs(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
-      }),
+      onSnapshot(
+        collection(db, "issue_logs"),
+        (snapshot) => {
+          setIssueLogs(snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        },
+        (error) => {
+          console.error("issue_logs listener error:", error);
+        },
+      ),
     [],
   );
 
   useEffect(
     () =>
-      onSnapshot(doc(db, "system_config", "platform"), (snapshot) => {
-        setSystemConfig(snapshot.data() || {});
-      }),
+      onSnapshot(
+        doc(db, "system_config", "platform"),
+        (snapshot) => {
+          setSystemConfig(snapshot.data() || {});
+        },
+        (error) => {
+          console.error("system_config listener error:", error);
+        },
+      ),
     [],
   );
 
   useEffect(
     () =>
-      onSnapshot(doc(db, "feature_flags", "platform"), (snapshot) => {
-        setFeatureFlags(snapshot.data() || {});
-      }),
+      onSnapshot(
+        doc(db, "feature_flags", "platform"),
+        (snapshot) => {
+          setFeatureFlags(snapshot.data() || {});
+        },
+        (error) => {
+          console.error("feature_flags listener error:", error);
+        },
+      ),
     [],
   );
 

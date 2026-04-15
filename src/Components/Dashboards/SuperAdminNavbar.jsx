@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Menu, ShieldEllipsis, Sparkles, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Auth/AuthContext";
-import MessageBell from "../Common/MessageBell";
 
 const SuperAdminNavbar = () => {
   const navigate = useNavigate();
@@ -37,7 +36,6 @@ const SuperAdminNavbar = () => {
             <div className="rounded-full border border-orange-500/20 bg-orange-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-orange-300">
               Platform owner
             </div>
-            <MessageBell user={user} />
             <div className="text-right">
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
                 {displayName}

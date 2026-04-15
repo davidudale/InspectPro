@@ -213,7 +213,7 @@ const UserPage = () => {
     try {
       if (editingUser) {
         const userRef = doc(db, "users", editingUser.id);
-        const { password, ...profileData } = formData;
+        const { password: _password, ...profileData } = formData;
         const normalizedProfileData =
           profileData.role === "External_Reviewer"
             ? profileData
@@ -236,7 +236,7 @@ const UserPage = () => {
         );
 
         const newUserId = userCredential.user.uid;
-        const { password, ...dataToSave } = formData;
+        const { password: _password, ...dataToSave } = formData;
         const normalizedDataToSave =
           dataToSave.role === "External_Reviewer"
             ? dataToSave
@@ -337,7 +337,7 @@ const UserPage = () => {
     try {
       await deleteDoc(doc(db, "users", id));
       toast.success("User profile deleted.");
-    } catch (error) {
+    } catch {
       toast.error("You do not have permission to delete this user.");
     }
   };

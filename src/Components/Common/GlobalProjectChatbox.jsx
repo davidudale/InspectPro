@@ -14,7 +14,8 @@ const GlobalProjectChatbox = () => {
   if (
     !user?.uid ||
     HIDDEN_CHAT_PATHS.has(location.pathname) ||
-    role === "External_Reviewer"
+    role === "External_Reviewer" ||
+    role === "Super_Admin"
   ) {
     return null;
   }

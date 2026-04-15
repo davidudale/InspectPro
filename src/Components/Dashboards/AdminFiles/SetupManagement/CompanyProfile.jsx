@@ -9,9 +9,27 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
 
+const LICENSE_PLANS = ["Basic", "Standard", "Gold", "Premium"];
+
+const toInputDate = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+    return "";
+  }
+  if (typeof value?.toDate === "function") {
+    return value.toDate().toISOString().split("T")[0];
+  }
+  return "";
+};
+
 const CompanyProfile = () => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "Super_Admin";
+  const isReadOnly = !isSuperAdmin;
 
   const [formData, setFormData] = useState({
     companyName: "",
@@ -19,7 +37,9 @@ const CompanyProfile = () => {
     phone: "",
     email: "",
     website: "",
+    licensePlan: LICENSE_PLANS[0],
     logo: "",
+    systemStartDate: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,7 +61,11 @@ const CompanyProfile = () => {
             phone: data.phone || "",
             email: data.email || "",
             website: data.website || "",
+            licensePlan: LICENSE_PLANS.includes(data.licensePlan)
+              ? data.licensePlan
+              : LICENSE_PLANS[0],
             logo: data.logo || "",
+            systemStartDate: toInputDate(data.systemStartDate),
           });
         }
       } catch (error) {
@@ -55,17 +79,26 @@ const CompanyProfile = () => {
   }, []);
 
   const handleSave = async () => {
+    if (isReadOnly) {
+      toast.error("Only super admin can update the company profile.");
+      return;
+    }
+
     setSaving(true);
     try {
+      const resolvedSystemStartDate =
+        formData.systemStartDate || new Date().toISOString().split("T")[0];
       const docRef = doc(db, "companyprofile", "default");
       await setDoc(
         docRef,
         {
           ...formData,
+          systemStartDate: resolvedSystemStartDate,
           updatedAt: serverTimestamp(),
         },
         { merge: true },
       );
+      setFormData((prev) => ({ ...prev, systemStartDate: resolvedSystemStartDate }));
       toast.success("Company profile saved.");
     } catch (error) {
       toast.error(getToastErrorMessage(error, "Unable to save the company profile."));
@@ -106,60 +139,81 @@ const CompanyProfile = () => {
                       label="Company Name"
                       value={formData.companyName}
                       onChange={(v) => handleChange("companyName", v)}
-                    required
-                  />
-                  <InputField
-                    label="Contact Phone"
-                    value={formData.phone}
-                    onChange={(v) => handleChange("phone", v)}
-                    required
-                  />
-                  <InputField
-                    label="Email Address"
-                    type="email"
-                    value={formData.email}
-                    onChange={(v) => handleChange("email", v)}
-                    required
-                  />
-                  <InputField
-                    label="Website"
-                    value={formData.website}
-                    onChange={(v) => handleChange("website", v)}
-                  />
-                </div>
+                      required
+                      disabled={isReadOnly}
+                    />
+                    <InputField
+                      label="Contact Phone"
+                      value={formData.phone}
+                      onChange={(v) => handleChange("phone", v)}
+                      required
+                      disabled={isReadOnly}
+                    />
+                    <InputField
+                      label="Email Address"
+                      type="email"
+                      value={formData.email}
+                      onChange={(v) => handleChange("email", v)}
+                      required
+                      disabled={isReadOnly}
+                    />
+                    <InputField
+                      label="Website"
+                      value={formData.website}
+                      onChange={(v) => handleChange("website", v)}
+                      disabled={isReadOnly}
+                    />
+                    <SelectField
+                      label="License Plan"
+                      value={formData.licensePlan}
+                      options={LICENSE_PLANS}
+                      onChange={(v) => handleChange("licensePlan", v)}
+                      disabled={isReadOnly}
+                    />
+                    <InputField
+                      label="System Start Date"
+                      type="date"
+                      value={formData.systemStartDate}
+                      onChange={(v) => handleChange("systemStartDate", v)}
+                      disabled
+                    />
+                  </div>
 
                 <TextArea
                   label="Company Address"
                   value={formData.address}
                   onChange={(v) => handleChange("address", v)}
                   required
+                  disabled={isReadOnly}
                 />
 
                 <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                    Upload Company Logo
+                    {isReadOnly ? "Company Logo" : "Upload Company Logo"}
                   </label>
                   <div className="mt-3 flex items-center gap-3">
-                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
-                      Upload
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = () => {
-                            handleChange("logo", reader.result);
-                          };
-                          reader.readAsDataURL(file);
-                        }}
-                      />
-                    </label>
+                    {!isReadOnly ? (
+                      <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white hover:border-orange-500 transition-colors cursor-pointer">
+                        Upload
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              handleChange("logo", reader.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    ) : null}
                     {formData.logo && (
                       <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                        Logo attached
+                        {isReadOnly ? "Logo available" : "Logo attached"}
                       </span>
                     )}
                   </div>
@@ -174,16 +228,22 @@ const CompanyProfile = () => {
                   )}
                 </div>
 
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="bg-orange-600 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-white hover:bg-orange-700 transition-all disabled:opacity-60"
-                    >
-                      {saving ? "Saving..." : "Save Profile"}
-                    </button>
-                  </div>
+                  {!isReadOnly ? (
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="bg-orange-600 px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-widest text-white hover:bg-orange-700 transition-all disabled:opacity-60"
+                      >
+                        {saving ? "Saving..." : "Save Profile"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 text-xs font-semibold text-slate-400">
+                      This profile is read-only for Admin role.
+                    </div>
+                  )}
                 </form>
               )}
             </div>
@@ -194,7 +254,14 @@ const CompanyProfile = () => {
   );
 };
 
-const InputField = ({ label, value, onChange, type = "text", required = false }) => (
+const InputField = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+  disabled = false,
+}) => (
   <div className="flex flex-col gap-2">
     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
       {label}
@@ -203,13 +270,14 @@ const InputField = ({ label, value, onChange, type = "text", required = false })
       type={type}
       value={value}
       required={required}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="bg-slate-950 border border-slate-800 p-3 rounded-xl text-sm text-white focus:border-orange-500 outline-none transition-all"
+      className="bg-slate-950 border border-slate-800 p-3 rounded-xl text-sm text-white focus:border-orange-500 outline-none transition-all disabled:opacity-80 disabled:cursor-not-allowed"
     />
   </div>
 );
 
-const TextArea = ({ label, value, onChange, required = false }) => (
+const TextArea = ({ label, value, onChange, required = false, disabled = false }) => (
   <div className="flex flex-col gap-2">
     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
       {label}
@@ -217,10 +285,37 @@ const TextArea = ({ label, value, onChange, required = false }) => (
     <textarea
       value={value}
       required={required}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       rows={4}
-      className="bg-slate-950 border border-slate-800 p-3 rounded-xl text-sm text-white focus:border-orange-500 outline-none transition-all resize-none"
+      className="bg-slate-950 border border-slate-800 p-3 rounded-xl text-sm text-white focus:border-orange-500 outline-none transition-all resize-none disabled:opacity-80 disabled:cursor-not-allowed"
     />
+  </div>
+);
+
+const SelectField = ({
+  label,
+  value,
+  onChange,
+  options = [],
+  disabled = false,
+}) => (
+  <div className="flex flex-col gap-2">
+    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+      {label}
+    </label>
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="bg-slate-950 border border-slate-800 p-3 rounded-xl text-sm text-white outline-none transition-all focus:border-orange-500 disabled:opacity-80 disabled:cursor-not-allowed"
+    >
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
   </div>
 );
 

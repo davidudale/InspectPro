@@ -48,6 +48,10 @@ service cloud.firestore {
       return myRole() == "Super_Admin";
     }
 
+    function isAdminOrSuperAdmin() {
+      return isAdmin() || isSuperAdmin();
+    }
+
     function isManager() {
       return myRole() == "Manager";
     }
@@ -140,7 +144,7 @@ service cloud.firestore {
     }
 
     function canReadProject(data) {
-      return isAdmin() ||
+      return isAdminOrSuperAdmin() ||
              isManager() ||
              isReviewerTier() ||
              projectAssignedToMe(data) ||
@@ -205,7 +209,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if signedIn() && (
         userId == request.auth.uid ||
-        isLeadOrAbove()
+        isLeadOrAbove() ||
+        isSuperAdmin()
       );
 
       allow create: if signedIn() && (
@@ -299,7 +304,7 @@ service cloud.firestore {
 
     match /issue_logs/{issueId} {
       allow read: if signedIn() && (
-        isAdmin() ||
+        isAdminOrSuperAdmin() ||
         resource.data.reportedById == request.auth.uid
       );
 
@@ -389,21 +394,21 @@ service cloud.firestore {
 
     match /activity_logs/{logId} {
       allow read: if signedIn() && (
-        isAdmin() ||
+        isAdminOrSuperAdmin() ||
         isManager() ||
         isOwnLog()
       );
 
       allow create: if signedIn() && (
-        isAdmin() ||
+        isAdminOrSuperAdmin() ||
         isManager() ||
         isReviewerTier() ||
         isCreatingOwnLog()
       );
 
-      allow update: if isAdmin();
+      allow update: if isAdminOrSuperAdmin();
 
-      allow delete: if isAdmin();
+      allow delete: if isAdminOrSuperAdmin();
     }
 
     match /clients/{clientId} {
@@ -415,9 +420,17 @@ service cloud.firestore {
     }
 
     match /equipment/{equipmentId} {
-      allow read: if isLeadOrAbove();
+      allow read: if isLeadOrAbove() || isSuperAdmin();
       allow create, update: if isManagerOrAbove() || isExternalReviewer();
       allow delete: if isManagerOrAbove();
+    }
+
+    match /system_config/{docId} {
+      allow read, create, update, delete: if isAdminOrSuperAdmin();
+    }
+
+    match /feature_flags/{docId} {
+      allow read, create, update, delete: if isAdminOrSuperAdmin();
     }
 
     match /inspection_schedules/{scheduleId} {
