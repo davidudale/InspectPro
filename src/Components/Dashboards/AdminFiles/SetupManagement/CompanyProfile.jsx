@@ -39,7 +39,8 @@ const CompanyProfile = () => {
     website: "",
     licensePlan: LICENSE_PLANS[0],
     logo: "",
-    systemStartDate: "",
+    licenseStartDate: "",
+    licenseEndDate: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,7 +66,10 @@ const CompanyProfile = () => {
               ? data.licensePlan
               : LICENSE_PLANS[0],
             logo: data.logo || "",
-            systemStartDate: toInputDate(data.systemStartDate),
+            licenseStartDate: toInputDate(
+              data.licenseStartDate || data.systemStartDate,
+            ),
+            licenseEndDate: toInputDate(data.licenseEndDate),
           });
         }
       } catch (error) {
@@ -86,19 +90,19 @@ const CompanyProfile = () => {
 
     setSaving(true);
     try {
-      const resolvedSystemStartDate =
-        formData.systemStartDate || new Date().toISOString().split("T")[0];
+      const resolvedLicenseStartDate =
+        formData.licenseStartDate || new Date().toISOString().split("T")[0];
       const docRef = doc(db, "companyprofile", "default");
       await setDoc(
         docRef,
         {
           ...formData,
-          systemStartDate: resolvedSystemStartDate,
+          licenseStartDate: resolvedLicenseStartDate,
           updatedAt: serverTimestamp(),
         },
         { merge: true },
       );
-      setFormData((prev) => ({ ...prev, systemStartDate: resolvedSystemStartDate }));
+      setFormData((prev) => ({ ...prev, licenseStartDate: resolvedLicenseStartDate }));
       toast.success("Company profile saved.");
     } catch (error) {
       toast.error(getToastErrorMessage(error, "Unable to save the company profile."));
@@ -171,11 +175,18 @@ const CompanyProfile = () => {
                       disabled={isReadOnly}
                     />
                     <InputField
-                      label="System Start Date"
+                      label="License Start Date"
                       type="date"
-                      value={formData.systemStartDate}
-                      onChange={(v) => handleChange("systemStartDate", v)}
+                      value={formData.licenseStartDate}
+                      onChange={(v) => handleChange("licenseStartDate", v)}
                       disabled
+                    />
+                    <InputField
+                      label="License End Date"
+                      type="date"
+                      value={formData.licenseEndDate}
+                      onChange={(v) => handleChange("licenseEndDate", v)}
+                      disabled={isReadOnly}
                     />
                   </div>
 

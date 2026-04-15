@@ -132,7 +132,7 @@ const sidebarLinks = [
      //   href: "/admin/company-profile",
      // },
       {
-        name: "Company Profile (Read-only)",
+        name: "Company Profile",
         icon: <Building2 size={16} />,
         href: "/admin/company-profile-readonly",
       },
