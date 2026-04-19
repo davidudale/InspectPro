@@ -2600,14 +2600,11 @@ export const UTWebView = ({
           },
           jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
           pagebreak: {
-            mode: ["avoid-all", "css", "legacy"],
+            mode: ["css", "legacy"],
             avoid: [
               ".report-page",
               ".split-block",
               ".pdf-avoid-break",
-              "table",
-              "tr",
-              "img",
             ],
           },
         })
@@ -2823,16 +2820,18 @@ export const UTWebView = ({
           pageNo: "NA",
         },
       ];
-  const checklistPages = Array.from(
-    { length: Math.max(1, Math.ceil(checklistDisplayItems.length / 8)) },
-    (_, idx) => checklistDisplayItems.slice(idx * 8, (idx + 1) * 8),
-  );
-  const pipeSupportPages = Array.from(
-    {
-      length: Math.max(1, Math.ceil(utmDisplayItems.length / 18)),
-    },
-    (_, idx) => utmDisplayItems.slice(idx * 18, (idx + 1) * 18),
-  );
+  const checklistPages = paginateTableRowsByContent(checklistDisplayItems, {
+    pageCapacity: 40,
+    baseUnits: 2.4,
+    descriptionDivisor: 58,
+    observationDivisor: 100,
+    pageRefDivisor: 22,
+  });
+  const pipeSupportPages = paginateUtmRowsByContent(utmDisplayItems, {
+    pageCapacity: 52,
+    baseUnits: 2.2,
+    observationDivisor: 90,
+  });
   const specialConsiderationPages = Array.from(
     {
       length: Math.max(
@@ -2930,6 +2929,39 @@ export const UTWebView = ({
     }
 
     return pages;
+  }
+  function paginateUtmRowsByContent(
+    items,
+    {
+      pageCapacity = 52,
+      baseUnits = 2.2,
+      observationDivisor = 90,
+    } = {},
+  ) {
+    if (!items.length) return [[]];
+
+    const estimateUnits = (item) => {
+      const observationLength = String(item?.observation || "").trim().length;
+      return baseUnits + Math.ceil(observationLength / observationDivisor);
+    };
+
+    const pages = [];
+    let currentPage = [];
+    let currentUnits = 0;
+
+    items.forEach((item) => {
+      const itemUnits = estimateUnits(item);
+      if (currentPage.length && currentUnits + itemUnits > pageCapacity) {
+        pages.push(currentPage);
+        currentPage = [];
+        currentUnits = 0;
+      }
+      currentPage.push(item);
+      currentUnits += itemUnits;
+    });
+
+    if (currentPage.length) pages.push(currentPage);
+    return pages.length ? pages : [[]];
   }
   const splitTextIntoPageChunks = (text, maxChars = 2600) => {
     const source = String(text || "").trim();
@@ -3229,12 +3261,14 @@ export const UTWebView = ({
           outline: none !important;
           box-shadow: none !important;
         }
+        .pdf-export .pdf-keep-with-next {
+          break-after: avoid !important;
+          page-break-after: avoid !important;
+        }
         .pdf-export .pdf-placeholder {
           display: none !important;
         }
         .pdf-export table,
-        .pdf-export tr,
-        .pdf-export img,
         .pdf-export .split-block,
         .pdf-export .pdf-avoid-break {
           break-inside: avoid !important;
@@ -3586,11 +3620,11 @@ export const UTWebView = ({
 
             <div className="relative flex-1 px-8 pt-10 pb-8">
               <div className="mx-auto max-w-[190mm]">
-                <h2 className="text-center text-[18px] font-bold uppercase underline text-blue-900">
+                <h2 className="pdf-keep-with-next text-center text-[18px] font-bold uppercase underline text-blue-900">
                   3. Inspection Findings
                 </h2>
 
-                <table className="pdf-avoid-break mt-6 w-full text-[14px] border-collapse">
+                <table className="mt-6 w-full text-[14px] border-collapse">
                   <thead>
                     <tr>
                       <th className="w-[7%] border border-black bg-blue-900 px-2 py-2 text-center font-bold text-white">
