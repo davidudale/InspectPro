@@ -34,8 +34,14 @@ import ExternalSideBar from "../ExternalDashboard/ExternalSideBar";
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
 
+const NULL_LIKE_TEXT = new Set(["null", "undefined", "n/a", "na", "none", "-"]);
+
+const isNullLikeText = (value) =>
+  typeof value === "string" && NULL_LIKE_TEXT.has(value.trim().toLowerCase());
+
 const toMillis = (value) => {
   if (!value) return 0;
+  if (isNullLikeText(value)) return 0;
   if (typeof value === "number") return value;
   if (typeof value === "string") {
     const parsed = Date.parse(value);
@@ -48,7 +54,7 @@ const toMillis = (value) => {
 
 const formatDateTime = (value) => {
   const millis = toMillis(value);
-  if (!millis) return "N/A";
+  if (!millis) return "NULL";
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
@@ -56,6 +62,33 @@ const formatDateTime = (value) => {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(millis));
+};
+
+const hasValue = (value) => {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) return false;
+  return !NULL_LIKE_TEXT.has(normalized.toLowerCase());
+};
+
+const pickFirstValue = (...values) => values.find((value) => hasValue(value));
+
+const asText = (value) => {
+  const resolved = pickFirstValue(value);
+  return hasValue(resolved) ? String(resolved).trim() : "NULL";
+};
+
+const formatCountdown = (explicitValue, targetDate) => {
+  if (hasValue(explicitValue)) return String(explicitValue).trim();
+  const targetMillis = toMillis(targetDate);
+  if (!targetMillis) return "NULL";
+
+  const delta = targetMillis - Date.now();
+  const absDelta = Math.abs(delta);
+  const days = Math.floor(absDelta / 86400000);
+  const hours = Math.floor((absDelta % 86400000) / 3600000);
+
+  if (delta >= 0) return `${days}d ${hours}h remaining`;
+  return `${days}d ${hours}h overdue`;
 };
 
 const normalizeProjectStatus = (project) => {
@@ -75,6 +108,129 @@ const normalizeProjectStatus = (project) => {
   if (rawStatus.startsWith("in progress")) return "In Progress";
   if (rawStatus.startsWith("not started")) return "Not Started";
   return "Other";
+};
+
+const getOperationalStatusText = (project) => {
+  const topLevelStatus = String(project?.status || "").trim();
+  const reportStatus = String(project?.report?.status || "").trim();
+  const topLower = topLevelStatus.toLowerCase();
+  const reportLower = reportStatus.toLowerCase();
+
+  if (topLevelStatus) return topLevelStatus;
+  if (reportStatus && !["draft", "new"].includes(reportLower)) return reportStatus;
+
+  if (project?.inspectionStartedAt && (topLower.startsWith("not started") || !topLevelStatus)) {
+    return `In Progress - ${project?.inspectorName || "Inspector"}`;
+  }
+
+  return "Planned";
+};
+
+const getProjectEndDate = (project) =>
+  project?.inspectionEndDate ||
+  project?.approvedAt ||
+  project?.confirmedAt ||
+  project?.confirmationDate ||
+  project?.updatedAt ||
+  project?.lastUpdated ||
+  null;
+
+const getDecisionAt = (project, latestExternalDecision) => {
+  const externalDecision = String(latestExternalDecision?.decision || "")
+    .trim()
+    .toLowerCase();
+
+  if (externalDecision === "approved" || externalDecision === "rejected") {
+    return (
+      latestExternalDecision?.createdAt ||
+      latestExternalDecision?.updatedAt ||
+      latestExternalDecision?.adminUpdatedAt ||
+      null
+    );
+  }
+
+  const normalizedStatus = String(getOperationalStatusText(project) || "").trim().toLowerCase();
+
+  if (normalizedStatus === "report accepted" || normalizedStatus === "reported accepted") {
+    return (
+      project?.reportAcceptedAt ||
+      project?.acceptedAt ||
+      project?.approvedAt ||
+      project?.confirmedAt ||
+      project?.confirmationDate ||
+      project?.updatedAt ||
+      project?.lastUpdated ||
+      null
+    );
+  }
+
+  if (normalizedStatus === "report rejected" || normalizedStatus === "reported rejected") {
+    return (
+      project?.reportRejectedAt ||
+      project?.rejectedAt ||
+      project?.returnedAt ||
+      project?.declinedAt ||
+      project?.updatedAt ||
+      project?.lastUpdated ||
+      null
+    );
+  }
+
+  return (
+    project?.approvedAt ||
+    project?.confirmedAt ||
+    project?.confirmationDate ||
+    project?.returnedAt ||
+    project?.rejectedAt ||
+    project?.declinedAt ||
+    null
+  );
+};
+
+const getDecisionBy = (project, latestExternalDecision) => {
+  const externalDecision = String(latestExternalDecision?.decision || "")
+    .trim()
+    .toLowerCase();
+
+  if (externalDecision === "approved" || externalDecision === "rejected") {
+    return (
+      latestExternalDecision?.externalReviewerName ||
+      latestExternalDecision?.externalReviewerEmail ||
+      latestExternalDecision?.createdBy ||
+      "N/A"
+    );
+  }
+
+  const normalizedStatus = String(getOperationalStatusText(project) || "").trim().toLowerCase();
+
+  if (normalizedStatus === "report accepted" || normalizedStatus === "reported accepted") {
+    return (
+      project?.reportAcceptedBy ||
+      project?.acceptedBy ||
+      project?.approvedBy ||
+      project?.confirmedBy ||
+      "N/A"
+    );
+  }
+
+  if (normalizedStatus === "report rejected" || normalizedStatus === "reported rejected") {
+    return (
+      project?.reportRejectedBy ||
+      project?.rejectedBy ||
+      project?.returnedBy ||
+      project?.declinedBy ||
+      "N/A"
+    );
+  }
+
+  return (
+    project?.approvedBy ||
+    project?.confirmedBy ||
+    project?.returnedBy ||
+    project?.rejectedBy ||
+    project?.declinedBy ||
+    "N/A"
+  );
 };
 
 const normalizeAuditTone = (type) => {
@@ -105,8 +261,10 @@ const Inspection360Summary = () => {
   const [projects, setProjects] = useState([]);
   const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [projectFilter, setProjectFilter] = useState("all");
+  const [activeAuditRow, setActiveAuditRow] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "projects"), (snapshot) => {
@@ -127,6 +285,13 @@ const Inspection360Summary = () => {
     const logsQuery = query(collection(db, "activity_logs"), orderBy("timestamp", "desc"), limit(200));
     const unsubscribe = onSnapshot(logsQuery, (snapshot) => {
       setActivityLogs(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "users"), (snapshot) => {
+      setUsers(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
     });
     return () => unsubscribe();
   }, []);
@@ -193,6 +358,65 @@ const Inspection360Summary = () => {
       ),
     [feedbackEntries, filteredProjectKeys],
   );
+
+  const usersById = useMemo(
+    () =>
+      new Map(users.map((entry) => [String(entry.id || entry.uid || "").trim(), entry]).filter(([key]) => key)),
+    [users],
+  );
+
+  const usersByEmail = useMemo(
+    () =>
+      new Map(
+        users
+          .map((entry) => [String(entry.email || "").trim().toLowerCase(), entry])
+          .filter(([key]) => key),
+      ),
+    [users],
+  );
+
+  const latestFeedbackByProjectKey = useMemo(() => {
+    const output = new Map();
+    [...scopedFeedback]
+      .sort((left, right) => toMillis(right.createdAt || right.updatedAt) - toMillis(left.createdAt || left.updatedAt))
+      .forEach((entry) => {
+        const projectDocId = String(entry.projectDocId || "").trim();
+        const projectId = String(entry.projectId || "").trim();
+        if (projectDocId && !output.has(projectDocId)) output.set(projectDocId, entry);
+        if (projectId && !output.has(projectId)) output.set(projectId, entry);
+      });
+    return output;
+  }, [scopedFeedback]);
+
+  const latestExternalDecisionByProjectKey = useMemo(() => {
+    const output = new Map();
+    scopedFeedback.forEach((entry) => {
+      const decision = String(entry?.decision || "").trim().toLowerCase();
+      if (!["approved", "rejected"].includes(decision)) return;
+
+      const entryTimestamp = Math.max(
+        toMillis(entry?.createdAt),
+        toMillis(entry?.updatedAt),
+        toMillis(entry?.adminUpdatedAt),
+      );
+      const keys = [String(entry?.projectDocId || "").trim(), String(entry?.projectId || "").trim()].filter(Boolean);
+
+      keys.forEach((key) => {
+        const existing = output.get(key);
+        const existingTimestamp = existing
+          ? Math.max(
+              toMillis(existing?.createdAt),
+              toMillis(existing?.updatedAt),
+              toMillis(existing?.adminUpdatedAt),
+            )
+          : 0;
+        if (!existing || entryTimestamp >= existingTimestamp) {
+          output.set(key, entry);
+        }
+      });
+    });
+    return output;
+  }, [scopedFeedback]);
 
   const scopedLogs = useMemo(() => {
     const currentEmail = String(user?.email || "").trim().toLowerCase();
@@ -445,6 +669,444 @@ const Inspection360Summary = () => {
               </div>
             ) : (
               <>
+              <section className="flex flex-col  xl:grid-cols-[1.1fr_1fr]">
+                  <AuditCard
+                    title="Full Inspection Audit View"
+                    subtitle="Detailed project-level snapshot showing status, ownership, and key decision timestamps."
+                  >
+                    <div className="max-h-[34rem] overflow-auto">
+                      <table className="min-w-full text-left">
+                        <thead className="sticky top-0 z-10 bg-[#091122] text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          <tr>
+                            <th className="px-4 py-4">S/n</th>
+                            <th className="px-4 py-4">Project ID</th>
+                            <th className="px-4 py-4">Inspection Start Time</th>
+                            <th className="px-4 py-4">Inspection End Time</th>
+                            <th className="px-4 py-4">Approved By</th>
+                            <th className="px-4 py-4">Approval Time</th>
+                            <th className="px-4 py-4">Verif_Officer1 Start Time</th>
+                            <th className="px-4 py-4">Final Status</th>
+                            <th className="px-4 py-4">Report Acceptance Timestamp</th>
+                            <th className="px-4 py-4">Report Rejection Timestamp</th>
+                            <th className="px-4 py-4">Verification_Feedback</th>
+                            <th className="px-4 py-4">Verification Countdown_Timer</th>
+                            <th className="px-4 py-4">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60">
+                          {auditRows.length > 0 ? auditRows.map((project, rowIndex) => {
+                            const readProjectValue = (...keys) =>
+                              pickFirstValue(
+                                ...keys.map((key) => project?.[key]),
+                                ...keys.map((key) => project?.report?.[key]),
+                                ...keys.map((key) => project?.report?.general?.[key]),
+                              );
+
+                            const projectDocKey = String(project.id || "").trim();
+                            const projectBusinessKey = String(project.projectId || "").trim();
+                            const projectFeedback =
+                              latestFeedbackByProjectKey.get(projectDocKey) ||
+                              latestFeedbackByProjectKey.get(projectBusinessKey) ||
+                              null;
+                            const latestExternalDecision =
+                              latestExternalDecisionByProjectKey.get(projectDocKey) ||
+                              latestExternalDecisionByProjectKey.get(projectBusinessKey) ||
+                              null;
+
+                            const inspectorUserId = String(
+                              pickFirstValue(
+                                project?.inspectorId,
+                                project?.assignedInspectorId,
+                                project?.report?.inspectorId,
+                              ) || "",
+                            ).trim();
+                            const inspectorEmail = String(
+                              pickFirstValue(
+                                project?.inspectorEmail,
+                                project?.report?.inspectorEmail,
+                                project?.report?.general?.inspectorEmail,
+                              ) || "",
+                            )
+                              .trim()
+                              .toLowerCase();
+                            const inspectorUser =
+                              usersById.get(inspectorUserId) ||
+                              usersByEmail.get(inspectorEmail) ||
+                              null;
+
+                            const resolveVerificationOfficer = (index) => {
+                              const suffix = index === 1 ? "" : String(index);
+                              const name = pickFirstValue(
+                                readProjectValue(
+                                  `verificationOfficer${index}`,
+                                  `verificationOfficer${index}Name`,
+                                  `verifOfficer${index}`,
+                                  `verifOfficer${index}Name`,
+                                  `externalReviewer${suffix}`,
+                                  `externalReviewer${suffix}Name`,
+                                ),
+                                index === 1 ? readProjectValue("externalReviewerName", "externalReviewer") : null,
+                              );
+                              const startTime = pickFirstValue(
+                                readProjectValue(
+                                  `verificationOfficer${index}StartTime`,
+                                  `verifOfficer${index}StartTime`,
+                                  `externalReviewer${suffix}StartTime`,
+                                ),
+                                index === 1 ? readProjectValue("externalReviewerStartTime") : null,
+                              );
+                              const endTime = pickFirstValue(
+                                readProjectValue(
+                                  `verificationOfficer${index}EndTime`,
+                                  `verifOfficer${index}EndTime`,
+                                  `externalReviewer${suffix}EndTime`,
+                                ),
+                                index === 1 ? readProjectValue("externalReviewerEndTime") : null,
+                              );
+                              const status = pickFirstValue(
+                                readProjectValue(
+                                  `verificationOfficer${index}Status`,
+                                  `verifOfficer${index}Status`,
+                                  `externalReviewer${suffix}Status`,
+                                ),
+                                index === 1 ? readProjectValue("externalReviewerStatus") : null,
+                              );
+
+                              return { name, startTime, endTime, status };
+                            };
+
+                            const officer1 = resolveVerificationOfficer(1);
+                            const officer2 = resolveVerificationOfficer(2);
+                            const officer3 = resolveVerificationOfficer(3);
+                            const officer4 = resolveVerificationOfficer(4);
+                            const officer5 = resolveVerificationOfficer(5);
+
+                            const verificationLead = pickFirstValue(
+                              readProjectValue(
+                                "verificationLead",
+                                "verificationLeadName",
+                                "verifLead",
+                                "verifLeadName",
+                                "externalReviewerLead",
+                                "externalReviewerLeadName",
+                              ),
+                              project?.managerName,
+                            );
+                            const verificationLeadStartTime = readProjectValue(
+                              "verificationLeadStartTime",
+                              "verifLeadStartTime",
+                              "externalReviewerLeadStartTime",
+                            );
+                            const verificationLeadEndTime = readProjectValue(
+                              "verificationLeadEndTime",
+                              "verifLeadEndTime",
+                              "externalReviewerLeadEndTime",
+                            );
+                            const verificationLeadStatus = readProjectValue(
+                              "verificationLeadStatus",
+                              "verifLeadStatus",
+                              "externalReviewerLeadStatus",
+                            );
+
+                            const inspectionStartTimeDisplay = pickFirstValue(
+                              readProjectValue(
+                                "inspectionStartTime",
+                                "inspectionStartedAt",
+                                "startedAt",
+                                "startTime",
+                                "inProgressAt",
+                              ),
+                              project?.inspectionStartedAt,
+                              project?.startDate,
+                              project?.deploymentDate,
+                              project?.createdAt,
+                              project?.timestamp,
+                            );
+                            const inspectionEndTimeDisplay = pickFirstValue(
+                              readProjectValue(
+                                "inspectionEndTime",
+                                "inspectionEndedAt",
+                                "inspectionEndDate",
+                                "endTime",
+                              ),
+                              getProjectEndDate(project),
+                            );
+                            const approvedByDisplay = pickFirstValue(
+                              getDecisionBy(project, latestExternalDecision),
+                              readProjectValue(
+                                "approvedByName",
+                                "approvedBy",
+                                "approvedByUser",
+                                "approvedByEmail",
+                                "managerApprovedBy",
+                              ),
+                              project?.report?.signoff?.manager,
+                              project?.managerName,
+                            );
+                            const approvalTimeDisplay = pickFirstValue(
+                              getDecisionAt(project, latestExternalDecision),
+                              readProjectValue(
+                                "approvalTime",
+                                "approvalTimestamp",
+                                "approvedAt",
+                                "managerApprovalAt",
+                                "reportAcceptedAt",
+                                "acceptedAt",
+                              ),
+                              project?.clientReviewDecisionAt,
+                            );
+
+                            const reportAcceptedTime = pickFirstValue(
+                              project?.reportAcceptedAt,
+                              project?.acceptedAt,
+                              project?.report?.acceptedAt,
+                            );
+                            const reportRejectedTime = pickFirstValue(
+                              project?.reportRejectedAt,
+                              project?.rejectedAt,
+                              project?.report?.rejectedAt,
+                            );
+
+                            const verificationFeedback = pickFirstValue(
+                              projectFeedback?.feedback,
+                              projectFeedback?.comment,
+                              projectFeedback?.comments,
+                              projectFeedback?.observation,
+                              project?.verificationFeedback,
+                              project?.reviewFeedback,
+                              project?.report?.verificationFeedback,
+                              project?.report?.reviewFeedback,
+                              project?.report?.feedback,
+                            );
+
+                            const nextInspectionDate = pickFirstValue(
+                              readProjectValue("nextInspectionDate", "dueDate", "nextInspectionDueDate"),
+                              project?.equipmentSnapshot?.nextInspection?.dueDate,
+                              project?.nextInspection?.dueDate,
+                            );
+
+                            const lastInspectionDate = pickFirstValue(
+                              readProjectValue("lastInspectionDate"),
+                              project?.equipmentSnapshot?.lastInspection?.completedAt,
+                              project?.lastInspection?.completedAt,
+                              project?.approvedAt,
+                            );
+
+                            const verificationCountdownTimer = formatCountdown(
+                              readProjectValue(
+                                "verificationCountdownTimer",
+                                "verificationCountdown",
+                                "verificationTimer",
+                                "verification_countdown_timer",
+                              ),
+                              readProjectValue(
+                                "verificationDeadline",
+                                "verificationDueAt",
+                                "verificationDeadlineAt",
+                              ),
+                            );
+
+                            const operationalCountdownTimer = formatCountdown(
+                              readProjectValue("countdownTimer", "inspectionCountdownTimer"),
+                              nextInspectionDate,
+                            );
+
+                            const auditDetailFields = [
+                              { label: "Client", value: asText(project.clientName || project.client) },
+                              {
+                                label: "Inspection Company",
+                                value: asText(
+                                  readProjectValue("inspectionCompany", "companyName", "inspectionCompanyName"),
+                                ),
+                              },
+                              {
+                                label: "Inspection By",
+                                value: asText(
+                                  project.inspectorName ||
+                                    project.assignedInspectorName ||
+                                    project?.report?.signoff?.inspector,
+                                ),
+                              },
+                              {
+                                label: "Supervised By",
+                                value: asText(
+                                  project.supervisorName ||
+                                    project.assignedSupervisorName ||
+                                    project?.report?.signoff?.reviewer,
+                                ),
+                              },
+                              { label: "Verification Officer 1", value: asText(officer1.name) },
+                              { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.endTime) },
+                              { label: "Verif_Officer1 Status", value: asText(officer1.status) },
+                              { label: "Verification Officer 2", value: asText(officer2.name) },
+                              { label: "Verif_Officer2 Start Time", value: formatDateTime(officer2.startTime) },
+                              { label: "Verif_Officer2 End Time", value: formatDateTime(officer2.endTime) },
+                              { label: "Verif_Officer2 Status", value: asText(officer2.status) },
+                              { label: "Verification Officer 3", value: asText(officer3.name) },
+                              { label: "Verif_Officer3 Start Time", value: formatDateTime(officer3.startTime) },
+                              { label: "Verif_Officer3 End Time", value: formatDateTime(officer3.endTime) },
+                              { label: "Verif_Officer3 Status", value: asText(officer3.status) },
+                              { label: "Verification Officer 4", value: asText(officer4.name) },
+                              { label: "Verif_Officer4 Start Time", value: formatDateTime(officer4.startTime) },
+                              { label: "Verif_Officer4 End Time", value: formatDateTime(officer4.endTime) },
+                              { label: "Verif_Officer4 Status", value: asText(officer4.status) },
+                              { label: "Verification Officer 5", value: asText(officer5.name) },
+                              { label: "Verif_Officer5 Start Time", value: formatDateTime(officer5.startTime) },
+                              { label: "Verif_Officer5 End Time", value: formatDateTime(officer5.endTime) },
+                              { label: "Verif_Officer5 Status", value: asText(officer5.status) },
+                              { label: "Verification Lead", value: asText(verificationLead) },
+                              {
+                                label: "Verif_Lead Start Time",
+                                value: formatDateTime(verificationLeadStartTime),
+                              },
+                              { label: "Verif_Lead End Time", value: formatDateTime(verificationLeadEndTime) },
+                              { label: "Verif_Lead Status", value: asText(verificationLeadStatus) },
+                              {
+                                label: "Report_Download_Count",
+                                value: asText(
+                                  readProjectValue(
+                                    "reportDownloadCount",
+                                    "report_download_count",
+                                    "downloadCount",
+                                    "reportDownloadCounter",
+                                  ),
+                                ),
+                              },
+                              {
+                                label: "Equipment Inspected",
+                                value: asText(
+                                  project.equipmentTag ||
+                                    project.tag ||
+                                    project.equipmentCategory ||
+                                    project.assetType ||
+                                    project?.report?.general?.equipment,
+                                ),
+                              },
+                              {
+                                label: "Inspection Type",
+                                value: asText(
+                                  project.inspectionTypeName ||
+                                    project.inspectionTypeCode ||
+                                    project?.report?.general?.inspectionTypeName ||
+                                    project?.report?.general?.inspectionTypeCode,
+                                ),
+                              },
+                              { label: "Last Inspection Date", value: formatDateTime(lastInspectionDate) },
+                              { label: "Next Inspection Date", value: formatDateTime(nextInspectionDate) },
+                              { label: "Countdown Timer", value: operationalCountdownTimer },
+                              {
+                                label: "Login Timestamp",
+                                value: formatDateTime(
+                                  pickFirstValue(
+                                    readProjectValue(
+                                      "loginTimestamp",
+                                      "inspectorLoginTimestamp",
+                                      "userLoginTimestamp",
+                                    ),
+                                    inspectorUser?.loginTimestamp,
+                                    inspectorUser?.lastSignInTime,
+                                  ),
+                                ),
+                              },
+                              {
+                                label: "Logout Timestamp",
+                                value: formatDateTime(
+                                  pickFirstValue(
+                                    readProjectValue(
+                                      "logoutTimestamp",
+                                      "inspectorLogoutTimestamp",
+                                      "userLogoutTimestamp",
+                                    ),
+                                    inspectorUser?.logoutTimestamp,
+                                    inspectorUser?.lastLogoutAt,
+                                  ),
+                                ),
+                              },
+                              {
+                                label: "User Last Login Time",
+                                value: formatDateTime(
+                                  pickFirstValue(
+                                    readProjectValue("userLastLoginTime", "lastLoginAt"),
+                                    inspectorUser?.lastLoginAt,
+                                    inspectorUser?.lastSignInTime,
+                                  ),
+                                ),
+                              },
+                              {
+                                label: "User Email Address",
+                                value: asText(
+                                  project.inspectorEmail ||
+                                    inspectorUser?.email ||
+                                    project?.report?.general?.inspectorEmail ||
+                                    user?.email,
+                                ),
+                              },
+                            ];
+
+                            return (
+                            <tr key={project.id} className="hover:bg-white/5 transition-colors">
+                              <td className="px-4 py-4 text-xs text-slate-300">{rowIndex + 1}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{asText(project.projectId || project.id)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(inspectionStartTimeDisplay)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(inspectionEndTimeDisplay)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{asText(approvedByDisplay)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(approvalTimeDisplay)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">
+                                {formatDateTime(
+                                  pickFirstValue(
+                                    officer1.startTime,
+                                    readProjectValue(
+                                      "verifOfficer1StartTime",
+                                      "verificationOfficer1StartTime",
+                                      "externalReviewerStartTime",
+                                      "reviewerStartTime",
+                                      "verificationStartTime",
+                                    ),
+                                  ),
+                                )}
+                              </td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{asText(project.finalStatus || project.status || normalizeProjectStatus(project))}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(reportAcceptedTime)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(reportRejectedTime)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{asText(verificationFeedback)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{verificationCountdownTimer}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveAuditRow({
+                                      projectLabel: asText(project.projectName || project.projectId || project.id),
+                                      fields: auditDetailFields,
+                                    })
+                                  }
+                                  className="rounded-lg border border-orange-500 bg-orange-500 px-3 py-1 font-bold uppercase tracking-[0.14em] text-slate-200 hover:border-orange-500 hover:text-white"
+                                >
+                                  View More
+                                </button>
+                              </td>
+                            </tr>
+                            );
+                          }) : (
+                            <tr>
+                              <td colSpan="14" className="px-4 py-12 text-center text-sm text-slate-500">
+                                No inspection records are visible for this report scope yet.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </AuditCard>
+
+
+                </section>
+                {activeAuditRow ? (
+                  <AuditDetailsModal
+                    title={activeAuditRow.projectLabel}
+                    fields={activeAuditRow.fields}
+                    onClose={() => setActiveAuditRow(null)}
+                  />
+                ) : null}
                 <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <MetricCard
                     icon={<ShieldCheck size={16} />}
@@ -550,61 +1212,16 @@ const Inspection360Summary = () => {
                   </div>
                 </section>
 
-                <section className="grid gap-6 xl:grid-cols-[1.1fr_1fr]">
-                  <AuditCard
-                    title="Full Inspection Audit View"
-                    subtitle="Detailed project-level snapshot showing status, ownership, and key decision timestamps."
-                  >
-                    <div className="max-h-[34rem] overflow-auto">
-                      <table className="min-w-full text-left">
-                        <thead className="sticky top-0 z-10 bg-[#091122] text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          <tr>
-                            <th className="px-4 py-4">Project</th>
-                            <th className="px-4 py-4">Client</th>
-                            <th className="px-4 py-4">Current Status</th>
-                            <th className="px-4 py-4">Inspector</th>
-                            <th className="px-4 py-4">Last Updated</th>
-                            <th className="px-4 py-4">Decision Time</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/60">
-                          {auditRows.map((project) => (
-                            <tr key={project.id} className="hover:bg-white/5 transition-colors">
-                              <td className="px-4 py-4">
-                                <div className="text-sm font-semibold text-white">
-                                  {project.projectName || project.projectId || project.id}
-                                </div>
-                                <div className="mt-1 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                                  {project.projectId || project.id}
-                                </div>
-                              </td>
-                              <td className="px-4 py-4 text-sm text-slate-300">
-                                {project.clientName || project.client || "N/A"}
-                              </td>
-                              <td className="px-4 py-4">
-                                <span className="inline-flex rounded-full border border-slate-700 bg-slate-900/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-200">
-                                  {normalizeProjectStatus(project)}
-                                </span>
-                              </td>
-                              <td className="px-4 py-4 text-sm text-slate-300">
-                                {project.inspectorName || project.assignedInspectorName || "N/A"}
-                              </td>
-                              <td className="px-4 py-4 text-sm text-slate-300">
-                                {formatDateTime(project.updatedAt || project.createdAt)}
-                              </td>
-                              <td className="px-4 py-4 text-sm text-slate-300">
-                                {formatDateTime(
-                                  project.reportAcceptedAt || project.reportRejectedAt || project.clientReviewDecisionAt,
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </AuditCard>
-
-                  <AuditCard
+                
+              </>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+{/*<AuditCard
                     title="Activity Audit Trail"
                     subtitle="Recent operational events connected to the visible inspection scope."
                   >
@@ -629,7 +1246,7 @@ const Inspection360Summary = () => {
                               {entry.message || "Activity recorded."}
                             </p>
                             <div className="mt-3 flex flex-wrap gap-4 text-[11px] uppercase tracking-[0.14em] text-slate-500">
-                              <span>Target: {entry.target || "N/A"}</span>
+                              <span>Target: {entry.target || "NULL"}</span>
                               <span>User: {entry.userEmail || "System"}</span>
                             </div>
                           </div>
@@ -640,17 +1257,7 @@ const Inspection360Summary = () => {
                         </div>
                       )}
                     </div>
-                  </AuditCard>
-                </section>
-              </>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-};
-
+                  </AuditCard>*/}
 const MetricCard = ({ icon, label, value, tone }) => {
   const toneClass =
     tone === "emerald"
@@ -693,6 +1300,36 @@ const AuditCard = ({ title, subtitle, children }) => (
     </div>
     {children}
   </section>
+);
+
+const AuditDetailsModal = ({ title, fields, onClose }) => (
+  <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+    <div className="w-full max-w-5xl rounded-2xl border border-slate-800 bg-[#08101f] shadow-[0_24px_80px_rgba(2,6,23,0.6)]">
+      <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Audit Row Details</p>
+          <h3 className="mt-1 text-base font-black text-white">{title}</h3>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-200 hover:border-orange-500 hover:text-white"
+        >
+          Close
+        </button>
+      </div>
+      <div className="max-h-[70vh] overflow-auto p-5">
+        <div className="grid gap-3 md:grid-cols-2">
+          {fields.map((field) => (
+            <div key={field.label} className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{field.label}</p>
+              <p className="mt-1 text-sm text-slate-200">{field.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
 );
 
 export default Inspection360Summary;

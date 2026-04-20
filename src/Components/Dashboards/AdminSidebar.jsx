@@ -78,6 +78,11 @@ const sidebarLinks = [
         href: "/reports/inspection-progress",
       },
       {
+        name: "Audit Trail",
+        icon: <Shield size={16} />,
+        href: "/reports/daily-inspection-summary",
+      },
+      {
         name: "Non-Conformance Report",
         icon: <FileText size={16} />,
         href: "/reports/non-conformance",

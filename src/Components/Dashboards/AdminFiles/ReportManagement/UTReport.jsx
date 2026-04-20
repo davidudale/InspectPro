@@ -1675,13 +1675,6 @@ const UTReport = ({
                   <h2 className="text-xs font-bold uppercase tracking-[0.3em] bg-slate-900">
                     3.0 Inspection Findings
                   </h2>
-                  <button
-                    type="button"
-                    onClick={addChecklistItem}
-                    className="rounded-sm border border-orange-500 bg-orange-600 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-orange-700"
-                  >
-                    Add More
-                  </button>
                 </div>
                 <div className="space-y-4">
                   {(reportData.checklist || []).map((item, idx) => (
@@ -1693,16 +1686,25 @@ const UTReport = ({
                         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                           Component {idx + 1}
                         </p>
-                        {(reportData.checklist || []).length > 1 && (
+                        <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() => removeChecklistItem(item.id)}
-                            className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                            onClick={addChecklistItem}
+                            className="rounded-sm border border-orange-500 bg-orange-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-orange-700"
                           >
-                            Remove
+                            Add More
                           </button>
-                        )}
-                        
+                          {(reportData.checklist || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeChecklistItem(item.id)}
+                              className="text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                         
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
