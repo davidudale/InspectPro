@@ -1,6 +1,11 @@
 import { initializeApp } from "firebase/app";
 import { browserSessionPersistence, getAuth, setPersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 import { getStorage } from "firebase/storage";
 
@@ -17,7 +22,21 @@ const firebaseConfig = {
 // Main App Instance (for Admin login session)
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+let resolvedDb;
+try {
+  const isBrowser = typeof window !== "undefined";
+  resolvedDb = isBrowser
+    ? initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      })
+    : getFirestore(app);
+} catch (error) {
+  console.warn("Falling back to default Firestore configuration:", error);
+  resolvedDb = getFirestore(app);
+}
+export const db = resolvedDb;
 export const rtdb = getDatabase(app);
 export const storage = getStorage(app);
 

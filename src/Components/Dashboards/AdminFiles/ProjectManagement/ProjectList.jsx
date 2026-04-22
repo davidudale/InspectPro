@@ -360,16 +360,16 @@ const ProjectList = () => {
     if (normalizedStatus.includes("returned for correction")) {
       return {
         wrapper:
-          "border-red-400/40 bg-red-500/15 text-red-200 shadow-[0_0_0_1px_rgba(248,113,113,0.08)]",
-        dot: "bg-red-400",
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
       };
     }
 
     if (normalizedStatus.includes("client review")) {
       return {
         wrapper:
-          "border-fuchsia-400/40 bg-fuchsia-500/15 text-fuchsia-200 shadow-[0_0_0_1px_rgba(217,70,239,0.08)]",
-        dot: "bg-fuchsia-400",
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
       };
     }
 
@@ -387,32 +387,32 @@ const ProjectList = () => {
     if (normalizedStatus.startsWith("in progress")) {
       return {
         wrapper:
-          "border-amber-400/40 bg-amber-500/15 text-amber-100 shadow-[0_0_0_1px_rgba(245,158,11,0.08)]",
-        dot: "bg-amber-400",
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
       };
     }
 
     if (normalizedStatus.startsWith("not started")) {
       return {
         wrapper:
-          "border-indigo-400/40 bg-indigo-500/15 text-indigo-100 shadow-[0_0_0_1px_rgba(99,102,241,0.08)]",
-        dot: "bg-indigo-400",
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
       };
     }
 
     if (normalizedStatus === "planned") {
       return {
         wrapper:
-          "border-slate-500/40 bg-slate-700/30 text-slate-200 shadow-[0_0_0_1px_rgba(100,116,139,0.08)]",
-        dot: "bg-slate-400",
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
       };
     }
 
     return {
-      wrapper:
-        "border-cyan-400/40 bg-cyan-500/15 text-cyan-100 shadow-[0_0_0_1px_rgba(34,211,238,0.08)]",
-      dot: "bg-cyan-400",
-    };
+        wrapper:
+          "border-sky-400/40 bg-sky-500/15 text-sky-200 shadow-[0_0_0_1px_rgba(56,189,248,0.08)]",
+        dot: "bg-sky-400",
+      };
   };
 
   const filteredProjects = useMemo(() => {

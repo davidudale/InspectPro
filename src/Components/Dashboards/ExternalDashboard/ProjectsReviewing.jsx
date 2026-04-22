@@ -4,11 +4,15 @@ import { db } from "../../Auth/firebase";
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
+  query,
   serverTimestamp,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import { 
   Briefcase, Search, ArrowUpRight, 
@@ -884,38 +888,38 @@ const ProjectReviewing = () => {
 
     setIsSubmittingFeedback(true);
     try {
-      const feedbackDoc = await addDoc(collection(db, "external_feedback"), {
-        projectDocId: feedbackProject.id,
-        projectId: feedbackProject.projectId || "",
-        projectName: feedbackProject.projectName || "",
-        clientName: feedbackProject.clientName || feedbackProject.client || "",
-        requiredTechnique:
-          feedbackProject.selectedTechnique ||
-          feedbackProject.reportTemplate ||
-          feedbackProject.inspectionTypeCode ||
-          feedbackProject.inspectionTypeName ||
-          "General Inspection",
-        externalReviewerId: user.uid,
-        externalReviewerName:
-          user.fullName || user.name || user.displayName || user.email || "External Reviewer",
-        externalReviewerEmail: user.email || "",
-        adminRecipient: "Admin",
-        subject:
-          feedbackDecision === "Approved"
-            ? "External review approved"
-            : "External review rejected",
-        message: normalizedMessage,
-        decision: feedbackDecision,
-        status: "New",
-        createdAt: serverTimestamp(),
-      });
+      let feedbackDoc = null;
+      if (feedbackDecision === "Rejected") {
+        feedbackDoc = await addDoc(collection(db, "external_feedback"), {
+          projectDocId: feedbackProject.id,
+          projectId: feedbackProject.projectId || "",
+          projectName: feedbackProject.projectName || "",
+          clientName: feedbackProject.clientName || feedbackProject.client || "",
+          requiredTechnique:
+            feedbackProject.selectedTechnique ||
+            feedbackProject.reportTemplate ||
+            feedbackProject.inspectionTypeCode ||
+            feedbackProject.inspectionTypeName ||
+            "General Inspection",
+          externalReviewerId: user.uid,
+          externalReviewerName:
+            user.fullName || user.name || user.displayName || user.email || "External Reviewer",
+          externalReviewerEmail: user.email || "",
+          adminRecipient: "Admin",
+          subject: "External review rejected",
+          message: normalizedMessage,
+          decision: feedbackDecision,
+          status: "New",
+          createdAt: serverTimestamp(),
+        });
+      }
 
       const reviewerName =
         user.fullName || user.name || user.displayName || user.email || "External Reviewer";
       const feedbackProjectFields =
         feedbackDecision === "Rejected"
           ? buildExternalFeedbackProjectFields({
-              feedbackId: feedbackDoc.id,
+              feedbackId: feedbackDoc?.id || "",
               message: normalizedMessage,
               decisionAt: serverTimestamp(),
               reviewerName,
@@ -949,6 +953,40 @@ const ProjectReviewing = () => {
           feedbackMessage: normalizedMessage,
           reviewerName,
         });
+      } else {
+        const feedbackQueries = [
+          query(
+            collection(db, "external_feedback"),
+            where("projectDocId", "==", feedbackProject.id),
+          ),
+        ];
+
+        if (feedbackProject?.projectId) {
+          feedbackQueries.push(
+            query(
+              collection(db, "external_feedback"),
+              where("projectId", "==", feedbackProject.projectId),
+            ),
+          );
+        }
+
+        const snapshots = await Promise.all(
+          feedbackQueries.map((entryQuery) => getDocs(entryQuery)),
+        );
+        const seenIds = new Set();
+        const docsToDelete = snapshots.flatMap((snapshot) =>
+          snapshot.docs.filter((entry) => {
+            if (seenIds.has(entry.id)) return false;
+            seenIds.add(entry.id);
+            return true;
+          }),
+        );
+
+        await Promise.all(
+          docsToDelete.map((entryDoc) =>
+            deleteDoc(doc(db, "external_feedback", entryDoc.id)),
+          ),
+        );
       }
 
       toast.success(

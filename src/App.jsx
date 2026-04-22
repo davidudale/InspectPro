@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./App.css";
 import { Routes, Route } from "react-router-dom";
 import Homepage from "./Components/MainComponent/Homepage";
@@ -61,6 +61,10 @@ import SuperAdminAccessCenter from "./Components/Page/SuperAdminAccessCenter.jsx
 import SuperAdminSystemCenter from "./Components/Page/SuperAdminSystemCenter.jsx";
 import SuperAdminAuditCenter from "./Components/Page/SuperAdminAuditCenter.jsx";
 function App() {
+  const [isOnline, setIsOnline] = useState(
+    typeof navigator === "undefined" ? true : navigator.onLine,
+  );
+
   useEffect(() => {
     const themeMode = localStorage.getItem("inspectpro_ui_theme") || "system";
     const accent = localStorage.getItem("inspectpro_ui_accent") || "orange";
@@ -78,6 +82,22 @@ function App() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
+
+  useEffect(() => {
+    const markOnline = () => setIsOnline(true);
+    const markOffline = () => setIsOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isOnline) return;
+    window.dispatchEvent(new Event("inspectpro-sync-offline-uploads"));
+  }, [isOnline]);
 
   return (
     <>
@@ -729,6 +749,20 @@ function App() {
         bodyClassName="inspectpro-toast-body"
         progressClassName="inspectpro-toast-progress"
       />
+      <div className="pointer-events-none  fixed bottom-4  z-[1400]">
+        <div
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg ${
+            isOnline
+              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+              : "border-amber-500/40 bg-amber-500/15 text-amber-100"
+          }`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-amber-300"}`}
+          />
+          {isOnline ? "Online Mode" : "Offline Mode (Cached)"}
+        </div>
+      </div>
       <GlobalProjectChatbox />
     </>
   );

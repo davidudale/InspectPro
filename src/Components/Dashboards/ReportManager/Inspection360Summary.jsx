@@ -669,7 +669,112 @@ const Inspection360Summary = () => {
               </div>
             ) : (
               <>
-              <section className="flex flex-col  xl:grid-cols-[1.1fr_1fr]">
+              
+                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard
+                    icon={<ShieldCheck size={16} />}
+                    label="Visible Projects"
+                    value={String(filteredProjects.length)}
+                    tone="orange"
+                  />
+                  <MetricCard
+                    icon={<BarChart3 size={16} />}
+                    label="Accepted Reports"
+                    value={String(statusSummary.find((item) => item.label === "Accepted")?.value || 0)}
+                    tone="emerald"
+                  />
+                  <MetricCard
+                    icon={<PieChartIcon size={16} />}
+                    label="Rejected Reports"
+                    value={String(statusSummary.find((item) => item.label === "Rejected")?.value || 0)}
+                    tone="rose"
+                  />
+                  <MetricCard
+                    icon={<Clock3 size={16} />}
+                    label="Audit Events"
+                    value={String(recentAuditTrail.length)}
+                    tone="sky"
+                  />
+                </section>
+
+                <section className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
+                  <ChartCard
+                    title="Inspection Lifecycle Distribution"
+                    subtitle="Bar chart overview of the workflow stages across the visible inspection portfolio."
+                    icon={<BarChart3 size={16} />}
+                  >
+                    <div className="h-[320px]">
+                      <Bar data={statusChartData} options={chartOptions} />
+                    </div>
+                  </ChartCard>
+                  <ChartCard
+                    title="Client Review Outcome Split"
+                    subtitle="Pie chart showing how accepted, rejected, in-review, and pending items are distributed."
+                    icon={<PieChartIcon size={16} />}
+                  >
+                    <div className="h-[320px]">
+                      <Pie
+                        data={decisionChartData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: chartOptions.plugins,
+                        }}
+                      />
+                    </div>
+                  </ChartCard>
+                </section>
+
+                <section className="rounded-[2rem] border border-slate-800/80 bg-[#08101f]/95 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.35)]">
+                  <div className="mb-5 flex items-center gap-3">
+                    <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2 text-orange-400">
+                      <FileSearch size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                        Summary Table
+                      </p>
+                      <h2 className="text-lg font-black text-white">Inspection Portfolio Summary by Client</h2>
+                    </div>
+                  </div>
+                  <div className="overflow-auto rounded-[1.4rem] border border-slate-800 bg-slate-950/50">
+                    <table className="min-w-full text-left">
+                      <thead className="bg-[#091122] text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                        <tr>
+                          <th className="px-4 py-4">Client</th>
+                          <th className="px-4 py-4">Total Projects</th>
+                          <th className="px-4 py-4">Approved</th>
+                          <th className="px-4 py-4">Accepted</th>
+                          <th className="px-4 py-4">Rejected</th>
+                          <th className="px-4 py-4">In Progress</th>
+                          <th className="px-4 py-4">Review Queue</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/60">
+                        {clientSummaryRows.length > 0 ? (
+                          clientSummaryRows.map((row) => (
+                            <tr key={row.client} className="hover:bg-white/5 transition-colors">
+                              <td className="px-4 py-4 text-sm font-semibold text-white">{row.client}</td>
+                              <td className="px-4 py-4 text-sm text-slate-300">{row.totalProjects}</td>
+                              <td className="px-4 py-4 text-sm text-lime-300">{row.approved}</td>
+                              <td className="px-4 py-4 text-sm text-emerald-300">{row.accepted}</td>
+                              <td className="px-4 py-4 text-sm text-rose-300">{row.rejected}</td>
+                              <td className="px-4 py-4 text-sm text-amber-300">{row.inProgress}</td>
+                              <td className="px-4 py-4 text-sm text-sky-300">{row.reviewQueue}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7" className="px-4 py-12 text-center text-sm text-slate-500">
+                              No inspection records are visible for this report scope yet.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+                <section className="flex flex-col  xl:grid-cols-[1.1fr_1fr]">
                   <AuditCard
                     title="Full Inspection Audit View"
                     subtitle="Detailed project-level snapshot showing status, ownership, and key decision timestamps."
@@ -782,15 +887,10 @@ const Inspection360Summary = () => {
                             const officer5 = resolveVerificationOfficer(5);
 
                             const verificationLead = pickFirstValue(
-                              readProjectValue(
-                                "verificationLead",
-                                "verificationLeadName",
-                                "verifLead",
-                                "verifLeadName",
-                                "externalReviewerLead",
-                                "externalReviewerLeadName",
-                              ),
-                              project?.managerName,
+                              project?.verificationLeadName,
+                              project?.verificationLead,
+                              project?.report?.verificationLeadName,
+                              project?.report?.verificationLead,
                             );
                             const verificationLeadStartTime = readProjectValue(
                               "verificationLeadStartTime",
@@ -808,6 +908,25 @@ const Inspection360Summary = () => {
                               "externalReviewerLeadStatus",
                             );
 
+                            const normalizedOperationalStatus = String(
+                              getOperationalStatusText(project) || "",
+                            )
+                              .trim()
+                              .toLowerCase();
+                            const isApprovedLikeStatus =
+                              normalizedOperationalStatus === "approved" ||
+                              normalizedOperationalStatus === "accepted" ||
+                              normalizedOperationalStatus === "report accepted" ||
+                              normalizedOperationalStatus === "reported accepted";
+                            const isAcceptedStatus =
+                              normalizedOperationalStatus === "accepted" ||
+                              normalizedOperationalStatus === "report accepted" ||
+                              normalizedOperationalStatus === "reported accepted";
+                            const isLeadApprovedLikeStatus =
+                              normalizedOperationalStatus.startsWith("passed and forwarded") ||
+                              normalizedOperationalStatus.startsWith("pending approval") ||
+                              isApprovedLikeStatus;
+
                             const inspectionStartTimeDisplay = pickFirstValue(
                               readProjectValue(
                                 "inspectionStartTime",
@@ -822,26 +941,32 @@ const Inspection360Summary = () => {
                               project?.createdAt,
                               project?.timestamp,
                             );
-                            const inspectionEndTimeDisplay = pickFirstValue(
-                              readProjectValue(
-                                "inspectionEndTime",
-                                "inspectionEndedAt",
-                                "inspectionEndDate",
-                                "endTime",
-                              ),
-                              getProjectEndDate(project),
-                            );
+                            const inspectionEndTimeDisplay = isAcceptedStatus
+                              ? pickFirstValue(
+                                  readProjectValue(
+                                    "inspectionEndTime",
+                                    "inspectionEndedAt",
+                                    "inspectionEndDate",
+                                    "endTime",
+                                  ),
+                                  getProjectEndDate(project),
+                                )
+                              : "";
                             const approvedByDisplay = pickFirstValue(
-                              getDecisionBy(project, latestExternalDecision),
-                              readProjectValue(
-                                "approvedByName",
-                                "approvedBy",
-                                "approvedByUser",
-                                "approvedByEmail",
-                                "managerApprovedBy",
-                              ),
-                              project?.report?.signoff?.manager,
-                              project?.managerName,
+                              isApprovedLikeStatus
+                                ? pickFirstValue(
+                                    getDecisionBy(project, latestExternalDecision),
+                                    readProjectValue(
+                                      "approvedByName",
+                                      "approvedBy",
+                                      "approvedByUser",
+                                      "approvedByEmail",
+                                      "managerApprovedBy",
+                                    ),
+                                    project?.report?.signoff?.manager,
+                                    project?.managerName,
+                                  )
+                                : "",
                             );
                             const approvalTimeDisplay = pickFirstValue(
                               getDecisionAt(project, latestExternalDecision),
@@ -854,6 +979,25 @@ const Inspection360Summary = () => {
                                 "acceptedAt",
                               ),
                               project?.clientReviewDecisionAt,
+                            );
+                            const capturedSupervisedBy = pickFirstValue(
+                              readProjectValue(
+                                "supervisedBy",
+                                "supervisorApprovedBy",
+                                "leadInspectorApprovedBy",
+                                "reviewedBy",
+                                "reviewedByName",
+                              ),
+                            );
+                            const supervisedByDisplay = pickFirstValue(
+                              capturedSupervisedBy,
+                              isLeadApprovedLikeStatus
+                                ? pickFirstValue(
+                                    project.supervisorName,
+                                    project.assignedSupervisorName,
+                                    project?.report?.signoff?.reviewer,
+                                  )
+                                : "",
                             );
 
                             const reportAcceptedTime = pickFirstValue(
@@ -929,11 +1073,7 @@ const Inspection360Summary = () => {
                               },
                               {
                                 label: "Supervised By",
-                                value: asText(
-                                  project.supervisorName ||
-                                    project.assignedSupervisorName ||
-                                    project?.report?.signoff?.reviewer,
-                                ),
+                                value: asText(supervisedByDisplay),
                               },
                               { label: "Verification Officer 1", value: asText(officer1.name) },
                               { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.endTime) },
@@ -1107,110 +1247,6 @@ const Inspection360Summary = () => {
                     onClose={() => setActiveAuditRow(null)}
                   />
                 ) : null}
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <MetricCard
-                    icon={<ShieldCheck size={16} />}
-                    label="Visible Projects"
-                    value={String(filteredProjects.length)}
-                    tone="orange"
-                  />
-                  <MetricCard
-                    icon={<BarChart3 size={16} />}
-                    label="Accepted Reports"
-                    value={String(statusSummary.find((item) => item.label === "Accepted")?.value || 0)}
-                    tone="emerald"
-                  />
-                  <MetricCard
-                    icon={<PieChartIcon size={16} />}
-                    label="Rejected Reports"
-                    value={String(statusSummary.find((item) => item.label === "Rejected")?.value || 0)}
-                    tone="rose"
-                  />
-                  <MetricCard
-                    icon={<Clock3 size={16} />}
-                    label="Audit Events"
-                    value={String(recentAuditTrail.length)}
-                    tone="sky"
-                  />
-                </section>
-
-                <section className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-                  <ChartCard
-                    title="Inspection Lifecycle Distribution"
-                    subtitle="Bar chart overview of the workflow stages across the visible inspection portfolio."
-                    icon={<BarChart3 size={16} />}
-                  >
-                    <div className="h-[320px]">
-                      <Bar data={statusChartData} options={chartOptions} />
-                    </div>
-                  </ChartCard>
-                  <ChartCard
-                    title="Client Review Outcome Split"
-                    subtitle="Pie chart showing how accepted, rejected, in-review, and pending items are distributed."
-                    icon={<PieChartIcon size={16} />}
-                  >
-                    <div className="h-[320px]">
-                      <Pie
-                        data={decisionChartData}
-                        options={{
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          plugins: chartOptions.plugins,
-                        }}
-                      />
-                    </div>
-                  </ChartCard>
-                </section>
-
-                <section className="rounded-[2rem] border border-slate-800/80 bg-[#08101f]/95 p-6 shadow-[0_24px_80px_rgba(2,6,23,0.35)]">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="rounded-xl border border-orange-500/20 bg-orange-500/10 p-2 text-orange-400">
-                      <FileSearch size={16} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
-                        Summary Table
-                      </p>
-                      <h2 className="text-lg font-black text-white">Inspection Portfolio Summary by Client</h2>
-                    </div>
-                  </div>
-                  <div className="overflow-auto rounded-[1.4rem] border border-slate-800 bg-slate-950/50">
-                    <table className="min-w-full text-left">
-                      <thead className="bg-[#091122] text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                        <tr>
-                          <th className="px-4 py-4">Client</th>
-                          <th className="px-4 py-4">Total Projects</th>
-                          <th className="px-4 py-4">Approved</th>
-                          <th className="px-4 py-4">Accepted</th>
-                          <th className="px-4 py-4">Rejected</th>
-                          <th className="px-4 py-4">In Progress</th>
-                          <th className="px-4 py-4">Review Queue</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/60">
-                        {clientSummaryRows.length > 0 ? (
-                          clientSummaryRows.map((row) => (
-                            <tr key={row.client} className="hover:bg-white/5 transition-colors">
-                              <td className="px-4 py-4 text-sm font-semibold text-white">{row.client}</td>
-                              <td className="px-4 py-4 text-sm text-slate-300">{row.totalProjects}</td>
-                              <td className="px-4 py-4 text-sm text-lime-300">{row.approved}</td>
-                              <td className="px-4 py-4 text-sm text-emerald-300">{row.accepted}</td>
-                              <td className="px-4 py-4 text-sm text-rose-300">{row.rejected}</td>
-                              <td className="px-4 py-4 text-sm text-amber-300">{row.inProgress}</td>
-                              <td className="px-4 py-4 text-sm text-sky-300">{row.reviewQueue}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="7" className="px-4 py-12 text-center text-sm text-slate-500">
-                              No inspection records are visible for this report scope yet.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </section>
 
                 
               </>

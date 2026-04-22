@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { db } from "../../../Auth/firebase";
 import {
@@ -31,6 +31,10 @@ import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
 import { getToastErrorMessage } from "../../../../utils/toast";
+import {
+  enqueueOfflineImageUpload,
+  flushOfflineImageUploads,
+} from "../../../../utils/offlineUploadQueue";
 import { useAuth } from "../../../Auth/AuthContext";
 import html2pdf from "html2pdf.js";
 
@@ -60,6 +64,7 @@ const SPECIAL_CONSIDERATION_OPTIONS = [
   "Safety Valve and Associated piping",
 ];
 const ADD_SPECIAL_CONSIDERATION_OPTION = "+ Add Special Consideration";
+const UT_OFFLINE_UPLOAD_SCOPE = "ut-report";
 const normalizePhotoEntries = (item) => {
   const list = Array.isArray(item?.photos) ? item.photos : [];
   const normalizedList = list
@@ -545,14 +550,20 @@ const UTReport = ({
     }));
   };
 
-  const uploadImageToCloudinary = async (file, label = "image") => {
+  const uploadImageToCloudinary = async (
+    file,
+    label = "image",
+    { silent = false } = {},
+  ) => {
     const cloudName = "dsgzpl0xt";
     const uploadPreset = "inspectpro";
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", uploadPreset);
 
-    toast.info(`Uploading ${label}...`);
+    if (!silent) {
+      toast.info(`Uploading ${label}...`);
+    }
     const res = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
       {
@@ -567,8 +578,111 @@ const UTReport = ({
     return data.secure_url;
   };
 
+  const queueOfflineUpload = async ({ file, label, target }) => {
+    const queued = await enqueueOfflineImageUpload({
+      scope: UT_OFFLINE_UPLOAD_SCOPE,
+      file,
+      label,
+      target,
+      meta: {
+        projectId: reportData?.general?.projectId || "",
+        reportNum: reportData?.general?.reportNum || "",
+      },
+    });
+    toast.info(
+      `${label} queued for upload. It will sync automatically when you are back online.`,
+    );
+    return queued;
+  };
+
+  const applyUploadedUrlFromQueue = useCallback(
+    (queuedItem, uploadedUrl) => {
+      const target = queuedItem?.target || {};
+      if (!target?.kind) return;
+
+      if (target.kind === "general-image") {
+        handleChange("general", target.field, uploadedUrl);
+        return;
+      }
+      if (target.kind === "observation-photo") {
+        updateObservation(target.obsId, "photo", uploadedUrl);
+        return;
+      }
+      if (target.kind === "checklist-photo") {
+        appendPhotosToChecklistItem(target.itemId, [uploadedUrl]);
+        return;
+      }
+      if (target.kind === "pipe-support-photo") {
+        appendPhotosToPipeSupportItem(target.itemId, [uploadedUrl]);
+        return;
+      }
+      if (target.kind === "special-consideration-photo") {
+        appendPhotosToSpecialConsiderationItem(target.itemId, [uploadedUrl]);
+        return;
+      }
+      if (target.kind === "signoff-image") {
+        handleChange("signoff", target.field, uploadedUrl);
+      }
+    },
+    [],
+  );
+
+  const flushQueuedUploads = useCallback(async () => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    try {
+      const result = await flushOfflineImageUploads({
+        scope: UT_OFFLINE_UPLOAD_SCOPE,
+        uploadFn: (file, queuedItem) =>
+          uploadImageToCloudinary(file, queuedItem?.label || "image", {
+            silent: true,
+          }),
+        onUploaded: (queuedItem, uploadedUrl) => {
+          applyUploadedUrlFromQueue(queuedItem, uploadedUrl);
+        },
+      });
+
+      if (result.uploaded > 0) {
+        toast.success(
+          `${result.uploaded} queued upload${result.uploaded > 1 ? "s" : ""} synced.`,
+        );
+      }
+      if (result.failed > 0) {
+        toast.warn(
+          `${result.failed} queued upload${result.failed > 1 ? "s" : ""} could not sync.`,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to flush offline UT uploads:", error);
+    }
+  }, [applyUploadedUrlFromQueue]);
+
+  useEffect(() => {
+    const handleOnlineSync = () => {
+      flushQueuedUploads();
+    };
+    window.addEventListener("online", handleOnlineSync);
+    window.addEventListener("inspectpro-sync-offline-uploads", handleOnlineSync);
+    flushQueuedUploads();
+    return () => {
+      window.removeEventListener("online", handleOnlineSync);
+      window.removeEventListener(
+        "inspectpro-sync-offline-uploads",
+        handleOnlineSync,
+      );
+    };
+  }, [flushQueuedUploads]);
+
   const handleGeneralImageUpload = async (field, file, label) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueOfflineUpload({
+          file,
+          label,
+          target: { kind: "general-image", field },
+        });
+        return;
+      }
       const url = await uploadImageToCloudinary(file, label);
       handleChange("general", field, url);
       toast.success(`${label} uploaded.`);
@@ -579,6 +693,14 @@ const UTReport = ({
 
   const handleObservationPhotoUpload = async (obsId, file) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueOfflineUpload({
+          file,
+          label: "observation photo",
+          target: { kind: "observation-photo", obsId },
+        });
+        return;
+      }
       const url = await uploadImageToCloudinary(file, "observation photo");
       updateObservation(obsId, "photo", url);
       toast.success("Observation photo uploaded.");
@@ -765,6 +887,14 @@ const UTReport = ({
 
   const handleChecklistPhotoUpload = async (itemId, file) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueOfflineUpload({
+          file,
+          label: "checklist photo",
+          target: { kind: "checklist-photo", itemId },
+        });
+        return;
+      }
       const url = await uploadImageToCloudinary(file, "checklist photo");
       appendPhotosToChecklistItem(itemId, [url]);
       toast.success("Checklist photo uploaded.");
@@ -775,6 +905,18 @@ const UTReport = ({
 
   const handleChecklistPhotosUpload = async (itemId, files) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await Promise.all(
+          Array.from(files || []).map((file) =>
+            queueOfflineUpload({
+              file,
+              label: "checklist photo",
+              target: { kind: "checklist-photo", itemId },
+            }),
+          ),
+        );
+        return;
+      }
       const urls = await Promise.all(
         Array.from(files || []).map((file) =>
           uploadImageToCloudinary(file, "checklist photo"),
@@ -789,6 +931,14 @@ const UTReport = ({
 
   const handlePipeSupportPhotoUpload = async (itemId, file) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueOfflineUpload({
+          file,
+          label: "pipe support photo",
+          target: { kind: "pipe-support-photo", itemId },
+        });
+        return;
+      }
       const url = await uploadImageToCloudinary(file, "pipe support photo");
       appendPhotosToPipeSupportItem(itemId, [url]);
       toast.success("Pipe support photo uploaded.");
@@ -799,6 +949,18 @@ const UTReport = ({
 
   const handlePipeSupportPhotosUpload = async (itemId, files) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await Promise.all(
+          Array.from(files || []).map((file) =>
+            queueOfflineUpload({
+              file,
+              label: "pipe support photo",
+              target: { kind: "pipe-support-photo", itemId },
+            }),
+          ),
+        );
+        return;
+      }
       const urls = await Promise.all(
         Array.from(files || []).map((file) =>
           uploadImageToCloudinary(file, "pipe support photo"),
@@ -813,6 +975,14 @@ const UTReport = ({
 
   const handleSpecialConsiderationPhotoUpload = async (itemId, file) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueOfflineUpload({
+          file,
+          label: "special consideration photo",
+          target: { kind: "special-consideration-photo", itemId },
+        });
+        return;
+      }
       const url = await uploadImageToCloudinary(
         file,
         "special consideration photo",
@@ -826,6 +996,18 @@ const UTReport = ({
 
   const handleSpecialConsiderationPhotosUpload = async (itemId, files) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await Promise.all(
+          Array.from(files || []).map((file) =>
+            queueOfflineUpload({
+              file,
+              label: "special consideration photo",
+              target: { kind: "special-consideration-photo", itemId },
+            }),
+          ),
+        );
+        return;
+      }
       const urls = await Promise.all(
         Array.from(files || []).map((file) =>
           uploadImageToCloudinary(file, "special consideration photo"),
@@ -840,6 +1022,14 @@ const UTReport = ({
 
   const handleSignoffUpload = async (field, file, label) => {
     try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        await queueOfflineUpload({
+          file,
+          label,
+          target: { kind: "signoff-image", field },
+        });
+        return;
+      }
       const url = await uploadImageToCloudinary(file, label);
       handleChange("signoff", field, url);
       toast.success(`${label} uploaded.`);
