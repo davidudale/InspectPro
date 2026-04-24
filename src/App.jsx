@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Homepage from "./Components/MainComponent/Homepage";
 import Login from "./Components/Page/Login.jsx";
 import Register from "./Components/Page/Register.jsx";
@@ -60,7 +60,19 @@ import SuperAdminDashboard from "./Components/Page/SuperAdminDashboard.jsx";
 import SuperAdminAccessCenter from "./Components/Page/SuperAdminAccessCenter.jsx";
 import SuperAdminSystemCenter from "./Components/Page/SuperAdminSystemCenter.jsx";
 import SuperAdminAuditCenter from "./Components/Page/SuperAdminAuditCenter.jsx";
+import { useAuth } from "./Components/Auth/AuthContext.jsx";
+
+const CONNECTIVITY_BADGE_HIDDEN_PATHS = new Set([
+  "/",
+  "/login",
+  "/register",
+  "/verify-email",
+  "/unauthorized",
+]);
+
 function App() {
+  const { user } = useAuth();
+  const location = useLocation();
   const [isOnline, setIsOnline] = useState(
     typeof navigator === "undefined" ? true : navigator.onLine,
   );
@@ -98,6 +110,9 @@ function App() {
     if (!isOnline) return;
     window.dispatchEvent(new Event("inspectpro-sync-offline-uploads"));
   }, [isOnline]);
+
+  const shouldShowConnectivityBadge =
+    Boolean(user?.uid) && !CONNECTIVITY_BADGE_HIDDEN_PATHS.has(location.pathname);
 
   return (
     <>
@@ -749,20 +764,22 @@ function App() {
         bodyClassName="inspectpro-toast-body"
         progressClassName="inspectpro-toast-progress"
       />
-      <div className="pointer-events-none ml-8 mb-8 fixed bottom-4  z-[1400]">
-        <div
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg ${
-            isOnline
-              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
-              : "border-amber-500/40 bg-amber-500/15 text-amber-100"
-          }`}
-        >
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-amber-300"}`}
-          />
-          {isOnline ? "Online Mode" : "Offline"}
+      {shouldShowConnectivityBadge ? (
+        <div className="pointer-events-none ml-8 mb-8 fixed bottom-4 z-[1400]">
+          <div
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg ${
+              isOnline
+                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-200"
+                : "border-amber-500/40 bg-amber-500/15 text-amber-100"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-amber-300"}`}
+            />
+            {isOnline ? "Online Mode" : "Offline"}
+          </div>
         </div>
-      </div>
+      ) : null}
       <GlobalProjectChatbox />
     </>
   );

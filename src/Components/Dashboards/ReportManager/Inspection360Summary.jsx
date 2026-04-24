@@ -925,7 +925,7 @@ const Inspection360Summary = () => {
                         <thead className="sticky top-0 z-10 bg-[#091122] text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                           <tr>
                             <th className="px-4 py-4">S/n</th>
-                            <th className="px-4 py-4">Project ID</th>
+                            <th className="px-4 py-4">Project Name</th>
                             <th className="px-4 py-4">Inspection Start Time</th>
                             <th className="px-4 py-4">Inspection End Time</th>
                             <th className="px-4 py-4">Approved By</th>
@@ -1411,7 +1411,9 @@ const Inspection360Summary = () => {
                             return (
                             <tr key={project.id} className="hover:bg-white/5 transition-colors">
                               <td className="px-4 py-4 text-xs text-slate-300">{rowIndex + 1}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{asText(project.projectId || project.id)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">
+                                {asText(`${project.projectName || ""} - ${project.projectId|| ""}`)}
+                              </td>
                               <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(inspectionStartTimeDisplay)}</td>
                               <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(inspectionEndTimeDisplay)}</td>
                               <td className="px-4 py-4 text-xs text-slate-300">{asText(approvedByDisplay)}</td>
