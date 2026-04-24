@@ -17,7 +17,7 @@ import {
   PieChart as PieChartIcon,
   ShieldCheck,
 } from "lucide-react";
-import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, collectionGroup, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
@@ -54,7 +54,7 @@ const toMillis = (value) => {
 
 const formatDateTime = (value) => {
   const millis = toMillis(value);
-  if (!millis) return "NULL";
+  if (!millis) return "N/A";
   return new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
@@ -74,13 +74,13 @@ const pickFirstValue = (...values) => values.find((value) => hasValue(value));
 
 const asText = (value) => {
   const resolved = pickFirstValue(value);
-  return hasValue(resolved) ? String(resolved).trim() : "NULL";
+  return hasValue(resolved) ? String(resolved).trim() : "N/A";
 };
 
 const formatCountdown = (explicitValue, targetDate) => {
   if (hasValue(explicitValue)) return String(explicitValue).trim();
   const targetMillis = toMillis(targetDate);
-  if (!targetMillis) return "NULL";
+  if (!targetMillis) return "N/A";
 
   const delta = targetMillis - Date.now();
   const absDelta = Math.abs(delta);
@@ -133,6 +133,14 @@ const getProjectEndDate = (project) =>
   project?.confirmationDate ||
   project?.updatedAt ||
   project?.lastUpdated ||
+  null;
+
+const getProjectStartDate = (project) =>
+  project?.startDate ||
+  project?.deploymentDate ||
+  project?.inspectionStartedAt ||
+  project?.createdAt ||
+  project?.timestamp ||
   null;
 
 const getDecisionAt = (project, latestExternalDecision) => {
@@ -260,6 +268,7 @@ const Inspection360Summary = () => {
   const { user } = useAuth();
   const [projects, setProjects] = useState([]);
   const [feedbackEntries, setFeedbackEntries] = useState([]);
+  const [reviewEntries, setReviewEntries] = useState([]);
   const [activityLogs, setActivityLogs] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -277,6 +286,13 @@ const Inspection360Summary = () => {
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "external_feedback"), (snapshot) => {
       setFeedbackEntries(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collectionGroup(db, "reviewers"), (snapshot) => {
+      setReviewEntries(snapshot.docs.map((docItem) => ({ id: docItem.id, ...docItem.data() })));
     });
     return () => unsubscribe();
   }, []);
@@ -417,6 +433,76 @@ const Inspection360Summary = () => {
     });
     return output;
   }, [scopedFeedback]);
+
+  const feedbackTimelineByProjectReviewer = useMemo(() => {
+    const output = new Map();
+    scopedFeedback.forEach((entry) => {
+      const keys = [
+        String(entry?.projectDocId || "").trim(),
+        String(entry?.projectId || "").trim(),
+      ].filter(Boolean);
+      const reviewerKeys = [
+        String(entry?.externalReviewerId || "").trim().toLowerCase(),
+        String(entry?.externalReviewerEmail || "").trim().toLowerCase(),
+        String(entry?.externalReviewerName || "").trim().toLowerCase(),
+      ].filter(Boolean);
+      const timestamp = Math.max(
+        toMillis(entry?.createdAt),
+        toMillis(entry?.updatedAt),
+        toMillis(entry?.adminUpdatedAt),
+      );
+      if (!timestamp || !keys.length || !reviewerKeys.length) return;
+
+      keys.forEach((projectKey) => {
+        reviewerKeys.forEach((reviewerKey) => {
+          const mapKey = `${projectKey}::${reviewerKey}`;
+          const existing = output.get(mapKey);
+          if (!existing) {
+            output.set(mapKey, { firstAt: timestamp, lastAt: timestamp });
+            return;
+          }
+          output.set(mapKey, {
+            firstAt: Math.min(existing.firstAt, timestamp),
+            lastAt: Math.max(existing.lastAt, timestamp),
+          });
+        });
+      });
+    });
+    return output;
+  }, [scopedFeedback]);
+
+  const reviewTimelineByProjectReviewer = useMemo(() => {
+    const output = new Map();
+    reviewEntries.forEach((entry) => {
+      const keys = [
+        String(entry?.projectDocId || "").trim(),
+        String(entry?.projectId || "").trim(),
+      ].filter(Boolean);
+      const reviewerKeys = [
+        String(entry?.externalReviewerId || "").trim().toLowerCase(),
+        String(entry?.externalReviewerEmail || "").trim().toLowerCase(),
+        String(entry?.externalReviewerName || "").trim().toLowerCase(),
+      ].filter(Boolean);
+      const timestamp = Math.max(toMillis(entry?.updatedAt), toMillis(entry?.createdAt));
+      if (!timestamp || !keys.length || !reviewerKeys.length) return;
+
+      keys.forEach((projectKey) => {
+        reviewerKeys.forEach((reviewerKey) => {
+          const mapKey = `${projectKey}::${reviewerKey}`;
+          const existing = output.get(mapKey);
+          if (!existing) {
+            output.set(mapKey, { firstAt: timestamp, lastAt: timestamp });
+            return;
+          }
+          output.set(mapKey, {
+            firstAt: Math.min(existing.firstAt, timestamp),
+            lastAt: Math.max(existing.lastAt, timestamp),
+          });
+        });
+      });
+    });
+    return output;
+  }, [reviewEntries]);
 
   const scopedLogs = useMemo(() => {
     const currentEmail = String(user?.email || "").trim().toLowerCase();
@@ -790,7 +876,7 @@ const Inspection360Summary = () => {
                             <th className="px-4 py-4">Approved By</th>
                             <th className="px-4 py-4">Approval Time</th>
                             <th className="px-4 py-4">Verif_Officer1 Start Time</th>
-                            <th className="px-4 py-4">Final Status</th>
+                            <th className="px-4 py-4">Status</th>
                             <th className="px-4 py-4">Report Acceptance Timestamp</th>
                             <th className="px-4 py-4">Report Rejection Timestamp</th>
                             <th className="px-4 py-4">Verification_Feedback</th>
@@ -840,41 +926,99 @@ const Inspection360Summary = () => {
                               null;
 
                             const resolveVerificationOfficer = (index) => {
-                              const suffix = index === 1 ? "" : String(index);
+                              const isLeadMappedOfficer = index === 1;
+                              const slot = isLeadMappedOfficer ? 1 : index + 1;
+                              const suffix = isLeadMappedOfficer ? "" : String(slot);
+                              const reviewerId = pickFirstValue(
+                                readProjectValue(
+                                  `verificationOfficer${index}Id`,
+                                  `verifOfficer${index}Id`,
+                                  isLeadMappedOfficer ? "externalReviewerId" : null,
+                                  `externalReviewer${suffix}Id`,
+                                  `externalReviewerId${suffix}`,
+                                ),
+                              );
+                              const reviewerFromDirectory = usersById.get(
+                                String(reviewerId || "").trim(),
+                              );
+                              const reviewerEmail = String(
+                                pickFirstValue(
+                                  readProjectValue(
+                                    `verificationOfficer${index}Email`,
+                                    `verifOfficer${index}Email`,
+                                    isLeadMappedOfficer ? "externalReviewerEmail" : null,
+                                    `externalReviewer${suffix}Email`,
+                                    `externalReviewerEmail${suffix}`,
+                                  ),
+                                  reviewerFromDirectory?.email,
+                                ) || "",
+                              )
+                                .trim()
+                                .toLowerCase();
                               const name = pickFirstValue(
                                 readProjectValue(
                                   `verificationOfficer${index}`,
                                   `verificationOfficer${index}Name`,
                                   `verifOfficer${index}`,
                                   `verifOfficer${index}Name`,
+                                  isLeadMappedOfficer ? "externalReviewer" : null,
+                                  isLeadMappedOfficer ? "externalReviewerName" : null,
                                   `externalReviewer${suffix}`,
                                   `externalReviewer${suffix}Name`,
+                                  `externalReviewerName${suffix}`,
                                 ),
-                                index === 1 ? readProjectValue("externalReviewerName", "externalReviewer") : null,
+                                reviewerFromDirectory?.fullName,
+                                reviewerFromDirectory?.name,
+                                reviewerFromDirectory?.displayName,
+                                reviewerFromDirectory?.email,
                               );
+                              const reviewerNameKey = String(name || "").trim().toLowerCase();
+                              const reviewerIdKey = String(reviewerId || "").trim().toLowerCase();
+                              const projectKeys = [projectDocKey, projectBusinessKey].filter(Boolean);
+                              const reviewerKeys = [reviewerIdKey, reviewerEmail, reviewerNameKey].filter(Boolean);
+                              const timelineMatches = projectKeys.flatMap((pKey) => {
+                                const feedbackMatches = reviewerKeys
+                                  .map((rKey) => feedbackTimelineByProjectReviewer.get(`${pKey}::${rKey}`))
+                                  .filter(Boolean);
+                                const reviewMatches = reviewerKeys
+                                  .map((rKey) => reviewTimelineByProjectReviewer.get(`${pKey}::${rKey}`))
+                                  .filter(Boolean);
+                                return [...feedbackMatches, ...reviewMatches];
+                              });
+                              const inferredStartTime = timelineMatches.length
+                                ? Math.min(...timelineMatches.map((entry) => Number(entry.firstAt || 0)).filter(Boolean))
+                                : 0;
+                              const inferredEndTime = timelineMatches.length
+                                ? Math.max(...timelineMatches.map((entry) => Number(entry.lastAt || 0)).filter(Boolean))
+                                : 0;
                               const startTime = pickFirstValue(
                                 readProjectValue(
                                   `verificationOfficer${index}StartTime`,
                                   `verifOfficer${index}StartTime`,
+                                  isLeadMappedOfficer ? "externalReviewerStartTime" : null,
                                   `externalReviewer${suffix}StartTime`,
+                                  `externalReviewerStartTime${suffix}`,
                                 ),
-                                index === 1 ? readProjectValue("externalReviewerStartTime") : null,
+                                inferredStartTime || null,
                               );
                               const endTime = pickFirstValue(
                                 readProjectValue(
                                   `verificationOfficer${index}EndTime`,
                                   `verifOfficer${index}EndTime`,
+                                  isLeadMappedOfficer ? "externalReviewerEndTime" : null,
                                   `externalReviewer${suffix}EndTime`,
+                                  `externalReviewerEndTime${suffix}`,
                                 ),
-                                index === 1 ? readProjectValue("externalReviewerEndTime") : null,
+                                inferredEndTime || null,
                               );
                               const status = pickFirstValue(
                                 readProjectValue(
                                   `verificationOfficer${index}Status`,
                                   `verifOfficer${index}Status`,
+                                  isLeadMappedOfficer ? "externalReviewerStatus" : null,
                                   `externalReviewer${suffix}Status`,
+                                  `externalReviewerStatus${suffix}`,
                                 ),
-                                index === 1 ? readProjectValue("externalReviewerStatus") : null,
                               );
 
                               return { name, startTime, endTime, status };
@@ -935,50 +1079,52 @@ const Inspection360Summary = () => {
                                 "startTime",
                                 "inProgressAt",
                               ),
-                              project?.inspectionStartedAt,
-                              project?.startDate,
-                              project?.deploymentDate,
-                              project?.createdAt,
-                              project?.timestamp,
+                              getProjectStartDate(project),
                             );
-                            const inspectionEndTimeDisplay = isAcceptedStatus
-                              ? pickFirstValue(
-                                  readProjectValue(
-                                    "inspectionEndTime",
-                                    "inspectionEndedAt",
-                                    "inspectionEndDate",
-                                    "endTime",
-                                  ),
-                                  getProjectEndDate(project),
-                                )
-                              : "";
+                            const inspectionEndTimeDisplay = pickFirstValue(
+                              readProjectValue(
+                                "inspectionEndTime",
+                                "inspectionEndedAt",
+                                "inspectionEndDate",
+                                "endTime",
+                              ),
+                              getProjectEndDate(project),
+                            );
+                            const isCurrentlyApproved = normalizedOperationalStatus === "approved";
+                            const capturedApprovedBy = pickFirstValue(
+                              readProjectValue(
+                                "approvedByName",
+                                "approvedBy",
+                                "approvedByUser",
+                                "approvedByEmail",
+                                "managerApprovedBy",
+                              ),
+                              project?.approvedBy,
+                              project?.confirmedBy,
+                              project?.reportAcceptedBy,
+                            );
                             const approvedByDisplay = pickFirstValue(
-                              isApprovedLikeStatus
-                                ? pickFirstValue(
-                                    getDecisionBy(project, latestExternalDecision),
-                                    readProjectValue(
-                                      "approvedByName",
-                                      "approvedBy",
-                                      "approvedByUser",
-                                      "approvedByEmail",
-                                      "managerApprovedBy",
-                                    ),
-                                    project?.report?.signoff?.manager,
-                                    project?.managerName,
-                                  )
-                                : "",
+                              capturedApprovedBy,
+                              isCurrentlyApproved ? getDecisionBy(project, latestExternalDecision) : "",
                             );
-                            const approvalTimeDisplay = pickFirstValue(
-                              getDecisionAt(project, latestExternalDecision),
+                            const capturedApprovalTime = pickFirstValue(
                               readProjectValue(
                                 "approvalTime",
                                 "approvalTimestamp",
                                 "approvedAt",
                                 "managerApprovalAt",
-                                "reportAcceptedAt",
-                                "acceptedAt",
                               ),
-                              project?.clientReviewDecisionAt,
+                              project?.approvedAt,
+                              project?.managerApprovalAt,
+                            );
+                            const approvalTimeDisplay = pickFirstValue(
+                              capturedApprovalTime,
+                              isCurrentlyApproved
+                                ? pickFirstValue(
+                                    getDecisionAt(project, latestExternalDecision),
+                                    project?.clientReviewDecisionAt,
+                                  )
+                                : "",
                             );
                             const capturedSupervisedBy = pickFirstValue(
                               readProjectValue(

@@ -612,13 +612,24 @@ const ProjectList = () => {
                             const isReportAccepted =
                               String(operationalStatus || "").trim().toLowerCase() ===
                               "report accepted";
-                            const reportViewCode = [
-                              "client review in progress",
-                              "report accepted",
-                              "report rejected",
-                            ].includes(String(project?.status || "").trim().toLowerCase())
-                              ? "External"
-                              : "Internal";
+                            const isClientReviewInProgress =
+                              String(operationalStatus || "").trim().toLowerCase() ===
+                              "client review in progress";
+                            const normalizedReportViewMode = String(project?.reportViewMode || "")
+                              .trim()
+                              .toLowerCase();
+                            const normalizedReportViewStatus = String(
+                              project?.status || operationalStatus || project?.report?.status || "",
+                            )
+                              .trim()
+                              .toLowerCase();
+                            const reportViewCode =
+                              normalizedReportViewMode === "external" ||
+                              ["client review in progress", "report accepted", "report rejected"].includes(
+                                normalizedReportViewStatus,
+                              )
+                                ? "External"
+                                : "Internal";
                             return (
                         <tr key={project.id} className="group hover:bg-white/5 transition-colors">
                           <td className="px-3 py-4 text-xs font-bold text-slate-400">
@@ -697,9 +708,17 @@ const ProjectList = () => {
                             <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                               {!isReportAccepted ? (
                                 <button 
-                                  onClick={() => navigate(`/viewprojects/project-edit/${project.projectId || project.id}`, { state: { editMode: true, project } })}
-                                  className="p-2.5 bg-slate-950 border border-slate-800 text-slate-500 hover:text-blue-500 hover:border-blue-500/50 transition-all rounded-xl shadow-inner"
-                                  title="Edit Project"
+                                  onClick={() => {
+                                    if (isClientReviewInProgress) return;
+                                    navigate(`/viewprojects/project-edit/${project.projectId || project.id}`, { state: { editMode: true, project } });
+                                  }}
+                                  disabled={isClientReviewInProgress}
+                                  className={`p-2.5 border rounded-xl shadow-inner transition-all ${
+                                    isClientReviewInProgress
+                                      ? "bg-slate-900 border-slate-800 text-slate-700 cursor-not-allowed opacity-60"
+                                      : "bg-slate-950 border-slate-800 text-slate-500 hover:text-blue-500 hover:border-blue-500/50"
+                                  }`}
+                                  title={isClientReviewInProgress ? "Edit locked during client review" : "Edit Project"}
                                 >
                                   <Edit3 size={14} />
                                 </button>

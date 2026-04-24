@@ -1002,9 +1002,35 @@ const ProjectReviewing = () => {
     }
   };
 
-  const handleViewReport = async (projectId) => {
+  const handleViewReport = async (project) => {
+    const projectId = project?.id;
     if (!projectId) {
       toast.error("Project reference is missing.");
+      return;
+    }
+
+    const normalizedStatus = String(project?.status || "").trim().toLowerCase();
+    const isAlreadyExternal = [
+      "client review in progress",
+      "report accepted",
+      "report rejected",
+    ].includes(normalizedStatus);
+
+    try {
+      const nextPayload = {
+        reportViewMode: "External",
+        reportViewModeChangedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      if (!isAlreadyExternal) {
+        nextPayload.status = "Client Review In Progress";
+        nextPayload.clientReviewStartedAt = serverTimestamp();
+      }
+
+      await updateDoc(doc(db, "projects", projectId), nextPayload);
+    } catch (error) {
+      toast.error(getToastErrorMessage(error, "Unable to open report in external mode."));
       return;
     }
 
@@ -1206,7 +1232,7 @@ const ProjectReviewing = () => {
                           <td className="px-3 py-4 text-right">
                             <div className="flex items-center justify-end gap-2 ">
                               <button 
-                                onClick={() => handleViewReport(project.id)}
+                                onClick={() => handleViewReport(project)}
                                 className="ml-2 p-2 text-[10px] bg-orange-600 border border-orange-500/20 text-white hover:bg-orange-700 transition-all rounded-xl shadow-lg shadow-orange-900/20"
                                 title="View Report"
                               >
@@ -1579,7 +1605,7 @@ const ProjectReviewing = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleViewReport(feedbackProject.id)}
+              onClick={() => handleViewReport(feedbackProject)}
               className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-sm font-bold text-slate-100 transition-colors hover:border-orange-500/40 hover:text-white"
             >
               View Report

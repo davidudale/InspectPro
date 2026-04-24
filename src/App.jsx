@@ -749,7 +749,7 @@ function App() {
         bodyClassName="inspectpro-toast-body"
         progressClassName="inspectpro-toast-progress"
       />
-      <div className="pointer-events-none  fixed bottom-4  z-[1400]">
+      <div className="pointer-events-none ml-8 mb-8 fixed bottom-4  z-[1400]">
         <div
           className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] shadow-lg ${
             isOnline
@@ -760,7 +760,7 @@ function App() {
           <span
             className={`h-1.5 w-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-amber-300"}`}
           />
-          {isOnline ? "Online Mode" : "Offline Mode (Cached)"}
+          {isOnline ? "Online Mode" : "Offline"}
         </div>
       </div>
       <GlobalProjectChatbox />

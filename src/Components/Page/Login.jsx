@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Rig from "../../assets/Rig.jpg";
 import { useNavigate } from "react-router-dom";
-import { ArrowBigLeftIcon, Loader2 } from "lucide-react"; // Added Loader2 icon
+import { ArrowBigLeftIcon, Eye, EyeOff, Loader2 } from "lucide-react"; // Added Loader2 icon
 import { auth, authPersistenceReady, db } from "../Auth/firebase";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
@@ -11,6 +11,7 @@ import { getToastErrorMessage } from "../../utils/toast";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false); // New loading state
   const navigate = useNavigate();
 
@@ -121,16 +122,27 @@ const Login = () => {
             <label htmlFor="password" className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2">
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-sm transition-colors disabled:opacity-50"
-              placeholder="********"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 pr-12 text-sm text-white focus:outline-none focus:border-orange-500 rounded-sm transition-colors disabled:opacity-50"
+                placeholder="********"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                onClick={() => setShowPassword((prev) => !prev)}
+                disabled={isLoading}
+                className="absolute inset-y-0 right-0 px-3 text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
 
           <div>
