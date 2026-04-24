@@ -77,6 +77,33 @@ const asText = (value) => {
   return hasValue(resolved) ? String(resolved).trim() : "N/A";
 };
 
+const normalizeReviewerType = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+const getReviewEntryStatus = (entry) => {
+  const summaryStatus = String(entry?.summary?.status || "").trim();
+  if (summaryStatus) return summaryStatus;
+
+  const decision = String(entry?.sections?.approvalDecision?.decision || "")
+    .trim()
+    .toLowerCase();
+  if (decision.includes("approve")) return "Accepted";
+  if (decision.includes("reject")) return "Rejected";
+
+  const sectionStatuses = Object.values(entry?.sections || {})
+    .map((section) => String(section?.status || "").trim())
+    .filter(Boolean);
+
+  if (!sectionStatuses.length) return "";
+  if (sectionStatuses.every((status) => String(status).toLowerCase() === "accepted")) return "Accepted";
+  if (sectionStatuses.every((status) => String(status).toLowerCase() === "completed")) return "Accepted";
+  if (sectionStatuses.some((status) => String(status).toLowerCase() === "rejected")) return "Rejected";
+  return sectionStatuses[0];
+};
+
 const formatCountdown = (explicitValue, targetDate) => {
   if (hasValue(explicitValue)) return String(explicitValue).trim();
   const targetMillis = toMillis(targetDate);
@@ -442,6 +469,7 @@ const Inspection360Summary = () => {
         String(entry?.projectId || "").trim(),
       ].filter(Boolean);
       const reviewerKeys = [
+        String(entry?.id || "").trim().toLowerCase(),
         String(entry?.externalReviewerId || "").trim().toLowerCase(),
         String(entry?.externalReviewerEmail || "").trim().toLowerCase(),
         String(entry?.externalReviewerName || "").trim().toLowerCase(),
@@ -479,6 +507,7 @@ const Inspection360Summary = () => {
         String(entry?.projectId || "").trim(),
       ].filter(Boolean);
       const reviewerKeys = [
+        String(entry?.id || "").trim().toLowerCase(),
         String(entry?.externalReviewerId || "").trim().toLowerCase(),
         String(entry?.externalReviewerEmail || "").trim().toLowerCase(),
         String(entry?.externalReviewerName || "").trim().toLowerCase(),
@@ -498,6 +527,32 @@ const Inspection360Summary = () => {
             firstAt: Math.min(existing.firstAt, timestamp),
             lastAt: Math.max(existing.lastAt, timestamp),
           });
+        });
+      });
+    });
+    return output;
+  }, [reviewEntries]);
+
+  const reviewTimelineByProjectRole = useMemo(() => {
+    const output = new Map();
+    reviewEntries.forEach((entry) => {
+      const keys = [String(entry?.projectDocId || "").trim(), String(entry?.projectId || "").trim()].filter(Boolean);
+      const roleKey = normalizeReviewerType(entry?.reviewerType);
+      const timestamp = Math.max(toMillis(entry?.updatedAt), toMillis(entry?.createdAt));
+      if (!timestamp || !keys.length || !roleKey) return;
+      const status = getReviewEntryStatus(entry);
+
+      keys.forEach((projectKey) => {
+        const mapKey = `${projectKey}::${roleKey}`;
+        const existing = output.get(mapKey);
+        if (!existing) {
+          output.set(mapKey, { firstAt: timestamp, lastAt: timestamp, latestStatus: status });
+          return;
+        }
+        output.set(mapKey, {
+          firstAt: Math.min(existing.firstAt, timestamp),
+          lastAt: Math.max(existing.lastAt, timestamp),
+          latestStatus: timestamp >= existing.lastAt ? status || existing.latestStatus : existing.latestStatus,
         });
       });
     });
@@ -926,16 +981,16 @@ const Inspection360Summary = () => {
                               null;
 
                             const resolveVerificationOfficer = (index) => {
-                              const isLeadMappedOfficer = index === 1;
-                              const slot = isLeadMappedOfficer ? 1 : index + 1;
-                              const suffix = isLeadMappedOfficer ? "" : String(slot);
+                              const primarySuffix = String(index + 1);
+                              const legacySuffix = String(index);
                               const reviewerId = pickFirstValue(
                                 readProjectValue(
                                   `verificationOfficer${index}Id`,
                                   `verifOfficer${index}Id`,
-                                  isLeadMappedOfficer ? "externalReviewerId" : null,
-                                  `externalReviewer${suffix}Id`,
-                                  `externalReviewerId${suffix}`,
+                                  `externalReviewer${primarySuffix}Id`,
+                                  `externalReviewerId${primarySuffix}`,
+                                  `externalReviewer${legacySuffix}Id`,
+                                  `externalReviewerId${legacySuffix}`,
                                 ),
                               );
                               const reviewerFromDirectory = usersById.get(
@@ -946,9 +1001,10 @@ const Inspection360Summary = () => {
                                   readProjectValue(
                                     `verificationOfficer${index}Email`,
                                     `verifOfficer${index}Email`,
-                                    isLeadMappedOfficer ? "externalReviewerEmail" : null,
-                                    `externalReviewer${suffix}Email`,
-                                    `externalReviewerEmail${suffix}`,
+                                    `externalReviewer${primarySuffix}Email`,
+                                    `externalReviewerEmail${primarySuffix}`,
+                                    `externalReviewer${legacySuffix}Email`,
+                                    `externalReviewerEmail${legacySuffix}`,
                                   ),
                                   reviewerFromDirectory?.email,
                                 ) || "",
@@ -961,11 +1017,12 @@ const Inspection360Summary = () => {
                                   `verificationOfficer${index}Name`,
                                   `verifOfficer${index}`,
                                   `verifOfficer${index}Name`,
-                                  isLeadMappedOfficer ? "externalReviewer" : null,
-                                  isLeadMappedOfficer ? "externalReviewerName" : null,
-                                  `externalReviewer${suffix}`,
-                                  `externalReviewer${suffix}Name`,
-                                  `externalReviewerName${suffix}`,
+                                  `externalReviewer${primarySuffix}`,
+                                  `externalReviewer${primarySuffix}Name`,
+                                  `externalReviewerName${primarySuffix}`,
+                                  `externalReviewer${legacySuffix}`,
+                                  `externalReviewer${legacySuffix}Name`,
+                                  `externalReviewerName${legacySuffix}`,
                                 ),
                                 reviewerFromDirectory?.fullName,
                                 reviewerFromDirectory?.name,
@@ -976,6 +1033,12 @@ const Inspection360Summary = () => {
                               const reviewerIdKey = String(reviewerId || "").trim().toLowerCase();
                               const projectKeys = [projectDocKey, projectBusinessKey].filter(Boolean);
                               const reviewerKeys = [reviewerIdKey, reviewerEmail, reviewerNameKey].filter(Boolean);
+                              const roleAliases = [
+                                `verification_officer_${index}`,
+                                `verificationofficer${index}`,
+                                `verification_officer${index + 1}`,
+                                `verificationofficer${index + 1}`,
+                              ];
                               const timelineMatches = projectKeys.flatMap((pKey) => {
                                 const feedbackMatches = reviewerKeys
                                   .map((rKey) => feedbackTimelineByProjectReviewer.get(`${pKey}::${rKey}`))
@@ -983,7 +1046,10 @@ const Inspection360Summary = () => {
                                 const reviewMatches = reviewerKeys
                                   .map((rKey) => reviewTimelineByProjectReviewer.get(`${pKey}::${rKey}`))
                                   .filter(Boolean);
-                                return [...feedbackMatches, ...reviewMatches];
+                                const roleMatches = roleAliases
+                                  .map((role) => reviewTimelineByProjectRole.get(`${pKey}::${role}`))
+                                  .filter(Boolean);
+                                return [...feedbackMatches, ...reviewMatches, ...roleMatches];
                               });
                               const inferredStartTime = timelineMatches.length
                                 ? Math.min(...timelineMatches.map((entry) => Number(entry.firstAt || 0)).filter(Boolean))
@@ -991,13 +1057,17 @@ const Inspection360Summary = () => {
                               const inferredEndTime = timelineMatches.length
                                 ? Math.max(...timelineMatches.map((entry) => Number(entry.lastAt || 0)).filter(Boolean))
                                 : 0;
+                              const inferredStatus = timelineMatches
+                                .map((entry) => String(entry?.latestStatus || "").trim())
+                                .find(Boolean);
                               const startTime = pickFirstValue(
                                 readProjectValue(
                                   `verificationOfficer${index}StartTime`,
                                   `verifOfficer${index}StartTime`,
-                                  isLeadMappedOfficer ? "externalReviewerStartTime" : null,
-                                  `externalReviewer${suffix}StartTime`,
-                                  `externalReviewerStartTime${suffix}`,
+                                  `externalReviewer${primarySuffix}StartTime`,
+                                  `externalReviewerStartTime${primarySuffix}`,
+                                  `externalReviewer${legacySuffix}StartTime`,
+                                  `externalReviewerStartTime${legacySuffix}`,
                                 ),
                                 inferredStartTime || null,
                               );
@@ -1005,9 +1075,10 @@ const Inspection360Summary = () => {
                                 readProjectValue(
                                   `verificationOfficer${index}EndTime`,
                                   `verifOfficer${index}EndTime`,
-                                  isLeadMappedOfficer ? "externalReviewerEndTime" : null,
-                                  `externalReviewer${suffix}EndTime`,
-                                  `externalReviewerEndTime${suffix}`,
+                                  `externalReviewer${primarySuffix}EndTime`,
+                                  `externalReviewerEndTime${primarySuffix}`,
+                                  `externalReviewer${legacySuffix}EndTime`,
+                                  `externalReviewerEndTime${legacySuffix}`,
                                 ),
                                 inferredEndTime || null,
                               );
@@ -1015,10 +1086,12 @@ const Inspection360Summary = () => {
                                 readProjectValue(
                                   `verificationOfficer${index}Status`,
                                   `verifOfficer${index}Status`,
-                                  isLeadMappedOfficer ? "externalReviewerStatus" : null,
-                                  `externalReviewer${suffix}Status`,
-                                  `externalReviewerStatus${suffix}`,
+                                  `externalReviewer${primarySuffix}Status`,
+                                  `externalReviewerStatus${primarySuffix}`,
+                                  `externalReviewer${legacySuffix}Status`,
+                                  `externalReviewerStatus${legacySuffix}`,
                                 ),
+                                inferredStatus,
                               );
 
                               return { name, startTime, endTime, status };
@@ -1066,10 +1139,8 @@ const Inspection360Summary = () => {
                               normalizedOperationalStatus === "accepted" ||
                               normalizedOperationalStatus === "report accepted" ||
                               normalizedOperationalStatus === "reported accepted";
-                            const isLeadApprovedLikeStatus =
-                              normalizedOperationalStatus.startsWith("passed and forwarded") ||
-                              normalizedOperationalStatus.startsWith("pending approval") ||
-                              isApprovedLikeStatus;
+                            const isPendingConfirmationStatus =
+                              normalizedOperationalStatus.startsWith("pending confirmation");
 
                             const inspectionStartTimeDisplay = pickFirstValue(
                               readProjectValue(
@@ -1136,8 +1207,8 @@ const Inspection360Summary = () => {
                               ),
                             );
                             const supervisedByDisplay = pickFirstValue(
-                              capturedSupervisedBy,
-                              isLeadApprovedLikeStatus
+                              isPendingConfirmationStatus ? capturedSupervisedBy : "",
+                              isPendingConfirmationStatus
                                 ? pickFirstValue(
                                     project.supervisorName,
                                     project.assignedSupervisorName,
@@ -1206,7 +1277,7 @@ const Inspection360Summary = () => {
                               {
                                 label: "Inspection Company",
                                 value: asText(
-                                  readProjectValue("inspectionCompany", "companyName", "inspectionCompanyName"),
+                                   "Phenomenal Energy",
                                 ),
                               },
                               {
@@ -1222,7 +1293,7 @@ const Inspection360Summary = () => {
                                 value: asText(supervisedByDisplay),
                               },
                               { label: "Verification Officer 1", value: asText(officer1.name) },
-                              { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.endTime) },
+                              { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.createdAt) },
                               { label: "Verif_Officer1 Status", value: asText(officer1.status) },
                               { label: "Verification Officer 2", value: asText(officer2.name) },
                               { label: "Verif_Officer2 Start Time", value: formatDateTime(officer2.startTime) },
@@ -1261,17 +1332,25 @@ const Inspection360Summary = () => {
                               {
                                 label: "Equipment Inspected",
                                 value: asText(
-                                  project.equipmentTag ||
+                                  
                                     project.tag ||
                                     project.equipmentCategory ||
                                     project.assetType ||
+                                    project.equipmentTag ||
                                     project?.report?.general?.equipment,
                                 ),
                               },
                               {
                                 label: "Inspection Type",
                                 value: asText(
-                                  project.inspectionTypeName ||
+                                  readProjectValue(
+                                    "requiredTechnique",
+                                    "required_technique",
+                                    "selectedTechnique",
+                                    "reportTemplate",
+                                  ) ||
+                                    project.requiredTechnique ||
+                                    project.inspectionTypeName ||
                                     project.inspectionTypeCode ||
                                     project?.report?.general?.inspectionTypeName ||
                                     project?.report?.general?.inspectionTypeCode,
