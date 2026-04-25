@@ -21,6 +21,7 @@ import ExternalSideBar from "./ExternalSideBar";
 import TableQueryControls from "../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
+import { distinctRowsByLatest } from "../../../utils/distinctRows";
 
 function getInspectionEndDate(project) {
   const normalizedStatus = String(project?.status || "").trim().toLowerCase();
@@ -102,7 +103,7 @@ const InspectedEquipment = () => {
   }, []);
 
   const equipmentRows = useMemo(() => {
-    return projects
+    const mappedRows = projects
       .map((project) => {
         const linkedEquipment = equipmentRegistry.find(
           (equipment) => equipment.id === project.equipmentId,
@@ -112,6 +113,7 @@ const InspectedEquipment = () => {
           id: `${project.id}-${project.equipmentId || project.equipmentTag || "equipment"}`,
           projectDocId: project.id,
           projectId: project.projectId || project.id,
+          equipmentId: project.equipmentId || linkedEquipment?.id || "",
           requiredTechnique:
             project.selectedTechnique ||
             project.reportTemplate ||
@@ -159,6 +161,13 @@ const InspectedEquipment = () => {
         };
       })
       .filter((row) => row.tagReference !== "N/A" || row.equipmentName !== "N/A");
+
+    // Keep one row per distinct equipment reference to avoid duplicates in the table.
+    return distinctRowsByLatest(
+      mappedRows,
+      (row) => row.tagReference || row.equipmentId || row.equipmentName || row.projectDocId || row.id,
+      (row) => toMillis(row.inspectionStartDate),
+    );
   }, [equipmentRegistry, projects]);
 
   const filteredRows = useMemo(() => {

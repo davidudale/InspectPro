@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../../Auth/firebase";
 import {
@@ -28,6 +28,7 @@ import { useConfirmDialog } from "../../Common/ConfirmDialog";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../utils/tableGrouping";
 import { getToastErrorMessage } from "../../../utils/toast";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
+import { distinctRowsByLatest } from "../../../utils/distinctRows";
 import {
   buildExternalFeedbackProjectFields,
   clearExternalFeedbackProjectFields,
@@ -242,23 +243,31 @@ const ProjectReviewing = () => {
     };
   }, [projects]);
 
-  const filteredProjects = projects
-    .filter(
-      (p) =>
-        p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.clientName || p.client || "")
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
+  const filteredProjects = useMemo(() => {
+    const sortedRows = projects
+      .filter(
+        (p) =>
+          p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (p.clientName || p.client || "")
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
           p.projectId?.toLowerCase().includes(searchTerm.toLowerCase()),
-    )
-    .filter(
-      (project) =>
-        projectFilter === "all" ||
-        String(project.projectName || project.projectId || project.id || "").toLowerCase() === projectFilter,
-    )
-    .sort(
-      (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      )
+      .filter(
+        (project) =>
+          projectFilter === "all" ||
+          String(project.projectName || project.projectId || project.id || "").toLowerCase() === projectFilter,
+      )
+      .sort(
+        (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
+      );
+
+    return distinctRowsByLatest(
+      sortedRows,
+      (project) => project.id || project.projectId,
+      (project) => toMillis(getRowTimestamp(project)),
     );
+  }, [projectFilter, projects, searchTerm]);
 
   const getOperationalStatus = (project) => {
     const topLevelStatus = String(project?.status || "").trim();

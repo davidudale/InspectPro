@@ -21,6 +21,7 @@ import { collection, collectionGroup, limit, onSnapshot, orderBy, query } from "
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
 import { matchesExternalReviewerProject } from "../../../utils/externalReviewerAccess";
+import { distinctRowsByLatest } from "../../../utils/distinctRows";
 import AdminNavbar from "../AdminNavbar";
 import AdminSidebar from "../AdminSidebar";
 import ManagerNavbar from "../ManagerFile/ManagerNavbar";
@@ -379,8 +380,15 @@ const Inspection360Summary = () => {
   }, [projectFilter, scopedProjects]);
 
   const filteredProjects = useMemo(() => {
-    if (projectFilter === "all") return scopedProjects;
-    return scopedProjects.filter((project) => project.id === projectFilter);
+    const rows =
+      projectFilter === "all"
+        ? scopedProjects
+        : scopedProjects.filter((project) => project.id === projectFilter);
+    return distinctRowsByLatest(
+      rows,
+      (project) => project.id || project.projectId,
+      (project) => Math.max(toMillis(project?.updatedAt), toMillis(project?.createdAt), toMillis(project?.timestamp)),
+    );
   }, [scopedProjects, projectFilter]);
 
   const filteredProjectKeys = useMemo(
@@ -513,6 +521,7 @@ const Inspection360Summary = () => {
         String(entry?.externalReviewerName || "").trim().toLowerCase(),
       ].filter(Boolean);
       const timestamp = Math.max(toMillis(entry?.updatedAt), toMillis(entry?.createdAt));
+      const status = getReviewEntryStatus(entry);
       if (!timestamp || !keys.length || !reviewerKeys.length) return;
 
       keys.forEach((projectKey) => {
@@ -520,12 +529,13 @@ const Inspection360Summary = () => {
           const mapKey = `${projectKey}::${reviewerKey}`;
           const existing = output.get(mapKey);
           if (!existing) {
-            output.set(mapKey, { firstAt: timestamp, lastAt: timestamp });
+            output.set(mapKey, { firstAt: timestamp, lastAt: timestamp, latestStatus: status });
             return;
           }
           output.set(mapKey, {
             firstAt: Math.min(existing.firstAt, timestamp),
             lastAt: Math.max(existing.lastAt, timestamp),
+            latestStatus: timestamp >= existing.lastAt ? status || existing.latestStatus : existing.latestStatus,
           });
         });
       });
@@ -653,15 +663,24 @@ const Inspection360Summary = () => {
             toMillis(left.updatedAt),
             toMillis(left.reportAcceptedAt),
             toMillis(left.reportRejectedAt),
+            toMillis(left.clientReviewDecisionAt),
+            toMillis(left.clientReviewStartedAt),
             toMillis(left.createdAt),
+            toMillis(left.timestamp),
           );
           const rightValue = Math.max(
             toMillis(right.updatedAt),
             toMillis(right.reportAcceptedAt),
             toMillis(right.reportRejectedAt),
+            toMillis(right.clientReviewDecisionAt),
+            toMillis(right.clientReviewStartedAt),
             toMillis(right.createdAt),
+            toMillis(right.timestamp),
           );
-          return rightValue - leftValue;
+          if (rightValue !== leftValue) return rightValue - leftValue;
+          return String(right.projectId || right.id || "").localeCompare(
+            String(left.projectId || left.id || ""),
+          );
         })
         .slice(0, 20),
     [filteredProjects],
@@ -1039,25 +1058,31 @@ const Inspection360Summary = () => {
                                 `verification_officer${index + 1}`,
                                 `verificationofficer${index + 1}`,
                               ];
-                              const timelineMatches = projectKeys.flatMap((pKey) => {
+                              const directTimelineMatches = projectKeys.flatMap((pKey) => {
                                 const feedbackMatches = reviewerKeys
                                   .map((rKey) => feedbackTimelineByProjectReviewer.get(`${pKey}::${rKey}`))
                                   .filter(Boolean);
                                 const reviewMatches = reviewerKeys
                                   .map((rKey) => reviewTimelineByProjectReviewer.get(`${pKey}::${rKey}`))
                                   .filter(Boolean);
-                                const roleMatches = roleAliases
-                                  .map((role) => reviewTimelineByProjectRole.get(`${pKey}::${role}`))
-                                  .filter(Boolean);
-                                return [...feedbackMatches, ...reviewMatches, ...roleMatches];
+                                return [...feedbackMatches, ...reviewMatches];
                               });
+                              const roleTimelineMatches = projectKeys.flatMap((pKey) =>
+                                roleAliases
+                                  .map((role) => reviewTimelineByProjectRole.get(`${pKey}::${role}`))
+                                  .filter(Boolean),
+                              );
+                              const timelineMatches = directTimelineMatches.length
+                                ? directTimelineMatches
+                                : roleTimelineMatches;
                               const inferredStartTime = timelineMatches.length
                                 ? Math.min(...timelineMatches.map((entry) => Number(entry.firstAt || 0)).filter(Boolean))
                                 : 0;
                               const inferredEndTime = timelineMatches.length
                                 ? Math.max(...timelineMatches.map((entry) => Number(entry.lastAt || 0)).filter(Boolean))
                                 : 0;
-                              const inferredStatus = timelineMatches
+                              const inferredStatus = [...timelineMatches]
+                                .sort((left, right) => Number(right?.lastAt || 0) - Number(left?.lastAt || 0))
                                 .map((entry) => String(entry?.latestStatus || "").trim())
                                 .find(Boolean);
                               const startTime = pickFirstValue(
@@ -1293,7 +1318,7 @@ const Inspection360Summary = () => {
                                 value: asText(supervisedByDisplay),
                               },
                               { label: "Verification Officer 1", value: asText(officer1.name) },
-                              { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.createdAt) },
+                              { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.endTime) },
                               { label: "Verif_Officer1 Status", value: asText(officer1.status) },
                               { label: "Verification Officer 2", value: asText(officer2.name) },
                               { label: "Verif_Officer2 Start Time", value: formatDateTime(officer2.startTime) },

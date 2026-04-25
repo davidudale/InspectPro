@@ -14,6 +14,7 @@ import SuperAdminSidebar from "../../SuperAdminSidebar";
 import ControlCenterTableShell from "../../../Common/ControlCenterTableShell";
 import TableQueryControls from "../../../Common/TableQueryControls";
 import { groupRowsByOption, TABLE_GROUP_NONE } from "../../../../utils/tableGrouping";
+import { distinctRowsByLatest } from "../../../../utils/distinctRows";
 
 const ProjectList = () => {
   const { user } = useAuth();
@@ -418,7 +419,7 @@ const ProjectList = () => {
   const filteredProjects = useMemo(() => {
     const normalizedSearch = searchTerm.toLowerCase();
 
-    return [...projects]
+    const sortedRows = [...projects]
       .filter(
         (project) =>
           project.projectName?.toLowerCase().includes(normalizedSearch) ||
@@ -435,6 +436,11 @@ const ProjectList = () => {
       .sort(
         (a, b) => toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a)),
       );
+    return distinctRowsByLatest(
+      sortedRows,
+      (project) => project.id || project.projectId,
+      (project) => toMillis(getRowTimestamp(project)),
+    );
   }, [projects, searchTerm, statusFilter]);
 
   const latestExternalDecisionByProject = useMemo(() => {
