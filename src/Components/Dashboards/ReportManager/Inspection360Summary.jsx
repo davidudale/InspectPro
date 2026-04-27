@@ -17,6 +17,7 @@ import {
   PieChart as PieChartIcon,
   ShieldCheck,
 } from "lucide-react";
+import html2pdf from "html2pdf.js";
 import { collection, collectionGroup, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../../Auth/firebase";
 import { useAuth } from "../../Auth/AuthContext";
@@ -117,6 +118,20 @@ const formatCountdown = (explicitValue, targetDate) => {
 
   if (delta >= 0) return `${days}d ${hours}h remaining`;
   return `${days}d ${hours}h overdue`;
+};
+
+const formatReviewDuration = (startValue, endValue) => {
+  const startMs = toMillis(startValue);
+  const endMs = toMillis(endValue);
+  if (!startMs || !endMs || endMs < startMs) return "N/A";
+
+  const totalMinutes = Math.floor((endMs - startMs) / 60000);
+  const days = Math.floor(totalMinutes / (60 * 24));
+  const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+  const minutes = totalMinutes % 60;
+  if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
 };
 
 const normalizeProjectStatus = (project) => {
@@ -301,6 +316,7 @@ const Inspection360Summary = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [projectFilter, setProjectFilter] = useState("all");
+  const [auditSearchTerm, setAuditSearchTerm] = useState("");
   const [activeAuditRow, setActiveAuditRow] = useState(null);
 
   useEffect(() => {
@@ -686,6 +702,50 @@ const Inspection360Summary = () => {
     [filteredProjects],
   );
 
+  const filteredAuditRows = useMemo(() => {
+    const term = String(auditSearchTerm || "").trim().toLowerCase();
+    if (!term) return auditRows;
+
+    return auditRows.filter((project) => {
+      const searchableValues = [
+        project?.projectId,
+        project?.projectName,
+        project?.id,
+        project?.clientName,
+        project?.client,
+        project?.status,
+        project?.finalStatus,
+        project?.inspectorName,
+        project?.assignedInspectorName,
+        project?.supervisorName,
+        project?.assignedSupervisorName,
+        project?.approvedBy,
+        project?.confirmedBy,
+        project?.reportAcceptedBy,
+        project?.verificationLeadName,
+        project?.verificationLead,
+        project?.externalReviewerName,
+        project?.externalReviewerName2,
+        project?.externalReviewerName3,
+        project?.externalReviewerName4,
+        project?.externalReviewerName5,
+        project?.externalReviewerName6,
+        project?.requiredTechnique,
+        project?.selectedTechnique,
+        project?.inspectionTypeName,
+        project?.inspectionTypeCode,
+        project?.equipmentTag,
+        project?.tag,
+        project?.equipmentCategory,
+        project?.assetType,
+      ];
+
+      return searchableValues.some((value) =>
+        String(value || "").toLowerCase().includes(term),
+      );
+    });
+  }, [auditRows, auditSearchTerm]);
+
   const recentAuditTrail = useMemo(
     () =>
       [...scopedLogs]
@@ -939,27 +999,31 @@ const Inspection360Summary = () => {
                     title="Full Inspection Audit View"
                     subtitle="Detailed project-level snapshot showing status, ownership, and key decision timestamps."
                   >
+                    <div className="mb-4">
+                      <input
+                        type="text"
+                        value={auditSearchTerm}
+                        onChange={(event) => setAuditSearchTerm(event.target.value)}
+                        placeholder="Search audit table by project ID, client, status, reviewer..."
+                        className="w-[20%] rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-xs font-semibold text-slate-200 outline-none transition focus:border-orange-500"
+                      />
+                    </div>
                     <div className="max-h-[34rem] overflow-auto">
                       <table className="min-w-full text-left">
                         <thead className="sticky top-0 z-10 bg-[#091122] text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
                           <tr>
                             <th className="px-4 py-4">S/n</th>
-                            <th className="px-4 py-4">Project Name</th>
+                            <th className="px-4 py-4">Project ID</th>
+                            <th className="px-4 py-4">Client</th>
+                            <th className="px-4 py-4">Inspection Company</th>
+                            <th className="px-4 py-4">Inspection By</th>
                             <th className="px-4 py-4">Inspection Start Time</th>
                             <th className="px-4 py-4">Inspection End Time</th>
-                            <th className="px-4 py-4">Approved By</th>
-                            <th className="px-4 py-4">Approval Time</th>
-                            <th className="px-4 py-4">Verif_Officer1 Start Time</th>
-                            <th className="px-4 py-4">Status</th>
-                            <th className="px-4 py-4">Report Acceptance Timestamp</th>
-                            <th className="px-4 py-4">Report Rejection Timestamp</th>
-                            <th className="px-4 py-4">Verification_Feedback</th>
-                            <th className="px-4 py-4">Verification Countdown_Timer</th>
-                            <th className="px-4 py-4">Action</th>
+                            <th className="px-4 py-4">View</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/60">
-                          {auditRows.length > 0 ? auditRows.map((project, rowIndex) => {
+                          {filteredAuditRows.length > 0 ? filteredAuditRows.map((project, rowIndex) => {
                             const readProjectValue = (...keys) =>
                               pickFirstValue(
                                 ...keys.map((key) => project?.[key]),
@@ -1296,6 +1360,55 @@ const Inspection360Summary = () => {
                               readProjectValue("countdownTimer", "inspectionCountdownTimer"),
                               nextInspectionDate,
                             );
+                            const inspectionCompanyDisplay = asText(
+                              readProjectValue("inspectionCompany", "companyName", "inspectionCompanyName") ||
+                                "Phenomenal Energy",
+                            );
+                            const inspectionByDisplay = asText(
+                              project.inspectorName ||
+                                project.assignedInspectorName ||
+                                project?.report?.signoff?.inspector,
+                            );
+                            const finalReportStatus = asText(
+                              project.finalStatus || project.status || normalizeProjectStatus(project),
+                            );
+                            const reportDownloadCount = asText(
+                              readProjectValue(
+                                "reportDownloadCount",
+                                "report_download_count",
+                                "downloadCount",
+                                "reportDownloadCounter",
+                              ),
+                            );
+                            const equipmentInspected = asText(
+                              project.tag ||
+                                project.equipmentCategory ||
+                                project.assetType ||
+                                project.equipmentTag ||
+                                project?.report?.general?.equipment,
+                            );
+                            const inspectionTypeDisplay = asText(
+                              readProjectValue(
+                                "requiredTechnique",
+                                "required_technique",
+                                "selectedTechnique",
+                                "reportTemplate",
+                              ) ||
+                                project.requiredTechnique ||
+                                project.inspectionTypeName ||
+                                project.inspectionTypeCode ||
+                                project?.report?.general?.inspectionTypeName ||
+                                project?.report?.general?.inspectionTypeCode,
+                            );
+                            const verificationLeadDuration = formatReviewDuration(
+                              verificationLeadStartTime,
+                              verificationLeadEndTime,
+                            );
+                            const officer1Duration = formatReviewDuration(officer1.startTime, officer1.endTime);
+                            const officer2Duration = formatReviewDuration(officer2.startTime, officer2.endTime);
+                            const officer3Duration = formatReviewDuration(officer3.startTime, officer3.endTime);
+                            const officer4Duration = formatReviewDuration(officer4.startTime, officer4.endTime);
+                            const officer5Duration = formatReviewDuration(officer5.startTime, officer5.endTime);
 
                             const auditDetailFields = [
                               { label: "Client", value: asText(project.clientName || project.client) },
@@ -1437,31 +1550,13 @@ const Inspection360Summary = () => {
                             <tr key={project.id} className="hover:bg-white/5 transition-colors">
                               <td className="px-4 py-4 text-xs text-slate-300">{rowIndex + 1}</td>
                               <td className="px-4 py-4 text-xs text-slate-300">
-                                {asText(`${project.projectName || ""} - ${project.projectId|| ""}`)}
+                                {asText(`${project.projectName || ""} - ${project.projectId || ""}`)}
                               </td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{asText(project.clientName || project.client)}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{inspectionCompanyDisplay}</td>
+                              <td className="px-4 py-4 text-xs text-slate-300">{inspectionByDisplay}</td>
                               <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(inspectionStartTimeDisplay)}</td>
                               <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(inspectionEndTimeDisplay)}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{asText(approvedByDisplay)}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(approvalTimeDisplay)}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">
-                                {formatDateTime(
-                                  pickFirstValue(
-                                    officer1.startTime,
-                                    readProjectValue(
-                                      "verifOfficer1StartTime",
-                                      "verificationOfficer1StartTime",
-                                      "externalReviewerStartTime",
-                                      "reviewerStartTime",
-                                      "verificationStartTime",
-                                    ),
-                                  ),
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{asText(project.finalStatus || project.status || normalizeProjectStatus(project))}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(reportAcceptedTime)}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{formatDateTime(reportRejectedTime)}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{asText(verificationFeedback)}</td>
-                              <td className="px-4 py-4 text-xs text-slate-300">{verificationCountdownTimer}</td>
                               <td className="px-4 py-4 text-xs text-slate-300">
                                 <button
                                   type="button"
@@ -1473,14 +1568,14 @@ const Inspection360Summary = () => {
                                   }
                                   className="rounded-lg border border-orange-500 bg-orange-500 px-3 py-1 font-bold uppercase tracking-[0.14em] text-slate-200 hover:border-orange-500 hover:text-white"
                                 >
-                                  View More
+                                  View
                                 </button>
                               </td>
                             </tr>
                             );
                           }) : (
                             <tr>
-                              <td colSpan="14" className="px-4 py-12 text-center text-sm text-slate-500">
+                              <td colSpan="8" className="px-4 py-12 text-center text-sm text-slate-500">
                                 No inspection records are visible for this report scope yet.
                               </td>
                             </tr>
@@ -1590,34 +1685,107 @@ const AuditCard = ({ title, subtitle, children }) => (
   </section>
 );
 
-const AuditDetailsModal = ({ title, fields, onClose }) => (
-  <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-    <div className="w-full max-w-5xl rounded-2xl border border-slate-800 bg-[#08101f] shadow-[0_24px_80px_rgba(2,6,23,0.6)]">
-      <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Audit Row Details</p>
-          <h3 className="mt-1 text-base font-black text-white">{title}</h3>
+const AuditDetailsModal = ({ title, fields, onClose }) => {
+  const handleDownload = async () => {
+    const fileName = `${String(title || "audit-details")
+      .replace(/[^\w\-]+/g, "_")
+      .slice(0, 80)}.pdf`;
+
+    const printableRoot = document.createElement("div");
+    printableRoot.style.padding = "20px";
+    printableRoot.style.fontFamily = "Arial, sans-serif";
+    printableRoot.style.color = "#0f172a";
+    printableRoot.style.background = "#ffffff";
+
+    const heading = document.createElement("h2");
+    heading.textContent = `Audit Row Details - ${String(title || "N/A")}`;
+    heading.style.fontSize = "16px";
+    heading.style.margin = "0 0 12px 0";
+    printableRoot.appendChild(heading);
+
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "collapse";
+    table.style.fontSize = "11px";
+
+    fields.forEach((field) => {
+      const row = document.createElement("tr");
+
+      const labelCell = document.createElement("td");
+      labelCell.textContent = String(field?.label || "");
+      labelCell.style.border = "1px solid #cbd5e1";
+      labelCell.style.padding = "6px";
+      labelCell.style.fontWeight = "700";
+      labelCell.style.width = "35%";
+
+      const valueCell = document.createElement("td");
+      valueCell.textContent = String(field?.value || "N/A");
+      valueCell.style.border = "1px solid #cbd5e1";
+      valueCell.style.padding = "6px";
+      valueCell.style.width = "65%";
+
+      row.appendChild(labelCell);
+      row.appendChild(valueCell);
+      table.appendChild(row);
+    });
+
+    printableRoot.appendChild(table);
+    document.body.appendChild(printableRoot);
+
+    try {
+      await html2pdf()
+        .from(printableRoot)
+        .set({
+          margin: [10, 10, 10, 10],
+          filename: fileName,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .save();
+    } finally {
+      printableRoot.remove();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-5xl rounded-2xl border border-slate-800 bg-[#08101f] shadow-[0_24px_80px_rgba(2,6,23,0.6)]">
+        <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Audit Row Details</p>
+            <h3 className="mt-1 text-base font-black text-white">{title}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="rounded-lg border border-emerald-500 bg-emerald-600 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-white hover:bg-emerald-500"
+            >
+              Download
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-200 hover:border-orange-500 hover:text-white"
+            >
+              Close
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-200 hover:border-orange-500 hover:text-white"
-        >
-          Close
-        </button>
-      </div>
-      <div className="max-h-[70vh] overflow-auto p-5">
-        <div className="grid gap-3 md:grid-cols-2">
-          {fields.map((field) => (
-            <div key={field.label} className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{field.label}</p>
-              <p className="mt-1 text-sm text-slate-200">{field.value}</p>
-            </div>
-          ))}
+        <div className="max-h-[70vh] overflow-auto p-5">
+          <div className="grid gap-3 md:grid-cols-2">
+            {fields.map((field) => (
+              <div key={field.label} className="rounded-xl border border-slate-800 bg-slate-900/50 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{field.label}</p>
+                <p className="mt-1 text-sm text-slate-200">{field.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default Inspection360Summary;
