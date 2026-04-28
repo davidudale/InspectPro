@@ -407,6 +407,36 @@ const Inspection360Summary = () => {
     );
   }, [scopedProjects, projectFilter]);
 
+  const filteredProjectSnapshots = useMemo(
+    () =>
+      projectFilter === "all"
+        ? scopedProjects
+        : scopedProjects.filter((project) => project.id === projectFilter),
+    [scopedProjects, projectFilter],
+  );
+
+  const projectSnapshotHistoryByKey = useMemo(() => {
+    const output = new Map();
+    filteredProjectSnapshots.forEach((project) => {
+      const keys = [String(project?.id || "").trim(), String(project?.projectId || "").trim()].filter(Boolean);
+      keys.forEach((key) => {
+        if (!output.has(key)) output.set(key, []);
+        output.get(key).push(project);
+      });
+    });
+
+    output.forEach((rows, key) => {
+      const sortedRows = [...rows].sort((left, right) => {
+        const leftTs = Math.max(toMillis(left?.updatedAt), toMillis(left?.createdAt), toMillis(left?.timestamp));
+        const rightTs = Math.max(toMillis(right?.updatedAt), toMillis(right?.createdAt), toMillis(right?.timestamp));
+        return rightTs - leftTs;
+      });
+      output.set(key, sortedRows);
+    });
+
+    return output;
+  }, [filteredProjectSnapshots]);
+
   const filteredProjectKeys = useMemo(
     () =>
       new Set(
@@ -579,6 +609,48 @@ const Inspection360Summary = () => {
           firstAt: Math.min(existing.firstAt, timestamp),
           lastAt: Math.max(existing.lastAt, timestamp),
           latestStatus: timestamp >= existing.lastAt ? status || existing.latestStatus : existing.latestStatus,
+        });
+      });
+    });
+    return output;
+  }, [reviewEntries]);
+
+  const reviewDetailsByProjectRole = useMemo(() => {
+    const output = new Map();
+    reviewEntries.forEach((entry) => {
+      const keys = [String(entry?.projectDocId || "").trim(), String(entry?.projectId || "").trim()].filter(Boolean);
+      const roleKey = normalizeReviewerType(entry?.reviewerType);
+      const timestamp = Math.max(toMillis(entry?.updatedAt), toMillis(entry?.createdAt));
+      if (!timestamp || !keys.length || !roleKey) return;
+
+      const detail = {
+        firstAt: timestamp,
+        lastAt: timestamp,
+        name: pickFirstValue(
+          entry?.externalReviewerName,
+          entry?.reviewerName,
+          entry?.reviewer,
+          entry?.reviewedByName,
+        ),
+        email: pickFirstValue(entry?.externalReviewerEmail, entry?.reviewerEmail, entry?.reviewedByEmail),
+        id: pickFirstValue(entry?.externalReviewerId, entry?.reviewerId, entry?.reviewedById),
+        status: getReviewEntryStatus(entry),
+      };
+
+      keys.forEach((projectKey) => {
+        const mapKey = `${projectKey}::${roleKey}`;
+        const existing = output.get(mapKey);
+        if (!existing) {
+          output.set(mapKey, detail);
+          return;
+        }
+        output.set(mapKey, {
+          firstAt: Math.min(existing.firstAt, detail.firstAt),
+          lastAt: Math.max(existing.lastAt, detail.lastAt),
+          name: detail.lastAt >= existing.lastAt ? detail.name || existing.name : existing.name,
+          email: detail.lastAt >= existing.lastAt ? detail.email || existing.email : existing.email,
+          id: detail.lastAt >= existing.lastAt ? detail.id || existing.id : existing.id,
+          status: detail.lastAt >= existing.lastAt ? detail.status || existing.status : existing.status,
         });
       });
     });
@@ -1024,15 +1096,20 @@ const Inspection360Summary = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-800/60">
                           {filteredAuditRows.length > 0 ? filteredAuditRows.map((project, rowIndex) => {
-                            const readProjectValue = (...keys) =>
-                              pickFirstValue(
-                                ...keys.map((key) => project?.[key]),
-                                ...keys.map((key) => project?.report?.[key]),
-                                ...keys.map((key) => project?.report?.general?.[key]),
-                              );
-
                             const projectDocKey = String(project.id || "").trim();
                             const projectBusinessKey = String(project.projectId || "").trim();
+                            const historyRows = [
+                              ...(projectSnapshotHistoryByKey.get(projectDocKey) || []),
+                              ...(projectSnapshotHistoryByKey.get(projectBusinessKey) || []),
+                            ];
+                            const readProjectValue = (...keys) =>
+                              pickFirstValue(
+                                ...historyRows.flatMap((row) => [
+                                  ...keys.map((key) => row?.[key]),
+                                  ...keys.map((key) => row?.report?.[key]),
+                                  ...keys.map((key) => row?.report?.general?.[key]),
+                                ]),
+                              );
                             const projectFeedback =
                               latestFeedbackByProjectKey.get(projectDocKey) ||
                               latestFeedbackByProjectKey.get(projectBusinessKey) ||
@@ -1064,7 +1141,8 @@ const Inspection360Summary = () => {
                               null;
 
                             const resolveVerificationOfficer = (index) => {
-                              const primarySuffix = String(index + 1);
+                              const primarySuffix = String(index);
+                              const alternateSuffix = String(index + 1);
                               const legacySuffix = String(index);
                               const reviewerId = pickFirstValue(
                                 readProjectValue(
@@ -1072,6 +1150,8 @@ const Inspection360Summary = () => {
                                   `verifOfficer${index}Id`,
                                   `externalReviewer${primarySuffix}Id`,
                                   `externalReviewerId${primarySuffix}`,
+                                  `externalReviewer${alternateSuffix}Id`,
+                                  `externalReviewerId${alternateSuffix}`,
                                   `externalReviewer${legacySuffix}Id`,
                                   `externalReviewerId${legacySuffix}`,
                                 ),
@@ -1086,6 +1166,8 @@ const Inspection360Summary = () => {
                                     `verifOfficer${index}Email`,
                                     `externalReviewer${primarySuffix}Email`,
                                     `externalReviewerEmail${primarySuffix}`,
+                                    `externalReviewer${alternateSuffix}Email`,
+                                    `externalReviewerEmail${alternateSuffix}`,
                                     `externalReviewer${legacySuffix}Email`,
                                     `externalReviewerEmail${legacySuffix}`,
                                   ),
@@ -1103,6 +1185,9 @@ const Inspection360Summary = () => {
                                   `externalReviewer${primarySuffix}`,
                                   `externalReviewer${primarySuffix}Name`,
                                   `externalReviewerName${primarySuffix}`,
+                                  `externalReviewer${alternateSuffix}`,
+                                  `externalReviewer${alternateSuffix}Name`,
+                                  `externalReviewerName${alternateSuffix}`,
                                   `externalReviewer${legacySuffix}`,
                                   `externalReviewer${legacySuffix}Name`,
                                   `externalReviewerName${legacySuffix}`,
@@ -1139,6 +1224,15 @@ const Inspection360Summary = () => {
                               const timelineMatches = directTimelineMatches.length
                                 ? directTimelineMatches
                                 : roleTimelineMatches;
+                              const roleDetailMatches = projectKeys
+                                .flatMap((pKey) =>
+                                  roleAliases
+                                    .map((role) => reviewDetailsByProjectRole.get(`${pKey}::${role}`))
+                                    .filter(Boolean),
+                                )
+                                .sort((left, right) => Number(right?.lastAt || 0) - Number(left?.lastAt || 0));
+                              const roleDetail = roleDetailMatches[0] || null;
+                              const resolvedName = pickFirstValue(name, roleDetail?.name, roleDetail?.email);
                               const inferredStartTime = timelineMatches.length
                                 ? Math.min(...timelineMatches.map((entry) => Number(entry.firstAt || 0)).filter(Boolean))
                                 : 0;
@@ -1155,9 +1249,12 @@ const Inspection360Summary = () => {
                                   `verifOfficer${index}StartTime`,
                                   `externalReviewer${primarySuffix}StartTime`,
                                   `externalReviewerStartTime${primarySuffix}`,
+                                  `externalReviewer${alternateSuffix}StartTime`,
+                                  `externalReviewerStartTime${alternateSuffix}`,
                                   `externalReviewer${legacySuffix}StartTime`,
                                   `externalReviewerStartTime${legacySuffix}`,
                                 ),
+                                roleDetail?.firstAt || null,
                                 inferredStartTime || null,
                               );
                               const endTime = pickFirstValue(
@@ -1166,9 +1263,12 @@ const Inspection360Summary = () => {
                                   `verifOfficer${index}EndTime`,
                                   `externalReviewer${primarySuffix}EndTime`,
                                   `externalReviewerEndTime${primarySuffix}`,
+                                  `externalReviewer${alternateSuffix}EndTime`,
+                                  `externalReviewerEndTime${alternateSuffix}`,
                                   `externalReviewer${legacySuffix}EndTime`,
                                   `externalReviewerEndTime${legacySuffix}`,
                                 ),
+                                roleDetail?.lastAt || null,
                                 inferredEndTime || null,
                               );
                               const status = pickFirstValue(
@@ -1177,13 +1277,16 @@ const Inspection360Summary = () => {
                                   `verifOfficer${index}Status`,
                                   `externalReviewer${primarySuffix}Status`,
                                   `externalReviewerStatus${primarySuffix}`,
+                                  `externalReviewer${alternateSuffix}Status`,
+                                  `externalReviewerStatus${alternateSuffix}`,
                                   `externalReviewer${legacySuffix}Status`,
                                   `externalReviewerStatus${legacySuffix}`,
                                 ),
+                                roleDetail?.status,
                                 inferredStatus,
                               );
 
-                              return { name, startTime, endTime, status };
+                              return { name: resolvedName, startTime, endTime, status };
                             };
 
                             const officer1 = resolveVerificationOfficer(1);
