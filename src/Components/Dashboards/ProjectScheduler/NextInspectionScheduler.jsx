@@ -41,6 +41,7 @@ import {
   toDateOrNull,
   toMillis,
 } from "../../../utils/inspectionScheduling";
+import { distinctRowsByLatest } from "../../../utils/distinctRows";
 import { getToastErrorMessage } from "../../../utils/toast";
 
 const formatDate = (value) => {
@@ -245,9 +246,19 @@ const NextInspectionScheduler = () => {
       ? ManagerSidebar
       : AdminSidebar;
 
+  const distinctSchedules = useMemo(
+    () =>
+      distinctRowsByLatest(
+        schedules,
+        (row) => row.equipmentId || row.equipmentTag,
+        (row) => -toMillis(row.dueDate),
+      ),
+    [schedules],
+  );
+
   const filteredSchedules = useMemo(
     () =>
-      schedules
+      distinctSchedules
         .map((schedule) => ({
           ...schedule,
           derivedStatus: getEffectiveScheduleStatus(schedule),
@@ -271,7 +282,7 @@ const NextInspectionScheduler = () => {
           return matchesSearch && matchesStatus;
         })
         .sort((left, right) => toMillis(left.dueDate) - toMillis(right.dueDate)),
-    [schedules, searchTerm, statusFilter],
+    [distinctSchedules, searchTerm, statusFilter],
   );
 
   const groupedSchedules = useMemo(
