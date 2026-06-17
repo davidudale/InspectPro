@@ -122,8 +122,7 @@ const InspectionTypeManager = () => {
                         setIsAdding={setIsAddingCategory}
                         fieldKey="cat"
                         onSelect={(val) => setNewType({...newType, category: val})}
-                      />
-
+                      /
                       {/* Design Code with Add More */}
                       <AddMoreDropdown 
                         label="Design Code"
