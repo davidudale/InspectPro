@@ -43,7 +43,7 @@ const SidebarUserMenu = ({ displayName, isExpanded, onNavigate }) => {
     displayName || user?.fullName || user?.name || user?.displayName || user?.email || "User";
   const roleLabel = user?.reviewerType
     ? String(user.reviewerType).replaceAll("_", " ")
-    : user?.role || "Team Member";
+    : String(user?.role || "Team Member").replaceAll("_", " ");
   const profileDetails = [
     { label: "Role", value: roleLabel },
     { label: "Email", value: user?.email || "No email" },

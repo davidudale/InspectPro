@@ -5,6 +5,8 @@ const REVIEWER_ID_KEYS = [
   "externalReviewerId4",
   "externalReviewerId5",
   "externalReviewerId6",
+  "externalReviewerId7",
+  "externalReviewerId8",
 ];
 
 const normalizeValue = (value) => String(value || "").trim().toLowerCase();

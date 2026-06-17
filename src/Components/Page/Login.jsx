@@ -53,6 +53,7 @@ const Login = () => {
         if (role === "Super_Admin") navigate("/super-admin");
         else if (role === "Admin") navigate("/admin-dashboard");
         else if (role === "Manager") navigate("/ManagerDashboard");
+        else if (role === "Internal_Reviewer") navigate("/internal-reviewer");
         else if (
           role === "External_Reviewer" ||
           role === "External Reviewer" ||

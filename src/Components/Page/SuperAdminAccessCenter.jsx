@@ -14,6 +14,7 @@ const ROLE_OPTIONS = [
   "Lead Inspector",
   "Inspector",
   "External_Reviewer",
+  "Internal_Reviewer",
 ];
 
 const SuperAdminAccessCenter = () => {

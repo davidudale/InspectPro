@@ -124,6 +124,10 @@ const ProjectSetup = () => {
     externalReviewerName5: "",
     externalReviewerId6: "",
     externalReviewerName6: "",
+    externalReviewerId7: "",
+    externalReviewerName7: "",
+    externalReviewerId8: "",
+    externalReviewerName8: "",
     managerId: "",
     managerName: "",
     startDate: "",
@@ -234,6 +238,8 @@ const ProjectSetup = () => {
     { idKey: "externalReviewerId4", nameKey: "externalReviewerName4", label: "External Reviewer 3" },
     { idKey: "externalReviewerId5", nameKey: "externalReviewerName5", label: "External Reviewer 4" },
     { idKey: "externalReviewerId6", nameKey: "externalReviewerName6", label: "External Reviewer 5" },
+    { idKey: "externalReviewerId7", nameKey: "externalReviewerName7", label: "External Reviewer 6" },
+    { idKey: "externalReviewerId8", nameKey: "externalReviewerName8", label: "External Reviewer 7" },
   ];
   const selectedExternalReviewerNames = externalReviewerFields
     .map((field) => setupData[field.nameKey])

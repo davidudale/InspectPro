@@ -35,7 +35,9 @@ export const AuthProvider = ({ children }) => {
         const userData = userDocSnap.data();
         const normalizedReviewerType = String(userData.reviewerType || "").trim();
         const normalizedRole =
-          normalizedReviewerType ? "External_Reviewer" : (userData.role || "Inspector");
+          normalizedReviewerType && userData.role !== "Internal_Reviewer"
+            ? "External_Reviewer"
+            : (userData.role || "Inspector");
 
         setUser({
           uid: firebaseUser.uid,

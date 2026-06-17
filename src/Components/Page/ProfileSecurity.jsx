@@ -39,6 +39,7 @@ const resolveDashboardPath = (role) => {
   if (role === "Super_Admin") return "/super-admin";
   if (role === "Admin") return "/admin-dashboard";
   if (role === "Manager") return "/ManagerDashboard";
+  if (role === "Internal_Reviewer") return "/internal-reviewer";
   if (role === "Lead Inspector") return "/SupervisorDashboard";
   if (role === "External_Reviewer" || role === "External Reviewer") {
     return "/external-reviewer-dashboard";
@@ -55,6 +56,9 @@ const resolveShell = (role) => {
   }
   if (role === "Manager") {
     return { navbar: <ManagerNavbar />, sidebar: <ManagerSidebar /> };
+  }
+  if (role === "Internal_Reviewer") {
+    return { navbar: <AdminNavbar />, sidebar: <AdminSidebar /> };
   }
   if (role === "Lead Inspector") {
     return { navbar: <SupervisorNavbar />, sidebar: <SupervisorSidebar /> };
@@ -108,7 +112,7 @@ const ProfileSecurity = () => {
   const profileName = user?.fullName || user?.name || user?.displayName || "Unnamed User";
   const roleLabel = user?.reviewerType
     ? String(user.reviewerType).replaceAll("_", " ")
-    : user?.role || "No role assigned";
+    : String(user?.role || "No role assigned").replaceAll("_", " ");
   const profileCards = useMemo(
     () => [
       {

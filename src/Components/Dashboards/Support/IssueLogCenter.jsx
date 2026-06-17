@@ -27,6 +27,8 @@ import InspectorNavbar from "../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../InspectorsFile/InspectorSidebar";
 import ExternalNavbar from "../ExternalDashboard/ExternalNavbar";
 import ExternalSideBar from "../ExternalDashboard/ExternalSideBar";
+import InternalReviewerNavbar from "../InternalReviewer/InternalReviewerNavbar";
+import InternalReviewerSidebar from "../InternalReviewer/InternalReviewerSidebar";
 import { getToastErrorMessage } from "../../../utils/toast";
 
 const MODULE_OPTIONS = [
@@ -58,6 +60,9 @@ const resolveShell = (role) => {
   if (role === "External_Reviewer" || role === "External Reviewer") {
     return { navbar: <ExternalNavbar />, sidebar: <ExternalSideBar /> };
   }
+  if (role === "Internal_Reviewer") {
+    return { navbar: <InternalReviewerNavbar />, sidebar: <InternalReviewerSidebar /> };
+  }
   return { navbar: <InspectorNavbar />, sidebar: <InspectorSidebar /> };
 };
 
@@ -68,6 +73,7 @@ const getSupportExitRoute = (role) => {
   if (role === "External_Reviewer" || role === "External Reviewer") {
     return "/external-reviewer-dashboard";
   }
+  if (role === "Internal_Reviewer") return "/internal-reviewer";
   return "/inspectionDashboard";
 };
 

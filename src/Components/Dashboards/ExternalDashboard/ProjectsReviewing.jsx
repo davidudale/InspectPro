@@ -164,6 +164,16 @@ const ProjectReviewing = () => {
       nameKey: "externalReviewerName6",
       label: "Verification Officer 5",
     },
+    {
+      idKey: "externalReviewerId7",
+      nameKey: "externalReviewerName7",
+      label: "Verification Officer 6",
+    },
+    {
+      idKey: "externalReviewerId8",
+      nameKey: "externalReviewerName8",
+      label: "Verification Officer 7",
+    },
   ];
   const visibleReviewerColumns = isVerificationLeadOfficer
     ? reviewerColumns

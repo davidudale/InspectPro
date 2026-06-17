@@ -1141,8 +1141,8 @@ const Inspection360Summary = () => {
                               null;
 
                             const resolveVerificationOfficer = (index) => {
-                              const primarySuffix = String(index);
-                              const alternateSuffix = String(index + 1);
+                              const primarySuffix = String(index + 1);
+                              const alternateSuffix = String(index);
                               const legacySuffix = String(index);
                               const reviewerId = pickFirstValue(
                                 readProjectValue(
@@ -1294,6 +1294,8 @@ const Inspection360Summary = () => {
                             const officer3 = resolveVerificationOfficer(3);
                             const officer4 = resolveVerificationOfficer(4);
                             const officer5 = resolveVerificationOfficer(5);
+                            const officer6 = resolveVerificationOfficer(6);
+                            const officer7 = resolveVerificationOfficer(7);
 
                             const verificationLead = pickFirstValue(
                               project?.verificationLeadName,
@@ -1512,6 +1514,8 @@ const Inspection360Summary = () => {
                             const officer3Duration = formatReviewDuration(officer3.startTime, officer3.endTime);
                             const officer4Duration = formatReviewDuration(officer4.startTime, officer4.endTime);
                             const officer5Duration = formatReviewDuration(officer5.startTime, officer5.endTime);
+                            const officer6Duration = formatReviewDuration(officer6.startTime, officer6.endTime);
+                            const officer7Duration = formatReviewDuration(officer7.startTime, officer7.endTime);
 
                             const auditDetailFields = [
                               { label: "Client", value: asText(project.clientName || project.client) },
@@ -1534,24 +1538,33 @@ const Inspection360Summary = () => {
                                 value: asText(supervisedByDisplay),
                               },
                               { label: "Verification Officer 1", value: asText(officer1.name) },
+                              { label: "Verif_Officer1 Start Time", value: formatDateTime(officer1.startTime) },
                               { label: "Verif_Officer1 End Time", value: formatDateTime(officer1.endTime) },
                               { label: "Verif_Officer1 Status", value: asText(officer1.status) },
-                              { label: "Verification Officer 2", value: asText(officer3.name) },
-                              { label: "Verif_Officer2 Start Time", value: formatDateTime(officer3.startTime) },
-                              { label: "Verif_Officer2 End Time", value: formatDateTime(officer3.endTime) },
-                              { label: "Verif_Officer2 Status", value: asText(officer3.status) },
-                              { label: "Verification Officer 3", value: asText(officer4.name) },
-                              { label: "Verif_Officer3 Start Time", value: formatDateTime(officer4.startTime) },
-                              { label: "Verif_Officer3 End Time", value: formatDateTime(officer4.endTime) },
-                              { label: "Verif_Officer3 Status", value: asText(officer4.status) },
-                              { label: "Verification Officer 4", value: asText(officer5.name) },
-                              { label: "Verif_Officer4 Start Time", value: formatDateTime(officer5.startTime) },
-                              { label: "Verif_Officer4 End Time", value: formatDateTime(officer5.endTime) },
-                              { label: "Verif_Officer4 Status", value: asText(officer5.status) },
+                              { label: "Verification Officer 2", value: asText(officer2.name) },
+                              { label: "Verif_Officer2 Start Time", value: formatDateTime(officer2.startTime) },
+                              { label: "Verif_Officer2 End Time", value: formatDateTime(officer2.endTime) },
+                              { label: "Verif_Officer2 Status", value: asText(officer2.status) },
+                              { label: "Verification Officer 3", value: asText(officer3.name) },
+                              { label: "Verif_Officer3 Start Time", value: formatDateTime(officer3.startTime) },
+                              { label: "Verif_Officer3 End Time", value: formatDateTime(officer3.endTime) },
+                              { label: "Verif_Officer3 Status", value: asText(officer3.status) },
+                              { label: "Verification Officer 4", value: asText(officer4.name) },
+                              { label: "Verif_Officer4 Start Time", value: formatDateTime(officer4.startTime) },
+                              { label: "Verif_Officer4 End Time", value: formatDateTime(officer4.endTime) },
+                              { label: "Verif_Officer4 Status", value: asText(officer4.status) },
                               { label: "Verification Officer 5", value: asText(officer5.name) },
                               { label: "Verif_Officer5 Start Time", value: formatDateTime(officer5.startTime) },
                               { label: "Verif_Officer5 End Time", value: formatDateTime(officer5.endTime) },
                               { label: "Verif_Officer5 Status", value: asText(officer5.status) },
+                              { label: "Verification Officer 6", value: asText(officer6.name) },
+                              { label: "Verif_Officer6 Start Time", value: formatDateTime(officer6.startTime) },
+                              { label: "Verif_Officer6 End Time", value: formatDateTime(officer6.endTime) },
+                              { label: "Verif_Officer6 Status", value: asText(officer6.status) },
+                              { label: "Verification Officer 7", value: asText(officer7.name) },
+                              { label: "Verif_Officer7 Start Time", value: formatDateTime(officer7.startTime) },
+                              { label: "Verif_Officer7 End Time", value: formatDateTime(officer7.endTime) },
+                              { label: "Verif_Officer7 Status", value: asText(officer7.status) },
                               { label: "Verification Lead", value: asText(verificationLead) },
                               {
                                 label: "Verif_Lead Start Time",
@@ -1599,7 +1612,7 @@ const Inspection360Summary = () => {
                               },
                               { label: "Last Inspection Date", value: formatDateTime(lastInspectionDate) },
                               { label: "Next Inspection Date", value: formatDateTime(nextInspectionDate) },
-                              { label: "Countdown Timer", value: operationalCountdownTimer },
+                            {/*  { label: "Countdown Timer", value: operationalCountdownTimer },
                               {
                                 label: "Login Timestamp",
                                 value: formatDateTime(
@@ -1646,7 +1659,7 @@ const Inspection360Summary = () => {
                                     project?.report?.general?.inspectorEmail ||
                                     user?.email,
                                 ),
-                              },
+                              },*/}
                             ];
 
                             return (

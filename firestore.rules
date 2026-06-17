@@ -56,6 +56,10 @@ service cloud.firestore {
       return myRole() == "Manager";
     }
 
+    function isInternalReviewer() {
+      return myRole() == "Internal_Reviewer";
+    }
+
     function isLeadInspector() {
       return myRole() == "Lead Inspector";
     }
@@ -117,6 +121,8 @@ service cloud.firestore {
         data.externalReviewerId4 == request.auth.uid ||
         data.externalReviewerId5 == request.auth.uid ||
         data.externalReviewerId6 == request.auth.uid ||
+        data.externalReviewerId7 == request.auth.uid ||
+        data.externalReviewerId8 == request.auth.uid ||
         data.managerId == request.auth.uid
       );
     }
@@ -146,6 +152,7 @@ service cloud.firestore {
     function canReadProject(data) {
       return isAdminOrSuperAdmin() ||
              isManager() ||
+             isInternalReviewer() ||
              isReviewerTier() ||
              projectAssignedToMe(data) ||
              projectMatchesMyClient(data);
@@ -161,6 +168,8 @@ service cloud.firestore {
              data.externalReviewerId4 == request.auth.uid ||
              data.externalReviewerId5 == request.auth.uid ||
              data.externalReviewerId6 == request.auth.uid ||
+             data.externalReviewerId7 == request.auth.uid ||
+             data.externalReviewerId8 == request.auth.uid ||
              data.managerId == request.auth.uid;
     }
 

@@ -60,6 +60,11 @@ import SuperAdminDashboard from "./Components/Page/SuperAdminDashboard.jsx";
 import SuperAdminAccessCenter from "./Components/Page/SuperAdminAccessCenter.jsx";
 import SuperAdminSystemCenter from "./Components/Page/SuperAdminSystemCenter.jsx";
 import SuperAdminAuditCenter from "./Components/Page/SuperAdminAuditCenter.jsx";
+import InternalReviewerDashboard from "./Components/Dashboards/InternalReviewer/InternalReviewerDashboard.jsx";
+import InternalProjects from "./Components/Dashboards/InternalReviewer/InternalProjects.jsx";
+import InternalReviewForm from "./Components/Dashboards/InternalReviewer/InternalReviewForm.jsx";
+import InternalIssueLog from "./Components/Dashboards/InternalReviewer/InternalIssueLog.jsx";
+import InternalEquipmentmanager from "./Components/Dashboards/InternalReviewer/InternalEquipmentmanager.jsx";
 import { useAuth } from "./Components/Auth/AuthContext.jsx";
 
 const CONNECTIVITY_BADGE_HIDDEN_PATHS = new Set([
@@ -69,6 +74,11 @@ const CONNECTIVITY_BADGE_HIDDEN_PATHS = new Set([
   "/verify-email",
   "/unauthorized",
   "/external-reviewer-dashboard",
+  "/internal-reviewer",
+  "/internal-reviewer/projects",
+  "/internal-reviewer/reviews",
+  "/internal-reviewer/issues",
+  "/internal-reviewer/equipments",
   "/reports/daily-inspection-summary",
   "/reports/inspection-progress",
   "/reports/non-conformance",
@@ -259,7 +269,7 @@ function App() {
           path="/profile/security"
           element={
             <ProtectedRoute
-              allowedRoles={["Super_Admin", "Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Super_Admin", "Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <ProfileSecurity />
             </ProtectedRoute>
@@ -303,7 +313,7 @@ function App() {
           path="/support/issues"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <IssueLogCenter />
             </ProtectedRoute>
@@ -321,6 +331,46 @@ function App() {
         />
 
         {/* Lead Inspector & Above */}
+        <Route
+          path="/internal-reviewer"
+          element={
+            <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
+              <InternalReviewerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/internal-reviewer/projects"
+          element={
+            <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
+              <InternalProjects />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/internal-reviewer/reviews"
+          element={
+            <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
+              <InternalReviewForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/internal-reviewer/issues"
+          element={
+            <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
+              <InternalIssueLog />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/internal-reviewer/equipments"
+          element={
+            <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
+              <InternalEquipmentmanager />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/external-reviewer-dashboard"
           element={

@@ -143,6 +143,7 @@ const EditUser = () => {
                     <option value="Inspector">Inspector</option>
                     <option value="Manager">Manager</option>
                     <option value="External_Reviewer">External_Reviewer</option>
+                    <option value="Internal_Reviewer">Internal_Reviewer</option>
                   </select>
                 </div>
 
@@ -162,6 +163,8 @@ const EditUser = () => {
                         <option value="Verification officer_3">Verification officer_3</option>
                         <option value="Verification officer_4">Verification officer_4</option>
                         <option value="Verification officer_5">Verification officer_5</option>
+                        <option value="Verification officer_6">Verification officer_6</option>
+                        <option value="Verification officer_7">Verification officer_7</option>
                       </select>
                     </div>
                     <div>

@@ -33,6 +33,7 @@ const ROLE_OPTIONS = [
   "Inspector",
   "Manager",
   "External_Reviewer",
+  "Internal_Reviewer",
 ];
 const REVIEWER_TYPE_OPTIONS = [
   "Verification Lead Officer",
@@ -41,6 +42,8 @@ const REVIEWER_TYPE_OPTIONS = [
   "Verification officer_3",
   "Verification officer_4",
   "Verification officer_5",
+  "Verification officer_6",
+  "Verification officer_7",
 ];
 const EMPTY_FORM = {
   name: "",
@@ -51,6 +54,8 @@ const EMPTY_FORM = {
   clientId: "",
   clientName: "",
 };
+const DEFAULT_GROUP_BY = "clientRole";
+const PINNED_CLIENT_NAME = "Phenomenal Energy";
 
 const UserPage = () => {
   const { user } = useAuth();
@@ -84,6 +89,10 @@ const UserPage = () => {
 
   const getUserName = (user) =>
     user?.fullName || user?.displayName || user?.name || "Unnamed User";
+  const getUserRole = (user) => user?.role || DEFAULT_ROLE;
+  const getClientName = (user) => user?.clientName || PINNED_CLIENT_NAME;
+  const isPinnedClientName = (value) =>
+    String(value || "").trim().toLowerCase() === PINNED_CLIENT_NAME.toLowerCase();
 
   const formatLastSeen = (value, isOnline = false) => {
     if (isOnline) return "Active now";
@@ -130,7 +139,7 @@ const UserPage = () => {
   const [loading, setLoading] = useState(true);
   const [clients, setClients] = useState([]);
   const [roleFilter, setRoleFilter] = useState("all");
-  const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
+  const [groupBy, setGroupBy] = useState(DEFAULT_GROUP_BY);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -359,24 +368,59 @@ const UserPage = () => {
             : String(entry.createdByUserId || "").trim() === String(user?.uid || "").trim();
           return matchesRole && matchesCreator;
         })
-        .sort(
-          (a, b) =>
-            toMillis(getRowTimestamp(b)) -
-            toMillis(getRowTimestamp(a)),
-        ),
+        .sort((a, b) => {
+          const aPinnedClient = isPinnedClientName(getClientName(a));
+          const bPinnedClient = isPinnedClientName(getClientName(b));
+          if (aPinnedClient !== bPinnedClient) return aPinnedClient ? -1 : 1;
+
+          const clientComparison = getClientName(a).localeCompare(getClientName(b));
+          if (clientComparison) return clientComparison;
+
+          const roleComparison = getUserRole(a).localeCompare(getUserRole(b));
+          if (roleComparison) return roleComparison;
+
+          const nameComparison = getUserName(a).localeCompare(getUserName(b));
+          if (nameComparison) return nameComparison;
+
+          return toMillis(getRowTimestamp(b)) - toMillis(getRowTimestamp(a));
+        }),
     [effectiveRoleFilter, isExternalReviewer, user?.uid, users],
   );
 
   const groupedUsers = useMemo(
-    () =>
-      groupRowsByOption(filteredUsers, groupBy, [
+    () => {
+      const groups = groupRowsByOption(filteredUsers, groupBy, [
         {
           value: "role",
           label: "Role",
-          getValue: (user) => user.role || DEFAULT_ROLE,
+          getValue: getUserRole,
           emptyLabel: DEFAULT_ROLE,
         },
-      ]),
+        {
+          value: "client",
+          label: "Client",
+          getValue: getClientName,
+          emptyLabel: "Phenomenal Energy",
+        },
+        {
+          value: DEFAULT_GROUP_BY,
+          label: "Client / Role",
+          getValue: (user) => `${getClientName(user)} / ${getUserRole(user)}`,
+          emptyLabel: "Phenomenal Energy / Role",
+        },
+      ]);
+
+      if (groupBy !== "client" && groupBy !== DEFAULT_GROUP_BY) {
+        return groups;
+      }
+
+      return [...groups].sort((a, b) => {
+        const aPinnedClient = isPinnedClientName(String(a.label || "").split("/")[0]);
+        const bPinnedClient = isPinnedClientName(String(b.label || "").split("/")[0]);
+        if (aPinnedClient !== bPinnedClient) return aPinnedClient ? -1 : 1;
+        return a.label.localeCompare(b.label);
+      });
+    },
     [filteredUsers, groupBy],
   );
 
@@ -433,6 +477,8 @@ const UserPage = () => {
                     onGroupByChange={setGroupBy}
                     groupOptions={[
                       { value: TABLE_GROUP_NONE, label: "No Grouping" },
+                      { value: DEFAULT_GROUP_BY, label: "Client / Role" },
+                      { value: "client", label: "Client" },
                       { value: "role", label: "Role" },
                     ]}
                   />
@@ -478,7 +524,7 @@ const UserPage = () => {
                                 colSpan="9"
                                 className="px-4 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-orange-400"
                               >
-                                {group.label} ({group.items.length})
+                                {group.label} 
                               </td>
                             </tr>
                           ) : null}
@@ -506,16 +552,16 @@ const UserPage = () => {
                             <td className="p-4">
                               <span
                                 className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-tighter ${
-                                  user.role === "Admin"
+                                  getUserRole(user) === "Admin"
                                     ? "bg-orange-600/20 text-orange-400 border border-orange-500/20"
                                     : "bg-slate-800 text-slate-400"
                                 }`}
                               >
-                                {user.role || DEFAULT_ROLE}
+                                {getUserRole(user)}
                               </span>
                             </td>
                             <td className="p-4 text-sm text-slate-400">
-                              {user.clientName || "N/A"}
+                              {getClientName(user)}
                             </td>
                             <td className="p-4">
                               <span

@@ -10,6 +10,8 @@ const getDashboardPathByRole = (role) => {
       return "/SupervisorDashboard";
     case "External_Reviewer":
       return "/external-reviewer-dashboard";
+    case "Internal_Reviewer":
+      return "/internal-reviewer";
     case "Inspector":
       return "/inspectionDashboard";
     case "Manager":

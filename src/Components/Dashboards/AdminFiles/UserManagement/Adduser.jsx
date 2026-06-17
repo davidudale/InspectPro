@@ -36,7 +36,14 @@ const Adduser = () => {
   const isExternalReviewer = currentUser?.role === "External_Reviewer";
   const roleOptions = isExternalReviewer
     ? ["External_Reviewer"]
-    : ["Admin", "Lead Inspector", "Inspector", "Manager", "External_Reviewer"];
+    : [
+        "Admin",
+        "Lead Inspector",
+        "Inspector",
+        "Manager",
+        "External_Reviewer",
+        "Internal_Reviewer",
+      ];
 
   useEffect(() => {
     const requestedRole = searchParams.get("role");
@@ -188,6 +195,8 @@ const Adduser = () => {
                         <option value="Verification officer_3">Verification officer_3</option>
                         <option value="Verification officer_4">Verification officer_4</option>
                         <option value="Verification officer_5">Verification officer_5</option>
+                        <option value="Verification officer_6">Verification officer_6</option>
+                        <option value="Verification officer_7">Verification officer_7</option>
                       </select>
                     </div>
                     <div>

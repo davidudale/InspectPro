@@ -35,6 +35,17 @@ import { getToastErrorMessage } from "../../../../utils/toast";
 import { useAuth } from "../../../Auth/AuthContext";
 import { resetVerificationReviewState } from "../../../../utils/externalReviewCycle";
 
+const externalReviewerFields = [
+  { idKey: "externalReviewerId", nameKey: "externalReviewerName", label: "External Lead Reviewer", required: true },
+  { idKey: "externalReviewerId2", nameKey: "externalReviewerName2", label: "External Reviewer 1" },
+  { idKey: "externalReviewerId3", nameKey: "externalReviewerName3", label: "External Reviewer 2" },
+  { idKey: "externalReviewerId4", nameKey: "externalReviewerName4", label: "External Reviewer 3" },
+  { idKey: "externalReviewerId5", nameKey: "externalReviewerName5", label: "External Reviewer 4" },
+  { idKey: "externalReviewerId6", nameKey: "externalReviewerName6", label: "External Reviewer 5" },
+  { idKey: "externalReviewerId7", nameKey: "externalReviewerName7", label: "External Reviewer 6" },
+  { idKey: "externalReviewerId8", nameKey: "externalReviewerName8", label: "External Reviewer 7" },
+];
+
 const ProjectEdit = () => {
   const { user } = useAuth();
   const { id, projectId } = useParams();
@@ -80,6 +91,20 @@ const ProjectEdit = () => {
     supervisorName: "",
     externalReviewerId: "",
     externalReviewerName: "",
+    externalReviewerId2: "",
+    externalReviewerName2: "",
+    externalReviewerId3: "",
+    externalReviewerName3: "",
+    externalReviewerId4: "",
+    externalReviewerName4: "",
+    externalReviewerId5: "",
+    externalReviewerName5: "",
+    externalReviewerId6: "",
+    externalReviewerName6: "",
+    externalReviewerId7: "",
+    externalReviewerName7: "",
+    externalReviewerId8: "",
+    externalReviewerName8: "",
     managerId: "",
     managerName: "",
     startDate: "",
@@ -217,6 +242,36 @@ const ProjectEdit = () => {
   const resolvedStatusOptions = statusOptions.includes(setupData.status)
     ? statusOptions
     : [...statusOptions, setupData.status].filter(Boolean);
+  const availableExternalReviewers = useMemo(
+    () =>
+      externalReviewers.filter(
+        (reviewer) =>
+          setupData.clientId &&
+          String(reviewer.clientId || "").trim() === String(setupData.clientId).trim(),
+      ),
+    [externalReviewers, setupData.clientId],
+  );
+  const getAvailableExternalReviewersForField = (fieldIdKey) =>
+    availableExternalReviewers.filter((reviewer) => {
+      const reviewerId = String(reviewer.id || "").trim();
+      return (
+        !reviewerId ||
+        setupData[fieldIdKey] === reviewerId ||
+        !externalReviewerFields.some(
+          (otherField) =>
+            otherField.idKey !== fieldIdKey &&
+            String(setupData[otherField.idKey] || "").trim() === reviewerId,
+        )
+      );
+    });
+  const clearedExternalReviewerAssignments = externalReviewerFields.reduce(
+    (acc, field) => ({
+      ...acc,
+      [field.idKey]: "",
+      [field.nameKey]: "",
+    }),
+    {},
+  );
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -353,6 +408,7 @@ const ProjectEdit = () => {
                             clientLogo: selected?.logo || "",
                             locationId: "",
                             locationName: "",
+                            ...clearedExternalReviewerAssignments,
                           }));
                         }}
                       >
@@ -574,36 +630,62 @@ const ProjectEdit = () => {
                         ))}
                       </select>
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
-                        Assign External Reviewer
-                      </label>
-                      <select
-                        required
-                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white"
-                        value={setupData.externalReviewerId}
-                        onChange={(e) => {
-                          const selected = externalReviewers.find(
-                            (reviewer) => reviewer.id === e.target.value,
-                          );
-                          setSetupData((prev) => ({
-                            ...prev,
-                            externalReviewerId: selected?.id || "",
-                            externalReviewerName:
-                              selected?.displayName ||
-                              selected?.name ||
-                              selected?.fullName ||
-                              "",
-                          }));
-                        }}
-                      >
-                        <option value="">Select external reviewer</option>
-                        {externalReviewers.map((reviewer) => (
-                          <option key={reviewer.id} value={reviewer.id}>
-                            {reviewer.displayName || reviewer.name || reviewer.fullName || reviewer.email}
-                          </option>
-                        ))}
-                      </select>
+                    <div className="grid grid-cols-1 gap-4">
+                      {externalReviewerFields.map((field) => (
+                        <div key={field.idKey} className="space-y-2">
+                          <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
+                            {field.label}
+                          </label>
+                          <select
+                            required={field.required}
+                            disabled={!setupData.clientId}
+                            className={`w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-sm text-white ${
+                              !setupData.clientId ? "opacity-40 cursor-not-allowed" : ""
+                            }`}
+                            value={setupData[field.idKey] || ""}
+                            onChange={(e) => {
+                              const selectedReviewerId = e.target.value;
+                              if (
+                                selectedReviewerId &&
+                                externalReviewerFields.some(
+                                  (otherField) =>
+                                    otherField.idKey !== field.idKey &&
+                                    setupData[otherField.idKey] === selectedReviewerId,
+                                )
+                              ) {
+                                toast.warn("This external reviewer has already been selected.");
+                                return;
+                              }
+                              const selected = getAvailableExternalReviewersForField(
+                                field.idKey,
+                              ).find((reviewer) => reviewer.id === selectedReviewerId);
+                              setSetupData((prev) => ({
+                                ...prev,
+                                [field.idKey]: selectedReviewerId,
+                                [field.nameKey]:
+                                  selected?.displayName ||
+                                  selected?.name ||
+                                  selected?.fullName ||
+                                  (selectedReviewerId ? "External Reviewer" : ""),
+                              }));
+                            }}
+                          >
+                            <option value="">
+                              {setupData.clientId
+                                ? "Select external reviewer"
+                                : "Select client first"}
+                            </option>
+                            {getAvailableExternalReviewersForField(field.idKey).map((reviewer) => (
+                              <option key={reviewer.id} value={reviewer.id}>
+                                {reviewer.displayName ||
+                                  reviewer.name ||
+                                  reviewer.fullName ||
+                                  reviewer.email}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
                     </div>
                     <div className="space-y-2">
                       <label className="text-[9px] font-bold text-slate-500 uppercase tracking-widest px-1">
