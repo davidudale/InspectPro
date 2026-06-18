@@ -33,6 +33,8 @@ import SupervisorNavbar from "../SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../SupervisorFiles/SupervisorSidebar";
 import ExternalNavbar from "../ExternalDashboard/ExternalNavbar";
 import ExternalSideBar from "../ExternalDashboard/ExternalSideBar";
+import InternalReviewerNavbar from "../InternalReviewer/InternalReviewerNavbar";
+import InternalReviewerSidebar from "../InternalReviewer/InternalReviewerSidebar";
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Legend, Tooltip);
 
@@ -304,6 +306,9 @@ const resolveShell = (role) => {
   if (role === "External_Reviewer" || role === "External Reviewer") {
     return { navbar: <ExternalNavbar />, sidebar: <ExternalSideBar /> };
   }
+  if (role === "Internal_Reviewer") {
+    return { navbar: <InternalReviewerNavbar />, sidebar: <InternalReviewerSidebar /> };
+  }
   return { navbar: <InspectorNavbar />, sidebar: <InspectorSidebar /> };
 };
 
@@ -362,6 +367,7 @@ const Inspection360Summary = () => {
 
     return projects.filter((project) => {
       if (role === "Admin" || role === "Manager") return true;
+      if (role === "Internal_Reviewer") return true;
       if (role === "Lead Inspector") return String(project?.supervisorId || "").trim() === uid;
       if (role === "Inspector") return String(project?.inspectorId || "").trim() === uid;
       if (role === "External_Reviewer" || role === "External Reviewer") {

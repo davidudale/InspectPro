@@ -64,7 +64,7 @@ const MessageBell = ({ user }) => {
     }
 
     const threadsRef =
-      user?.role === "Admin"
+      user?.role === "Admin" || user?.role === "Internal_Reviewer"
         ? collection(db, "project_chats")
         : query(
             collection(db, "project_chats"),

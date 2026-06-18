@@ -26,6 +26,8 @@ import ManagerNavbar from "../../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../../ManagerFile/ManagerSidebar";
 import SupervisorNavbar from "../../SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
+import InternalReviewerNavbar from "../../InternalReviewer/InternalReviewerNavbar";
+import InternalReviewerSidebar from "../../InternalReviewer/InternalReviewerSidebar";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
@@ -259,17 +261,21 @@ const VisualReport = ({
     })),
   ];
   const isSupervisorRole =
-    user?.role === "External_Reviewer" || user?.role === "Lead Inspector";
+    user?.role === "External_Reviewer" ||
+    user?.role === "Lead Inspector" ||
+    user?.role === "Internal_Reviewer";
   const canSaveReport =
     user?.role === "Inspector" ||
     user?.role === "Lead Inspector" ||
     user?.role === "External_Reviewer" ||
+    user?.role === "Internal_Reviewer" ||
     user?.role === "Manager";
   const canSendForConfirmation = canSaveReport;
   const canViewInspectorSignature = [
     "Inspector",
     "Lead Inspector",
     "External_Reviewer",
+    "Internal_Reviewer",
     "Manager",
     "Admin",
   ].includes(user?.role);
@@ -278,12 +284,14 @@ const VisualReport = ({
   const canViewLeadSignature = [
     "Lead Inspector",
     "External_Reviewer",
+    "Internal_Reviewer",
     "Manager",
     "Admin",
   ].includes(user?.role);
   const canEditLeadSignature =
     user?.role === "Lead Inspector" ||
     user?.role === "External_Reviewer" ||
+    user?.role === "Internal_Reviewer" ||
     user?.role === "Admin";
   const canViewManagerSignature =
     user?.role === "Manager" || user?.role === "Admin";
@@ -298,6 +306,8 @@ const VisualReport = ({
       ? AdminNavbar
       : user?.role === "Manager"
         ? ManagerNavbar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerNavbar
         : isSupervisorRole
           ? SupervisorNavbar
           : InspectorNavbar;
@@ -306,6 +316,8 @@ const VisualReport = ({
       ? AdminSidebar
       : user?.role === "Manager"
         ? ManagerSidebar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerSidebar
         : isSupervisorRole
           ? SupervisorSidebar
           : InspectorSidebar;
@@ -1425,9 +1437,12 @@ const VisualReport = ({
         prefillStatus
           .toLowerCase()
           .startsWith("passed and forwarded");
-      const saveStatus = shouldPreserveForwardedStatus
-        ? currentStatus || prefillStatus
-        : `In Progress - Report With ${assignedInspectorName}`;
+      const saveStatus =
+        user?.role === "Internal_Reviewer"
+          ? "internal Review in progress"
+          : shouldPreserveForwardedStatus
+            ? currentStatus || prefillStatus
+            : `In Progress - Report With ${assignedInspectorName}`;
       const payload = buildFirestoreReportPayload(saveStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),
@@ -1486,9 +1501,12 @@ const VisualReport = ({
         prefillStatus
           .toLowerCase()
           .startsWith("passed and forwarded");
-      const pendingConfirmationStatus = shouldPreserveForwardedStatus
-        ? currentStatus || prefillStatus
-        : `Pending Confirmation- Report With ${assignedSupervisorName}`;
+      const pendingConfirmationStatus =
+        user?.role === "Internal_Reviewer"
+          ? "internal Review in progress"
+          : shouldPreserveForwardedStatus
+            ? currentStatus || prefillStatus
+            : `Pending Confirmation- Report With ${assignedSupervisorName}`;
       const payload = buildFirestoreReportPayload(pendingConfirmationStatus);
       await setDoc(
         doc(db, "projects", resolvedProjectId),

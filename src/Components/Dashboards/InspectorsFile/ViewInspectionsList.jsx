@@ -183,13 +183,16 @@ const ViewInspectionsList = () => {
     const status = (project?.status || "").toLowerCase();
     if (
       status.startsWith("pending confirmation") ||
+      status === "pending engineering evaluation" ||
+      status === "pending internal review" ||
+      status === "internal review in progress" ||
       status.startsWith("in lead review") ||
       status === "completed" ||
       status.startsWith("passed and forwarded to ") ||
       status === "approved" ||
       status === "client review in progress" ||
       status === "report accepted" ||
-      status === "report rejected"
+      status === "report rejected" 
     ) {
       return "completed";
     }

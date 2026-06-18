@@ -35,6 +35,8 @@ const GlobalProjectChatbox = () => {
         ? "No lead-review projects are available for chat yet."
         : role === "Manager"
           ? "No approval projects are available for chat yet."
+          : role === "Internal_Reviewer"
+            ? "No internal review project threads are available yet."
           : "No project threads are available yet.";
 
   return (

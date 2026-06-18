@@ -165,7 +165,8 @@ const SubInspectionsList = () => {
     const normalizedStatus = String(project?.status || "").toLowerCase();
     const isPendingConfirmation = normalizedStatus.startsWith("pending confirmation");
     const isLeadReview = normalizedStatus.startsWith("in lead review");
-    const isReviewStatus = isPendingConfirmation || isLeadReview;
+    const isReturnedByInternalReviewer = normalizedStatus === "returned by internal reviewer";
+    const isReviewStatus = isPendingConfirmation || isLeadReview || isReturnedByInternalReviewer;
     const preFill = {
       ...project,
       assetType: project.equipmentCategory || project.assetType,
@@ -181,13 +182,14 @@ const SubInspectionsList = () => {
     try {
       let nextStatus = project?.status || "";
 
-      if (isPendingConfirmation) {
+      if (isPendingConfirmation || isReturnedByInternalReviewer) {
         const assignedSupervisorName =
           project?.supervisorName || user?.displayName || "External_Reviewer";
         nextStatus = `In Lead Review - ${assignedSupervisorName}`;
         const projectRef = doc(db, "projects", project.id);
         await updateDoc(projectRef, {
           status: nextStatus,
+          lastUpdated: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
       }
@@ -410,7 +412,9 @@ const SubInspectionsList = () => {
                                 String(project?.status || "")
                                   .toLowerCase()
                                   .startsWith(statusPrefix),
-                              )
+                              ) ||
+                              String(project?.status || "").toLowerCase() ===
+                                "returned by internal reviewer"
                                 ? "Review"
                                 : "View"}
                             </button>
@@ -428,4 +432,3 @@ const SubInspectionsList = () => {
 };
 
 export default SubInspectionsList;
-

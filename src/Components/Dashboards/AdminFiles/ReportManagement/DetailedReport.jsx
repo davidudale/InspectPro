@@ -32,6 +32,8 @@ import ManagerNavbar from "../../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../../ManagerFile/ManagerSidebar";
 import SupervisorNavbar from "../../SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
+import InternalReviewerNavbar from "../../InternalReviewer/InternalReviewerNavbar";
+import InternalReviewerSidebar from "../../InternalReviewer/InternalReviewerSidebar";
 
 // --- TECHNICAL SCHEMAS (Internal mapping updated with photoRef) ---
 const INSPECTION_SCHEMAS = {
@@ -221,12 +223,16 @@ const DetailedReport = ({
     images: [],
   });
   const isSupervisorRole =
-    user?.role === "External_Reviewer" || user?.role === "Lead Inspector";
+    user?.role === "External_Reviewer" ||
+    user?.role === "Lead Inspector" ||
+    user?.role === "Internal_Reviewer";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
       : user?.role === "Manager"
         ? ManagerNavbar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerNavbar
         : isSupervisorRole
           ? SupervisorNavbar
           : InspectorNavbar;
@@ -235,6 +241,8 @@ const DetailedReport = ({
       ? AdminSidebar
       : user?.role === "Manager"
         ? ManagerSidebar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerSidebar
         : isSupervisorRole
           ? SupervisorSidebar
           : InspectorSidebar;
@@ -444,7 +452,9 @@ const DetailedReport = ({
       "Inspector";
     let workflowStatus = `In Progress - Report With ${assignedInspectorName}`;
 
-    if (isFinalizing) {
+    if (user?.role === "Internal_Reviewer") {
+      workflowStatus = "internal Review in progress";
+    } else if (isFinalizing) {
       // When Inspector submits, it skips "Review" and goes straight to "Pending Confirmation"
       if (isFinalizing && user?.role === "Inspector") {
         const assignedSupervisorName =
@@ -454,7 +464,10 @@ const DetailedReport = ({
         workflowStatus = `Pending Confirmation- Report With ${assignedSupervisorName}`;
       }
       // When Lead Inspector submits, it moves to "Authorized"
-      else if (user?.role === "Lead Inspector" || user?.role === "External_Reviewer") {
+      else if (
+        user?.role === "Lead Inspector" ||
+        user?.role === "External_Reviewer"
+      ) {
         workflowStatus = "Completed";
       }
       // Admin or other roles move to "Completed"

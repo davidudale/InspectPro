@@ -63,6 +63,7 @@ import SuperAdminAuditCenter from "./Components/Page/SuperAdminAuditCenter.jsx";
 import InternalReviewerDashboard from "./Components/Dashboards/InternalReviewer/InternalReviewerDashboard.jsx";
 import InternalProjects from "./Components/Dashboards/InternalReviewer/InternalProjects.jsx";
 import InternalReviewForm from "./Components/Dashboards/InternalReviewer/InternalReviewForm.jsx";
+import InternalReviewConfirmation from "./Components/Dashboards/InternalReviewer/InternalReviewConfirmation.jsx";
 import InternalIssueLog from "./Components/Dashboards/InternalReviewer/InternalIssueLog.jsx";
 import InternalEquipmentmanager from "./Components/Dashboards/InternalReviewer/InternalEquipmentmanager.jsx";
 import { useAuth } from "./Components/Auth/AuthContext.jsx";
@@ -77,6 +78,7 @@ const CONNECTIVITY_BADGE_HIDDEN_PATHS = new Set([
   "/internal-reviewer",
   "/internal-reviewer/projects",
   "/internal-reviewer/reviews",
+  "/internal-reviewer/review",
   "/internal-reviewer/issues",
   "/internal-reviewer/equipments",
   "/reports/daily-inspection-summary",
@@ -198,7 +200,7 @@ function App() {
           path="/inspectionDashboard"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <InspectionDashboard />
             </ProtectedRoute>
@@ -208,7 +210,7 @@ function App() {
           path="/Inspection_view"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <ViewInspectionsList />
             </ProtectedRoute>
@@ -218,7 +220,7 @@ function App() {
           path="/inspector/visual-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <VisualReport />
             </ProtectedRoute>
@@ -228,7 +230,7 @@ function App() {
           path="/inspector/integrity-check"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <IntegrityCheck />
             </ProtectedRoute>
@@ -238,7 +240,7 @@ function App() {
           path="/inspector/aut-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <Aut />
             </ProtectedRoute>
@@ -248,7 +250,7 @@ function App() {
           path="/inspector/utreport"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <UTReport />
             </ProtectedRoute>
@@ -258,7 +260,7 @@ function App() {
           path="/inspector/Detailed-report"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector", "Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <DetailedReport />
             </ProtectedRoute>
@@ -348,6 +350,14 @@ function App() {
           }
         />
         <Route
+          path="/internal-reviewer/review/:id"
+          element={
+            <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
+              <InternalReviewConfirmation />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/internal-reviewer/reviews"
           element={
             <ProtectedRoute allowedRoles={["Internal_Reviewer"]}>
@@ -407,7 +417,7 @@ function App() {
           path="/SubInspection_view"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <SubInspectionsList />
             </ProtectedRoute>
@@ -418,7 +428,7 @@ function App() {
           path="/pendinginspections"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <ReviewForConfirmation />
             </ProtectedRoute>
@@ -430,7 +440,7 @@ function App() {
           path="/review/:id"
           element={
             <ProtectedRoute
-              allowedRoles={["Inspector","Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Inspector","Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <ReviewReport />
             </ProtectedRoute>
@@ -440,7 +450,7 @@ function App() {
           path="/ConfirmedInspection"
           element={
             <ProtectedRoute
-              allowedRoles={["Lead Inspector", "External_Reviewer", "Manager", "Admin"]}
+              allowedRoles={["Lead Inspector", "External_Reviewer", "Internal_Reviewer", "Manager", "Admin"]}
             >
               <ConfirmedInspection />
             </ProtectedRoute>
@@ -712,6 +722,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -728,6 +739,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -744,6 +756,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -760,6 +773,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -776,6 +790,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -793,6 +808,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -809,6 +825,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -825,6 +842,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}
@@ -841,6 +859,7 @@ function App() {
                 "Inspector",
                 "Lead Inspector",
                 "External_Reviewer",
+                "Internal_Reviewer",
                 "Manager",
                 "Admin",
               ]}

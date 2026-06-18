@@ -7,6 +7,8 @@ import ManagerNavbar from "../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../ManagerFile/ManagerSidebar";
 import SupervisorNavbar from "./SupervisorNavbar";
 import SupervisorSidebar from "./SupervisorSidebar";
+import InternalReviewerNavbar from "../InternalReviewer/InternalReviewerNavbar";
+import InternalReviewerSidebar from "../InternalReviewer/InternalReviewerSidebar";
 import InspectorNavbar from "../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../InspectorsFile/InspectorSidebar";
 import ProjectPreview from "../AdminFiles/ProjectManagement/ProjectPreview";
@@ -20,12 +22,16 @@ const ReviewReport = () => {
     id || location.state?.preFill?.id || location.state?.preFill?.projectId || "";
 
   const isSupervisorRole =
-    user?.role === "Lead Inspector" || user?.role === "External_Reviewer";
+    user?.role === "Lead Inspector" ||
+    user?.role === "External_Reviewer" ||
+    user?.role === "Internal_Reviewer";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
       : user?.role === "Manager"
         ? ManagerNavbar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerNavbar
         : isSupervisorRole
           ? SupervisorNavbar
           : InspectorNavbar;
@@ -34,6 +40,8 @@ const ReviewReport = () => {
       ? AdminSidebar
       : user?.role === "Manager"
         ? ManagerSidebar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerSidebar
         : isSupervisorRole
           ? SupervisorSidebar
           : InspectorSidebar;

@@ -160,6 +160,7 @@ service cloud.firestore {
 
     function canUpdateProject(data) {
       return isAdmin() ||
+             isInternalReviewer() ||
              data.inspectorId == request.auth.uid ||
              data.supervisorId == request.auth.uid ||
              data.externalReviewerId == request.auth.uid ||
@@ -171,6 +172,29 @@ service cloud.firestore {
              data.externalReviewerId7 == request.auth.uid ||
              data.externalReviewerId8 == request.auth.uid ||
              data.managerId == request.auth.uid;
+    }
+
+    function canInternalReviewProjectUpdate() {
+      return isInternalReviewer() &&
+             (
+               resource.data.status == "Pending Engineering Evaluation" ||
+               resource.data.status == "Pending Internal Review" ||
+               resource.data.status == "internal Review in progress"
+             ) &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               "status",
+               "internalReviewStatus",
+               "internalReviewComment",
+               "internalReviewedAt",
+               "internalReviewedBy",
+               "internalReviewedById",
+               "internalReviewStartedAt",
+               "internalReviewStartedBy",
+               "internalReviewStartedById",
+               "returnNote",
+               "lastUpdated",
+               "updatedAt"
+             ]);
     }
 
     function isOwnLog() {
@@ -211,6 +235,11 @@ service cloud.firestore {
         (
           threadData.participantIds is list &&
           request.auth.uid in threadData.participantIds
+        ) ||
+        (
+          isInternalReviewer() &&
+          threadHasProjectDoc(threadData) &&
+          canReadProject(projectDocById(threadData.projectDocId).data)
         )
       );
     }
@@ -242,7 +271,10 @@ service cloud.firestore {
 
       allow create: if isAdmin();
 
-      allow update: if signedIn() && canUpdateProject(resource.data);
+      allow update: if signedIn() && (
+        canUpdateProject(resource.data) ||
+        canInternalReviewProjectUpdate()
+      );
 
       allow delete: if isManagerOrAbove();
     }
@@ -255,7 +287,13 @@ service cloud.firestore {
         (
           request.resource.data.projectDocId is string &&
           projectDocExists(request.resource.data.projectDocId) &&
-          projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data)
+          (
+            projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data) ||
+            (
+              isInternalReviewer() &&
+              canReadProject(projectDocById(request.resource.data.projectDocId).data)
+            )
+          )
         )
       );
 
@@ -265,7 +303,13 @@ service cloud.firestore {
         (
           request.resource.data.projectDocId is string &&
           projectDocExists(request.resource.data.projectDocId) &&
-          projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data)
+          (
+            projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data) ||
+            (
+              isInternalReviewer() &&
+              canReadProject(projectDocById(request.resource.data.projectDocId).data)
+            )
+          )
         )
       );
 
@@ -281,11 +325,17 @@ service cloud.firestore {
           (
             request.resource.data.projectDocId is string &&
             projectDocExists(request.resource.data.projectDocId) &&
-            projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data) &&
+            (
+              projectAssignedToMe(projectDocById(request.resource.data.projectDocId).data) ||
+              (
+                isInternalReviewer() &&
+                canReadProject(projectDocById(request.resource.data.projectDocId).data)
+              )
+            ) &&
             request.resource.data.userId == request.auth.uid
           ) ||
           (
-            get(/databases/$(database)/documents/project_chats/$(threadId)).exists() &&
+            exists(/databases/$(database)/documents/project_chats/$(threadId)) &&
             canAccessThread(
               get(/databases/$(database)/documents/project_chats/$(threadId)).data
             ) &&
@@ -314,6 +364,7 @@ service cloud.firestore {
     match /issue_logs/{issueId} {
       allow read: if signedIn() && (
         isAdminOrSuperAdmin() ||
+        isInternalReviewer() ||
         resource.data.reportedById == request.auth.uid
       );
 
@@ -322,6 +373,10 @@ service cloud.firestore {
 
       allow update: if signedIn() && (
         isAdmin() ||
+        (
+          isInternalReviewer() &&
+          resource.data.reportedById == request.auth.uid
+        ) ||
         resource.data.reportedById == request.auth.uid
       );
 
@@ -405,12 +460,14 @@ service cloud.firestore {
       allow read: if signedIn() && (
         isAdminOrSuperAdmin() ||
         isManager() ||
+        isInternalReviewer() ||
         isOwnLog()
       );
 
       allow create: if signedIn() && (
         isAdminOrSuperAdmin() ||
         isManager() ||
+        isInternalReviewer() ||
         isReviewerTier() ||
         isCreatingOwnLog()
       );
@@ -429,7 +486,7 @@ service cloud.firestore {
     }
 
     match /equipment/{equipmentId} {
-      allow read: if isLeadOrAbove() || isSuperAdmin();
+      allow read: if isLeadOrAbove() || isInternalReviewer() || isSuperAdmin();
       allow create, update: if isManagerOrAbove() || isExternalReviewer();
       allow delete: if isManagerOrAbove();
     }
@@ -445,6 +502,7 @@ service cloud.firestore {
     match /inspection_schedules/{scheduleId} {
       allow read: if isAdmin() ||
                     isManager() ||
+                    isInternalReviewer() ||
                     isLeadInspector() ||
                     (
                       isExternalReviewer() &&
@@ -459,17 +517,17 @@ service cloud.firestore {
     }
 
     match /inspection_types/{typeId} {
-      allow read: if isLeadOrAbove();
+      allow read: if isLeadOrAbove() || isInternalReviewer();
       allow create, update, delete: if isAdmin();
     }
 
     match /inspection_type/{typeId} {
-      allow read: if isLeadOrAbove();
+      allow read: if isLeadOrAbove() || isInternalReviewer();
       allow create, update, delete: if isAdmin();
     }
 
     match /inspections/{inspectionId} {
-      allow read: if isLeadOrAbove();
+      allow read: if isLeadOrAbove() || isInternalReviewer();
       allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }

@@ -53,6 +53,32 @@ const buildParticipantIds = (project) =>
     project?.managerId,
   ].filter(Boolean);
 
+const buildChatParticipants = (project, user) => {
+  const participants = buildParticipants(project);
+  if (user?.role !== "Internal_Reviewer" || !user?.uid) return participants;
+
+  const alreadyIncluded = participants.some(
+    (participant) => String(participant.id || "") === String(user.uid),
+  );
+  if (alreadyIncluded) return participants;
+
+  return [
+    ...participants,
+    {
+      key: `internal-reviewer-${user.uid}`,
+      label: "Internal Reviewer",
+      id: user.uid,
+      name: getDisplayName(user),
+    },
+  ];
+};
+
+const buildChatParticipantIds = (project, user) => {
+  const participantIds = buildParticipantIds(project);
+  if (user?.role !== "Internal_Reviewer" || !user?.uid) return participantIds;
+  return Array.from(new Set([...participantIds, user.uid]));
+};
+
 const formatMessageTime = (value) => {
   const source =
     value?.toDate?.() ||
@@ -162,8 +188,8 @@ const ProjectChatbox = ({
   );
 
   const participants = useMemo(
-    () => buildParticipants(selectedProject),
-    [selectedProject],
+    () => buildChatParticipants(selectedProject, user),
+    [selectedProject, user],
   );
 
   const selectedProjectLabel =
@@ -219,7 +245,7 @@ const ProjectChatbox = ({
 
     setIsSending(true);
     try {
-      const participantIds = buildParticipantIds(selectedProject);
+      const participantIds = buildChatParticipantIds(selectedProject, user);
       const threadRef = doc(db, "project_chats", selectedProjectId);
       const messageRef = doc(collection(db, "project_chats", selectedProjectId, "messages"));
       const senderName = getDisplayName(user);
@@ -233,7 +259,7 @@ const ProjectChatbox = ({
           projectName: selectedProject.projectName || "",
           clientName: selectedProject.clientName || selectedProject.client || "",
           participantIds,
-          participants: buildParticipants(selectedProject),
+          participants: buildChatParticipants(selectedProject, user),
           lastMessageText: text,
           lastMessageSenderId: user.uid,
           lastMessageSenderName: senderName,

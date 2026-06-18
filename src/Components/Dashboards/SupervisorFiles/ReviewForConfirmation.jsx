@@ -287,19 +287,19 @@ const ReviewForConfirmation = () => {
         throw new Error("Project record not found.");
       }
       const projectData = projectSnap.data() || {};
-      const assignedManagerName =
-        projectData?.managerName ||
-        location.state?.preFill?.managerName ||
-        "Manager";
-
       await updateDoc(projectRef, {
-        status: `Passed and Forwarded to ${assignedManagerName}`,
+        status: "Pending Engineering Evaluation",
+        internalReviewStatus: "Pending",
+        internalReviewComment: "",
+        internalReviewForwardedAt: serverTimestamp(),
+        internalReviewForwardedBy: user?.displayName || user?.name || user?.email || "Lead Inspector",
+        internalReviewForwardedById: user?.uid || "",
         confirmedBy: user?.displayName || user?.email || "Lead Inspector",
         confirmedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      toast.success(`Project forwarded to ${assignedManagerName}.`);
+      toast.success("Project forwarded to Internal Review.");
       navigate("/ConfirmedInspection");
     } catch (error) {
       console.error("Confirm Error:", error);

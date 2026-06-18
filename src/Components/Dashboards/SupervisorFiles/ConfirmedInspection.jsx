@@ -41,7 +41,9 @@ const ConfirmedInspections = () => {
   const [groupBy, setGroupBy] = useState(TABLE_GROUP_NONE);
   const [loading, setLoading] = useState(true);
   const isPassedForwardedStatus = (status = "") =>
-    String(status).startsWith("Passed and Forwarded to ");
+    String(status).startsWith("Passed and Forwarded to ") ||
+    String(status) === "Pending Engineering Evaluation" ||
+    String(status) === "Pending Internal Review";
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -88,22 +90,26 @@ const ConfirmedInspections = () => {
   }, [user]);
 
   // --- NEW: Function to update existing project status ---
-  const handleConfirmProject = async (projectId, projectName, managerName) => {
+  const handleConfirmProject = async (projectId, projectName) => {
     const projectRef = doc(db, "projects", projectId);
-    const assignedManagerName = managerName || "Manager";
 
     try {
-      toast.info(`Forwarding ${projectName} for approval...`);
+      toast.info(`Forwarding ${projectName} to Internal Review...`);
 
       // This UPDATES the existing project document
       await updateDoc(projectRef, {
-        status: `Passed and Forwarded to ${assignedManagerName}`,
+        status: "Pending Engineering Evaluation",
+        internalReviewStatus: "Pending",
+        internalReviewComment: "",
+        internalReviewForwardedAt: serverTimestamp(),
+        internalReviewForwardedBy: user?.displayName || user?.name || user?.email || "Lead Inspector",
+        internalReviewForwardedById: user?.uid || "",
         confirmedBy: user?.displayName || user?.email,
         confirmationDate: serverTimestamp(),
         lastUpdated: serverTimestamp(),
       });
 
-      toast.success(`Project forwarded to ${assignedManagerName}.`);
+      toast.success("Project forwarded to Internal Review.");
     } catch (error) {
       console.error("Update Error:", error);
       toast.error(getToastErrorMessage(error, "Unable to update the project status."));

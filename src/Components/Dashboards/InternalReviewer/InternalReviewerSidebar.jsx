@@ -2,6 +2,7 @@ import React from "react";
 import {
   ClipboardCheck,
   ChevronDown,
+  FileText,
   FileSearch,
   LayoutDashboard,
   LifeBuoy,
@@ -27,6 +28,11 @@ const sidebarLinks = [
     name: "Reviews",
     icon: <ClipboardCheck size={20} />,
     href: "/internal-reviewer/reviews",
+  },
+  {
+    name: "360 Inspection Summary",
+    icon: <FileText size={20} />,
+    href: "/reports/daily-inspection-summary",
   },
   {
     name: "Equipments",

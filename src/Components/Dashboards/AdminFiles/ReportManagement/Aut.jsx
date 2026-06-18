@@ -21,6 +21,8 @@ import ManagerNavbar from "../../ManagerFile/ManagerNavbar";
 import ManagerSidebar from "../../ManagerFile/ManagerSidebar";
 import SupervisorNavbar from "../../SupervisorFiles/SupervisorNavbar";
 import SupervisorSidebar from "../../SupervisorFiles/SupervisorSidebar";
+import InternalReviewerNavbar from "../../InternalReviewer/InternalReviewerNavbar";
+import InternalReviewerSidebar from "../../InternalReviewer/InternalReviewerSidebar";
 import InspectorNavbar from "../../InspectorsFile/InspectorNavbar";
 import InspectorSidebar from "../../InspectorsFile/InspectorSidebar";
 import { toast } from "react-toastify";
@@ -79,12 +81,16 @@ const Aut = ({
     },
   });
   const isSupervisorRole =
-    user?.role === "External_Reviewer" || user?.role === "Lead Inspector";
+    user?.role === "External_Reviewer" ||
+    user?.role === "Lead Inspector" ||
+    user?.role === "Internal_Reviewer";
   const Navbar =
     user?.role === "Admin"
       ? AdminNavbar
       : user?.role === "Manager"
         ? ManagerNavbar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerNavbar
         : isSupervisorRole
           ? SupervisorNavbar
           : InspectorNavbar;
@@ -93,6 +99,8 @@ const Aut = ({
       ? AdminSidebar
       : user?.role === "Manager"
         ? ManagerSidebar
+        : user?.role === "Internal_Reviewer"
+          ? InternalReviewerSidebar
         : isSupervisorRole
           ? SupervisorSidebar
           : InspectorSidebar;
@@ -230,6 +238,10 @@ const Aut = ({
     try {
       const payload = {
         ...reportData,
+        status:
+          user?.role === "Internal_Reviewer"
+            ? "internal Review in progress"
+            : reportData.status || "Draft",
         inspector: user?.displayName || "Technical Lead",
         timestamp: serverTimestamp(),
       };
@@ -242,7 +254,7 @@ const Aut = ({
         doc(db, "projects", resolvedProjectId),
         {
           report: payload,
-          status: payload.status || "Draft",
+          status: payload.status,
           updatedAt: serverTimestamp(),
         },
         { merge: true },
@@ -485,7 +497,9 @@ const Aut = ({
                       </div>
                     </div>
                   )}
-                  {(user?.role === "External_Reviewer" || user?.role === "Admin") && (
+                  {(user?.role === "External_Reviewer" ||
+                    user?.role === "Internal_Reviewer" ||
+                    user?.role === "Admin") && (
                     <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         Reviewer Signature

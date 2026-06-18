@@ -136,6 +136,9 @@ const PendingApprovals = () => {
   };
 
   const filteredProjects = projects
+    .filter((project) =>
+      String(project?.status || "").toLowerCase().startsWith("passed and forwarded"),
+    )
     .filter(
       (p) =>
         p.projectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
