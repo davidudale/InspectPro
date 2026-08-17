@@ -94,21 +94,21 @@ const Register = () => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/10 blur-[120px] rounded-full"></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-md p-8 sm:p-10 space-y-8 glass-effect rounded-sm">
+      <div className="relative z-10 w-full max-w-md p-8 sm:p-10 space-y-8 glass-effect rounded-2xl">
         <div className="text-center">
-          <div className="flex items-center justify-center space-x-2 mb-6">
-            <div className="w-10 h-5 bg-gradient-to-br from-orange-500 to-orange-700 rounded-sm flex items-center justify-center transform rotate-45">
-              <div className="w-4 h-4 bg-white rounded-full -rotate-45"></div>
+          <div className="flex items-center justify-center space-x-3 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-700 rounded-sm flex items-center justify-center transform rotate-45">
+              <div className="w-3 h-3 bg-white rounded-full -rotate-45"></div>
             </div>
 
-            <span className="text-2xl font-syncopate font-bold tracking-tighter text-white capitalize">
-              InspectProEdge <span className="text-orange-500">.</span>
+            <span className="text-2xl font-syncopate font-bold tracking-tighter text-white">
+              InspectProEdge<span className="text-orange-500">.</span>
             </span>
           </div>
           <h2 className="text-l text-slate-300">Secure Corporate Portal</h2>
         </div>
 
-        <form className="space-y-2" onSubmit={handleRegister}>
+        <form className="space-y-4" onSubmit={handleRegister}>
           <div>
             <label className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2">
               Assign Role
@@ -121,7 +121,7 @@ const Register = () => {
                   setReviewerType("");
                 }
               }}
-              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
+              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-xl"
             >
               <option value="Admin">Admin</option>
               <option value="Lead Inspector">Lead Inspector</option>
@@ -139,7 +139,7 @@ const Register = () => {
               <select
                 value={reviewerType}
                 onChange={(e) => setReviewerType(e.target.value)}
-                className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:border-orange-500 rounded-sm"
+                className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-xl"
               >
                 <option value="">Select reviewer type</option>
                 <option value="Verification Lead Officer">Verification Lead Officer</option>
@@ -155,7 +155,7 @@ const Register = () => {
           ) : null}
           <div>
             <label
-              htmlFor="email"
+              htmlFor="fname"
               className="text-sm font-bold text-slate-400 uppercase tracking-widest block mb-2"
             >
               Full Name
@@ -168,7 +168,7 @@ const Register = () => {
               required
               value={fname}
               onChange={(e) => setFname(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-sm transition-colors"
+              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-xl transition-colors"
               placeholder="John Doe"
             />
           </div>
@@ -187,7 +187,7 @@ const Register = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-sm transition-colors"
+              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-xl transition-colors"
               placeholder="user@InspectProEdge.energy"
             />
           </div>
@@ -200,14 +200,6 @@ const Register = () => {
               >
                 Password
               </label>
-              {/*<div className="text-sm">
-                <a
-                  href="#"
-                  className="font-medium text-orange-500 hover:text-orange-400"
-                >
-                  Forgot password?
-                </a>
-              </div>*/}
             </div>
             <input
               id="password"
@@ -217,37 +209,28 @@ const Register = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-sm transition-colors"
+              className="w-full bg-slate-900/50 border border-slate-700 px-4 py-2 text-sm text-white focus:outline-none focus:border-orange-500 rounded-xl transition-colors"
               placeholder="********"
             />
           </div>
 
-          <div>
+          <div className="pt-2">
             <button
               type="submit"
-              className="w-full px-10 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(234,88,12,0.4)] rounded-sm"
+              className="w-full px-10 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(234,88,12,0.4)] rounded-xl"
             >
               Register
             </button>
           </div>
         </form>
-{/*
-        <p className="text-center text-sm text-slate-400">
-          Need access?{" "}
-          <a
-            href="#"
-            className="font-medium text-orange-500 hover:text-orange-400"
-          >
-            Request an account
-          </a>
-        </p>*/}
+
         <div>
           <button
             onClick={() => navigate("/login")}
-            className="w-full px-10 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold uppercase tracking-widest transition-all hover:shadow-[0_0_20px_rgba(234,88,12,0.4)] rounded-sm"
+            className="w-full px-10 py-3 bg-slate-900/80 border border-slate-800 hover:bg-slate-800 text-white font-bold uppercase tracking-widest transition-all rounded-xl flex items-center justify-center"
           >
             <ArrowBigLeftIcon className="inline-block mr-2" size={20} />
-            Back to User Management
+            Back to Login
           </button>
         </div>
       </div>

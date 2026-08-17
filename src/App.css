@@ -5,10 +5,7 @@
 }
 
 body {
-  font-family: 'Bahnschrift Condensed', sans-serif;
-  
-  text-transform: capitalize;
-
+  font-family: 'Inter', sans-serif;
 }
 
 html[data-theme-accent="orange"] {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Twitter, Linkedin, Youtube } from 'lucide-react';
 
 const Footer = () => {
   return (
@@ -19,10 +20,14 @@ const Footer = () => {
               improve safety, and simplify compliance across every site.
             </p>
             <div className="flex flex-wrap gap-3">
-              {['Twitter', 'LinkedIn', 'YouTube'].map(social => (
-                <a key={social} href="#" className="w-10 h-10 rounded-lg border border-slate-700 flex items-center justify-center text-slate-400 hover:border-orange-500 hover:text-orange-500 transition-all">
-                  <span className="sr-only">{social}</span>
-                  <div className="w-5 h-5 bg-current opacity-50"></div>
+              {[
+                { name: 'Twitter', icon: <Twitter className="w-4 h-4" /> },
+                { name: 'LinkedIn', icon: <Linkedin className="w-4 h-4" /> },
+                { name: 'YouTube', icon: <Youtube className="w-4 h-4" /> }
+              ].map(social => (
+                <a key={social.name} href="#" className="w-10 h-10 rounded-lg border border-slate-700 flex items-center justify-center text-slate-400 hover:border-orange-500 hover:text-orange-500 transition-all">
+                  <span className="sr-only">{social.name}</span>
+                  {social.icon}
                 </a>
               ))}
             </div>
